@@ -1,0 +1,33 @@
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+build/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Pi kiosk — local config only
+pi-kiosk/presence.json
+
+# Secrets
+.env
+*.pem
+secrets/
+
+# Claude Code session state
+alfredo/.claude-session

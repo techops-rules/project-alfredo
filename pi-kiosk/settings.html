@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>alfredo · settings</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap");
+  :root {
+    --bg: #080E18; --surface: #0d1520; --surface2: #111c2e;
+    --text: #ABB2BF; --text2: #5C6370; --emphasis: #E8EAED;
+    --accent: #61AFEF; --accent-border: rgba(97,175,239,0.28);
+    --success: #98C379; --warning: #E5C07B; --danger: #E06C75;
+    --font: "JetBrains Mono", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 12px; min-height: 100vh; }
+  .topbar { display:flex; align-items:center; gap:16px; padding:14px 24px; border-bottom:1px solid var(--accent-border); background:var(--surface); }
+  .topbar .logo { font-size:16px; font-weight:700; color:var(--accent); letter-spacing:4px; }
+  .topbar .sub { color:var(--text2); letter-spacing:2px; font-size:10px; }
+  .topbar a { margin-left:auto; color:var(--accent); font-size:10px; letter-spacing:1px; text-decoration:none; }
+  .topbar a:hover { text-decoration:underline; }
+  .layout { display:flex; gap:0; min-height:calc(100vh - 49px); }
+  .sidebar { width:200px; flex-shrink:0; border-right:1px solid var(--accent-border); background:var(--surface); padding:16px 0; }
+  .nav-item { padding:8px 20px; font-size:10px; font-weight:700; color:var(--text2); letter-spacing:2px; cursor:pointer; border-left:2px solid transparent; }
+  .nav-item:hover { color:var(--text); }
+  .nav-item.active { color:var(--accent); border-left-color:var(--accent); background:rgba(97,175,239,0.05); }
+  .nav-section { padding:16px 20px 6px; font-size:9px; color:var(--text2); opacity:0.5; letter-spacing:2px; }
+  .main { flex:1; padding:24px; max-width:860px; }
+  .section { display:none; }
+  .section.active { display:block; }
+  .section-title { font-size:13px; font-weight:700; color:var(--emphasis); letter-spacing:2px; margin-bottom:4px; }
+  .section-desc { font-size:10px; color:var(--text2); margin-bottom:24px; }
+  .card { background:var(--surface); border:1px solid var(--accent-border); border-radius:6px; margin-bottom:16px; overflow:hidden; }
+  .card-header { padding:10px 16px; font-size:10px; font-weight:700; color:var(--accent); letter-spacing:2px; border-bottom:1px solid var(--accent-border); background:rgba(97,175,239,0.04); display:flex; align-items:center; gap:8px; }
+  .card-body { padding:16px; display:flex; flex-direction:column; gap:14px; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-size:10px; color:var(--text2); letter-spacing:1px; }
+  .field input[type=text],.field input[type=number],.field select,.field textarea { background:var(--surface2); border:1px solid var(--accent-border); border-radius:4px; padding:8px 10px; font-family:var(--font); font-size:12px; color:var(--emphasis); outline:none; width:100%; }
+  .field input:focus,.field select:focus,.field textarea:focus { border-color:var(--accent); }
+  .field textarea { min-height:100px; resize:vertical; line-height:1.6; }
+  .slider-row { display:flex; align-items:center; gap:12px; }
+  input[type=range] { flex:1; accent-color:var(--accent); }
+  .slider-val { font-size:12px; font-weight:700; color:var(--emphasis); min-width:32px; text-align:right; }
+  .color-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .color-chip { width:32px; height:32px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:transform 0.1s; }
+  .color-chip:hover { transform:scale(1.1); }
+  .color-chip.selected { border-color:white; }
+  .btn { font-family:var(--font); font-size:10px; font-weight:700; letter-spacing:1px; padding:8px 16px; border-radius:4px; border:1px solid var(--accent-border); cursor:pointer; background:transparent; color:var(--text2); }
+  .btn:hover { color:var(--text); }
+  .btn.primary { background:rgba(97,175,239,0.15); color:var(--accent); border-color:var(--accent); }
+  .btn.primary:hover { background:rgba(97,175,239,0.25); }
+  .btn.danger { color:var(--danger); border-color:rgba(224,108,117,0.3); }
+  .task-editor { display:flex; flex-direction:column; gap:6px; }
+  .task-row { display:flex; gap:8px; align-items:center; }
+  .task-row input { flex:1; background:var(--surface2); border:1px solid var(--accent-border); border-radius:4px; padding:6px 10px; font-family:var(--font); font-size:12px; color:var(--emphasis); outline:none; }
+  .task-row input:focus { border-color:var(--accent); }
+  .task-row .del { color:var(--danger); cursor:pointer; font-size:16px; opacity:0.5; padding:0 4px; }
+  .task-row .del:hover { opacity:1; }
+  .preview-frame { width:100%; border:1px solid var(--accent-border); border-radius:6px; overflow:hidden; background:#000; }
+  .preview-frame iframe { width:100%; height:100%; border:none; transform-origin:top left; }
+  .save-bar { position:sticky; bottom:0; display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--surface); border-top:1px solid var(--accent-border); margin:24px -24px -24px; }
+  .save-status { font-size:10px; color:var(--success); letter-spacing:1px; opacity:0; transition:opacity 0.3s; }
+  .save-status.show { opacity:1; }
+  .toggle { display:flex; gap:0; flex-wrap:wrap; }
+  .toggle-btn { font-family:var(--font); font-size:10px; font-weight:700; letter-spacing:1px; padding:6px 14px; border:1px solid var(--accent-border); cursor:pointer; background:transparent; color:var(--text2); }
+  .toggle-btn:first-child { border-radius:4px 0 0 4px; }
+  .toggle-btn:last-child { border-radius:0 4px 4px 0; border-left:none; }
+  .toggle-btn.active { background:rgba(97,175,239,0.15); color:var(--accent); border-color:var(--accent); }
+
+  /* Layout editor */
+  .le-wrap { position:relative; }
+  .le-canvas {
+    position:relative; background:#050b12;
+    border:1px solid var(--accent-border); border-radius:4px;
+    overflow:hidden; cursor:default;
+    background-image: linear-gradient(rgba(97,175,239,0.03) 1px,transparent 1px), linear-gradient(90deg,rgba(97,175,239,0.03) 1px,transparent 1px);
+    background-size: 40px 40px;
+  }
+  .le-widget {
+    position:absolute; border:1px solid var(--accent-border);
+    background:rgba(13,21,32,0.9); border-radius:3px;
+    display:flex; flex-direction:column;
+    cursor:move; user-select:none;
+  }
+  .le-widget:hover { border-color:var(--accent); }
+  .le-widget.selected { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .le-widget-title { font-size:7px; font-weight:700; color:var(--accent); letter-spacing:2px; padding:3px 6px; border-bottom:1px solid var(--accent-border); background:rgba(97,175,239,0.05); white-space:nowrap; overflow:hidden; }
+  .le-widget-body { flex:1; background:repeating-linear-gradient(0deg,transparent,transparent 7px,rgba(97,175,239,0.03) 7px,rgba(97,175,239,0.03) 8px); }
+  .le-resize { position:absolute; bottom:0; right:0; width:10px; height:10px; cursor:se-resize; }
+  .le-resize::after { content:''; position:absolute; bottom:2px; right:2px; width:5px; height:5px; border-right:1.5px solid var(--accent); border-bottom:1.5px solid var(--accent); }
+  .le-widget.hidden-w { opacity:0.2; border-style:dashed; }
+  .le-toolbar { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+  .le-size-label { font-size:9px; color:var(--text2); }
+  .le-presets-row { display:flex; gap:6px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+  .le-preset-chip { font-family:var(--font); font-size:9px; font-weight:700; letter-spacing:1px; padding:4px 10px; border-radius:3px; border:1px solid var(--accent-border); cursor:pointer; background:transparent; color:var(--text2); }
+  .le-preset-chip:hover { color:var(--text); }
+  .le-preset-chip.active { background:rgba(97,175,239,0.15); color:var(--accent); border-color:var(--accent); }
+  .le-save-row { display:flex; gap:8px; align-items:center; margin-top:12px; }
+  .le-name-input { background:var(--surface2); border:1px solid var(--accent-border); border-radius:4px; padding:6px 10px; font-family:var(--font); font-size:11px; color:var(--emphasis); outline:none; width:160px; }
+  .le-name-input:focus { border-color:var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">alfredo</span>
+  <span class="sub">settings</span>
+  <a href="/" target="_blank">↗ open kiosk</a>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="nav-section">DISPLAY</div>
+    <div class="nav-item active" data-section="appearance">APPEARANCE</div>
+    <div class="nav-item" data-section="layout">LAYOUT EDITOR</div>
+    <div class="nav-section">CONTENT</div>
+    <div class="nav-item" data-section="tasks">TASKS</div>
+    <div class="nav-item" data-section="scratch">SCRATCHPAD</div>
+    <div class="nav-section">SYSTEM</div>
+    <div class="nav-item" data-section="bridge">BRIDGE</div>
+    <div class="nav-item" data-section="presence">PRESENCE</div>
+    <div class="nav-item" data-section="preview">PREVIEW</div>
+  </div>
+
+  <div class="main">
+
+    <!-- APPEARANCE -->
+    <div class="section active" id="s-appearance">
+      <div class="section-title">APPEARANCE</div>
+      <div class="section-desc">Font size, accent color, widget visibility</div>
+      <div class="card">
+        <div class="card-header">FONT</div>
+        <div class="card-body">
+          <div class="field">
+            <label>BASE FONT SIZE</label>
+            <div class="slider-row">
+              <span style="font-size:9px;color:var(--text2)">A</span>
+              <input type="range" id="fontSize" min="9" max="16" step="1" value="11">
+              <span style="font-size:15px;color:var(--text2)">A</span>
+              <span class="slider-val" id="fontSizeVal">11px</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">ACCENT COLOR</div>
+        <div class="card-body">
+          <div class="field">
+            <label>THEME</label>
+            <div class="color-row" id="accentPicker">
+              <div class="color-chip selected" data-color="#61AFEF" style="background:#61AFEF" title="ICE"></div>
+              <div class="color-chip" data-color="#E06C75" style="background:#E06C75" title="CORAL"></div>
+              <div class="color-chip" data-color="#E5C07B" style="background:#E5C07B" title="AMBER"></div>
+              <div class="color-chip" data-color="#98C379" style="background:#98C379" title="GREEN"></div>
+              <div class="color-chip" data-color="#C678DD" style="background:#C678DD" title="PURPLE"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">WIDGETS</div>
+        <div class="card-body">
+          <div class="field">
+            <label>VISIBLE WIDGETS</label>
+            <div style="display:flex;flex-wrap:wrap;gap:8px" id="widgetToggles"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LAYOUT EDITOR -->
+    <div class="section" id="s-layout">
+      <div class="section-title">LAYOUT EDITOR</div>
+      <div class="section-desc">Drag widgets to reposition · drag corner to resize · click to select · toggle visibility</div>
+
+      <div class="le-toolbar">
+        <span class="le-size-label">CANVAS: 1024×572 (screen minus statusbar)</span>
+        <button class="btn" onclick="leResetLayout()">RESET</button>
+        <button class="btn" onclick="leToggleSelected()">TOGGLE VISIBILITY</button>
+        <span id="leSelLabel" style="font-size:9px;color:var(--text2);margin-left:4px"></span>
+      </div>
+
+      <div class="le-canvas" id="leCanvas"></div>
+
+      <div class="le-presets-row">
+        <span style="font-size:9px;color:var(--text2);letter-spacing:1px">LOAD PRESET:</span>
+        <button class="le-preset-chip" data-le-preset="default">DEFAULT</button>
+        <button class="le-preset-chip" data-le-preset="focus">FOCUS</button>
+        <button class="le-preset-chip" data-le-preset="terminal">TERMINAL</button>
+        <div id="customPresetBtns"></div>
+      </div>
+
+      <div class="le-save-row">
+        <input class="le-name-input" id="leLayoutName" placeholder="layout name..." maxlength="20">
+        <button class="btn primary" onclick="leSaveLayout()">SAVE AS NEW LAYOUT</button>
+        <button class="btn" onclick="leUpdateLayout()">UPDATE CURRENT</button>
+        <button class="btn" onclick="leApplyToKiosk()">▶ APPLY TO KIOSK</button>
+      </div>
+    </div>
+
+    <!-- TASKS -->
+    <div class="section" id="s-tasks">
+      <div class="section-title">TASKS</div>
+      <div class="section-desc">Changes sync to kiosk instantly</div>
+      <div class="card">
+        <div class="card-header">WORK.TODO</div>
+        <div class="card-body">
+          <div class="task-editor" id="workEditor"></div>
+          <button class="btn" onclick="addTask('work')" style="margin-top:4px">+ ADD TASK</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">LIFE.TODO</div>
+        <div class="card-body">
+          <div class="task-editor" id="lifeEditor"></div>
+          <button class="btn" onclick="addTask('life')" style="margin-top:4px">+ ADD TASK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRATCHPAD -->
+    <div class="section" id="s-scratch">
+      <div class="section-title">SCRATCHPAD</div>
+      <div class="section-desc">Changes sync to kiosk instantly · one note per line</div>
+      <div class="card">
+        <div class="card-header">SCRATCH.PAD</div>
+        <div class="card-body">
+          <div class="field">
+            <textarea id="scratchEditor" placeholder="one note per line..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BRIDGE -->
+    <div class="section" id="s-bridge">
+      <div class="section-title">BRIDGE</div>
+      <div class="section-desc">alfredo-bridge connection and voice setup</div>
+      <div class="card">
+        <div class="card-header">STATUS</div>
+        <div class="card-body">
+          <div class="field">
+            <label>BRIDGE HEALTH</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div id="bridgeStatusDot" style="width:8px;height:8px;border-radius:50%;background:var(--text2)"></div>
+              <span id="bridgeStatusText" style="font-size:11px">checking...</span>
+            </div>
+          </div>
+          <button class="btn" onclick="checkBridge()">REFRESH</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">VOICE · MIC SETUP</div>
+        <div class="card-body">
+          <div style="color:var(--text2);font-size:11px;line-height:1.8">
+            Mic not yet connected.<br>
+            Once the ROADOM mic is attached, voice input will pipe through Whisper → bridge WebSocket (ws://localhost:8421/ws).<br><br>
+            <span style="color:var(--warning)">TODO: configure mic device + speech-to-text pipeline</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRESENCE -->
+    <div class="section" id="s-presence">
+      <div class="section-title">PRESENCE DETECTION</div>
+      <div class="section-desc">Pi pings your devices — NEARBY dot goes yellow after 5 min, screen dims after 10 min away</div>
+      <div class="card">
+        <div class="card-header">STATUS</div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div id="presenceDot" style="width:8px;height:8px;border-radius:50%;background:var(--text2)"></div>
+            <span id="presenceText" style="font-size:11px">checking...</span>
+          </div>
+          <button class="btn" onclick="checkPresence()">REFRESH</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">DEVICES TO PING</div>
+        <div class="card-body">
+          <div class="field">
+            <label>HOSTNAMES OR IPs (one per line)</label>
+            <textarea id="presenceHosts" placeholder="todds-MacBook-Pro.local&#10;192.168.1.100" style="min-height:80px"></textarea>
+          </div>
+          <button class="btn primary" onclick="savePresenceHosts()">SAVE HOSTS</button>
+          <div style="font-size:9px;color:var(--text2);margin-top:4px">Add your iPhone hostname (Settings → General → About → Name → .local) for better detection when Mac is asleep</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="section" id="s-preview">
+      <div class="section-title">LIVE PREVIEW</div>
+      <div class="section-desc">Mirror of the kiosk — scaled to fit</div>
+      <div class="preview-frame">
+        <iframe id="previewFrame" src="/" title="kiosk preview"></iframe>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:var(--text2)">
+        <a href="http://pihub.local:8430/" target="_blank" style="color:var(--accent)">http://pihub.local:8430/</a>
+      </div>
+    </div>
+
+    <div class="save-bar">
+      <button class="btn primary" onclick="saveAll()">APPLY TO KIOSK</button>
+      <button class="btn" onclick="reloadKiosk()">RELOAD KIOSK</button>
+      <span class="save-status" id="saveStatus">✔ SYNCED</span>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Helpers ────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function getLS(key,def){try{return JSON.parse(localStorage.getItem(key))||def;}catch{return def;}}
+function setLS(key,val){localStorage.setItem(key,JSON.stringify(val));}
+function broadcast(){localStorage.setItem('kioskSettingsUpdate', String(Date.now()));}
+function flashSaved(){const s=document.getElementById('saveStatus');s.classList.add('show');setTimeout(()=>s.classList.remove('show'),2500);}
+
+// ── Nav ────────────────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('s-'+item.dataset.section).classList.add('active');
+    if(item.dataset.section==='preview'){document.getElementById('previewFrame').src='/?t='+Date.now();scalePreview();}
+    if(item.dataset.section==='tasks') loadTaskEditors();
+    if(item.dataset.section==='scratch') loadScratchEditor();
+    if(item.dataset.section==='bridge') checkBridge();
+    if(item.dataset.section==='presence') checkPresence();
+    if(item.dataset.section==='layout') initLayoutEditor();
+  });
+});
+
+// ── Preview ────────────────────────────────────────────────
+function scalePreview(){
+  const frame=document.querySelector('.preview-frame');
+  const iframe=document.getElementById('previewFrame');
+  const scale=frame.offsetWidth/1024;
+  iframe.style.width='1024px'; iframe.style.height='600px';
+  iframe.style.transform='scale('+scale+')';
+  frame.style.height=(600*scale)+'px';
+}
+window.addEventListener('resize',scalePreview);
+
+// ── Settings store ─────────────────────────────────────────
+function getSettings(){return getLS('kioskSettings',{});}
+function setSetting(key,val){const s=getSettings();s[key]=val;setLS('kioskSettings',s);broadcast();}
+
+// ── Font size ──────────────────────────────────────────────
+const fsSlider=document.getElementById('fontSize');
+const fsVal=document.getElementById('fontSizeVal');
+const saved=getSettings();
+if(saved.fontSize){fsSlider.value=saved.fontSize;fsVal.textContent=saved.fontSize+'px';}
+fsSlider.addEventListener('input',()=>{
+  fsVal.textContent=fsSlider.value+'px';
+  setSetting('fontSize',parseInt(fsSlider.value));
+});
+
+// ── Accent color ───────────────────────────────────────────
+if(saved.accent){document.querySelectorAll('.color-chip').forEach(c=>c.classList.toggle('selected',c.dataset.color===saved.accent));}
+document.querySelectorAll('.color-chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    document.querySelectorAll('.color-chip').forEach(c=>c.classList.remove('selected'));
+    chip.classList.add('selected');
+    setSetting('accent',chip.dataset.color);
+  });
+});
+
+// ── Widget toggles ─────────────────────────────────────────
+const WIDGETS=['CLOCK.SYS','TODAY.EXE','WORK.TODO','LIFE.TODO','CALENDAR.DAT','CLAUDE.TTY','STATS.DAT','SCRATCH.PAD'];
+const hiddenW=saved.hiddenWidgets||[];
+const wt=document.getElementById('widgetToggles');
+WIDGETS.forEach(w=>{
+  const btn=document.createElement('button');
+  btn.className='toggle-btn'+(hiddenW.includes(w)?'':' active');
+  btn.style.cssText='margin:2px;border-radius:4px;';
+  btn.textContent=w;
+  btn.addEventListener('click',()=>{
+    btn.classList.toggle('active');
+    const hidden=[...document.querySelectorAll('#widgetToggles .toggle-btn:not(.active)')].map(b=>b.textContent);
+    setSetting('hiddenWidgets',hidden);
+  });
+  wt.appendChild(btn);
+});
+
+// ── Tasks (auto-sync on every keystroke) ──────────────────
+function loadTaskEditors(){renderTaskEditor('workEditor','workTasks');renderTaskEditor('lifeEditor','lifeTasks');}
+function renderTaskEditor(editorId,storageKey){
+  const tasks=getLS(storageKey,[]);
+  const el=document.getElementById(editorId); el.innerHTML='';
+  tasks.forEach((t,i)=>{
+    const row=document.createElement('div'); row.className='task-row';
+    const inp=document.createElement('input'); inp.type='text'; inp.value=t.text;
+    inp.addEventListener('input',e=>{
+      const ts=getLS(storageKey,[]);
+      if(ts[i]) ts[i].text=e.target.value;
+      setLS(storageKey,ts); broadcast();
+    });
+    const del=document.createElement('span'); del.className='del'; del.textContent='×';
+    del.addEventListener('click',()=>{
+      const ts=getLS(storageKey,[]); ts.splice(i,1);
+      setLS(storageKey,ts); broadcast(); renderTaskEditor(editorId,storageKey);
+    });
+    row.appendChild(inp); row.appendChild(del); el.appendChild(row);
+  });
+}
+function addTask(list){
+  const key=list+'Tasks';
+  const tasks=getLS(key,[]); tasks.push({text:'',done:false});
+  setLS(key,tasks); broadcast(); renderTaskEditor(list+'Editor',key);
+  setTimeout(()=>{const ins=document.querySelectorAll('#'+list+'Editor input');if(ins.length)ins[ins.length-1].focus();},50);
+}
+
+// ── Scratchpad (auto-sync) ─────────────────────────────────
+function loadScratchEditor(){
+  document.getElementById('scratchEditor').value=getLS('scratch',['// jot things here']).join('\n');
+}
+document.getElementById('scratchEditor').addEventListener('input',e=>{
+  setLS('scratch',e.target.value.split('\n'));
+  broadcast();
+});
+
+// ── Bridge ─────────────────────────────────────────────────
+async function checkBridge(){
+  const dot=document.getElementById('bridgeStatusDot'), txt=document.getElementById('bridgeStatusText');
+  try{
+    const r=await fetch('/proxy/health',{signal:AbortSignal.timeout(3000)});
+    const j=await r.json();
+    dot.style.background=j.status==='ok'?'var(--success)':'var(--warning)';
+    txt.textContent=j.status==='ok'?'online · ws:'+j.ws_port+' · http:8420':'error';
+  }catch{dot.style.background='var(--danger)';txt.textContent='offline — check alfredo-bridge.service';}
+}
+
+// ── Presence ───────────────────────────────────────────────
+async function checkPresence(){
+  const dot=document.getElementById('presenceDot'), txt=document.getElementById('presenceText');
+  try{
+    const r=await fetch('/proxy/presence',{signal:AbortSignal.timeout(5000)});
+    const j=await r.json();
+    if(j.present===null){dot.style.background='var(--text2)';txt.textContent='no hosts configured';}
+    else if(j.present){dot.style.background='var(--success)';txt.textContent='present · '+j.host;}
+    else{dot.style.background='var(--warning)';txt.textContent='not detected · absent '+j.absent_mins+'m';}
+  }catch{dot.style.background='var(--danger)';txt.textContent='check failed';}
+  // Load hosts
+  try{
+    const r=await fetch('/proxy/presence-hosts');
+    const j=await r.json();
+    document.getElementById('presenceHosts').value=(j.hosts||[]).join('\n');
+  }catch{}
+}
+async function savePresenceHosts(){
+  const hosts=document.getElementById('presenceHosts').value.split('\n').map(h=>h.trim()).filter(Boolean);
+  await fetch('/proxy/presence-hosts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hosts})});
+  flashSaved(); checkPresence();
+}
+
+// ── Save / reload ──────────────────────────────────────────
+function saveAll(){
+  const scr=document.getElementById('scratchEditor').value;
+  if(scr){setLS('scratch',scr.split('\n'));broadcast();}
+  flashSaved();
+}
+async function reloadKiosk(){await fetch('/reload-kiosk',{method:'POST'}).catch(()=>{});flashSaved();}
+
+// ═══════════════════════════════════════════════════════════
+// LAYOUT EDITOR
+// ═══════════════════════════════════════════════════════════
+const LE_W=1024, LE_H=572;  // kiosk canvas size
+const LE_SCALE=0.72;        // editor scale factor
+
+const LE_WIDGET_DEFS = {
+  'w-clock':   {label:'CLOCK.SYS'},
+  'w-today':   {label:'TODAY.EXE'},
+  'w-work':    {label:'WORK.TODO'},
+  'w-life':    {label:'LIFE.TODO'},
+  'w-cal':     {label:'CALENDAR.DAT'},
+  'w-tty':     {label:'CLAUDE.TTY'},
+  'w-stats':   {label:'STATS.DAT'},
+  'w-scratch': {label:'SCRATCH.PAD'},
+};
+
+const LE_PRESETS = {
+  default: {
+    'w-clock':   {x:16,  y:8,   w:280, h:90,  vis:true},
+    'w-today':   {x:310, y:8,   w:698, h:90,  vis:true},
+    'w-work':    {x:16,  y:110, w:310, h:230, vis:true},
+    'w-life':    {x:340, y:110, w:310, h:230, vis:true},
+    'w-cal':     {x:16,  y:352, w:310, h:195, vis:true},
+    'w-tty':     {x:340, y:352, w:310, h:195, vis:true},
+    'w-stats':   {x:668, y:110, w:340, h:165, vis:true},
+    'w-scratch': {x:668, y:287, w:340, h:260, vis:true},
+  },
+  focus: {
+    'w-clock':   {x:16,  y:8,   w:340, h:90,  vis:true},
+    'w-today':   {x:370, y:8,   w:638, h:90,  vis:true},
+    'w-work':    {x:16,  y:110, w:490, h:440, vis:true},
+    'w-life':    {x:520, y:110, w:490, h:440, vis:true},
+    'w-cal':     {x:0,   y:0,   w:300, h:200, vis:false},
+    'w-tty':     {x:0,   y:0,   w:300, h:200, vis:false},
+    'w-stats':   {x:0,   y:0,   w:300, h:200, vis:false},
+    'w-scratch': {x:0,   y:0,   w:300, h:200, vis:false},
+  },
+  terminal: {
+    'w-clock':   {x:16,  y:8,   w:280, h:90,  vis:true},
+    'w-today':   {x:310, y:8,   w:698, h:90,  vis:true},
+    'w-work':    {x:16,  y:110, w:300, h:440, vis:true},
+    'w-life':    {x:0,   y:0,   w:300, h:200, vis:false},
+    'w-cal':     {x:0,   y:0,   w:300, h:200, vis:false},
+    'w-tty':     {x:330, y:110, w:678, h:440, vis:true},
+    'w-stats':   {x:0,   y:0,   w:300, h:200, vis:false},
+    'w-scratch': {x:0,   y:0,   w:300, h:200, vis:false},
+  },
+};
+
+let leState = {};        // id → {x,y,w,h,vis}
+let leSelected = null;
+let leDrag = null;       // {id, startX, startY, origX, origY}
+let leResize = null;     // {id, startX, startY, origW, origH}
+let leCurrentPreset = 'default';
+let leCustomLayouts = {};
+
+function initLayoutEditor(){
+  leCustomLayouts = getLS('customLayouts', {});
+  renderCustomPresetBtns();
+
+  const activeLayout = getLS('activeLayout','default');
+  // Load from kiosk localStorage if custom, else from preset
+  if(LE_PRESETS[activeLayout]){
+    leState = JSON.parse(JSON.stringify(LE_PRESETS[activeLayout]));
+    leCurrentPreset = activeLayout;
+  } else if(leCustomLayouts[activeLayout]){
+    leState = JSON.parse(JSON.stringify(leCustomLayouts[activeLayout]));
+    leCurrentPreset = activeLayout;
+  } else {
+    leState = JSON.parse(JSON.stringify(LE_PRESETS.default));
+    leCurrentPreset = 'default';
+  }
+  renderLeCanvas();
+  highlightLePreset(leCurrentPreset);
+}
+
+function renderLeCanvas(){
+  const canvas = document.getElementById('leCanvas');
+  const cw = Math.floor(LE_W * LE_SCALE);
+  const ch = Math.floor(LE_H * LE_SCALE);
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+  canvas.innerHTML = '';
+
+  Object.entries(LE_WIDGET_DEFS).forEach(([id, def])=>{
+    const s = leState[id];
+    if(!s) return;
+    const el = document.createElement('div');
+    el.className = 'le-widget' + (s.vis?'':' hidden-w');
+    el.id = 'le-'+id;
+    el.style.left   = Math.round(s.x * LE_SCALE) + 'px';
+    el.style.top    = Math.round(s.y * LE_SCALE) + 'px';
+    el.style.width  = Math.round(s.w * LE_SCALE) + 'px';
+    el.style.height = Math.round(s.h * LE_SCALE) + 'px';
+
+    const title = document.createElement('div');
+    title.className = 'le-widget-title'; title.textContent = def.label;
+    const body = document.createElement('div'); body.className = 'le-widget-body';
+    const resz = document.createElement('div'); resz.className = 'le-resize';
+
+    el.appendChild(title); el.appendChild(body); el.appendChild(resz);
+    canvas.appendChild(el);
+
+    // Drag
+    title.addEventListener('mousedown', e=>{
+      if(e.button!==0) return;
+      leSelected = id;
+      updateLeSelLabel();
+      document.querySelectorAll('.le-widget').forEach(w=>w.classList.remove('selected'));
+      el.classList.add('selected');
+      const rect = canvas.getBoundingClientRect();
+      leDrag = {id, startX: e.clientX, startY: e.clientY, origX: s.x, origY: s.y};
+      e.preventDefault();
+    });
+
+    // Resize
+    resz.addEventListener('mousedown', e=>{
+      if(e.button!==0) return;
+      leSelected = id;
+      leResize = {id, startX: e.clientX, startY: e.clientY, origW: s.w, origH: s.h};
+      e.preventDefault(); e.stopPropagation();
+    });
+
+    el.addEventListener('click', ()=>{
+      leSelected = id;
+      updateLeSelLabel();
+      document.querySelectorAll('.le-widget').forEach(w=>w.classList.remove('selected'));
+      el.classList.add('selected');
+    });
+  });
+}
+
+function updateLeSelLabel(){
+  const s = leState[leSelected];
+  const def = LE_WIDGET_DEFS[leSelected];
+  if(!s||!def) return;
+  document.getElementById('leSelLabel').textContent =
+    def.label + ' · ' + Math.round(s.x)+','+Math.round(s.y)+' '+Math.round(s.w)+'×'+Math.round(s.h) + (s.vis?' · VISIBLE':' · HIDDEN');
+}
+
+document.addEventListener('mousemove', e=>{
+  if(leDrag){
+    const dx = (e.clientX - leDrag.startX) / LE_SCALE;
+    const dy = (e.clientY - leDrag.startY) / LE_SCALE;
+    const s = leState[leDrag.id];
+    s.x = Math.max(0, Math.round(leDrag.origX + dx));
+    s.y = Math.max(0, Math.round(leDrag.origY + dy));
+    const el = document.getElementById('le-'+leDrag.id);
+    if(el){ el.style.left=Math.round(s.x*LE_SCALE)+'px'; el.style.top=Math.round(s.y*LE_SCALE)+'px'; }
+    updateLeSelLabel();
+  }
+  if(leResize){
+    const dx = (e.clientX - leResize.startX) / LE_SCALE;
+    const dy = (e.clientY - leResize.startY) / LE_SCALE;
+    const s = leState[leResize.id];
+    s.w = Math.max(60, Math.round(leResize.origW + dx));
+    s.h = Math.max(40, Math.round(leResize.origH + dy));
+    const el = document.getElementById('le-'+leResize.id);
+    if(el){ el.style.width=Math.round(s.w*LE_SCALE)+'px'; el.style.height=Math.round(s.h*LE_SCALE)+'px'; }
+    updateLeSelLabel();
+  }
+});
+document.addEventListener('mouseup', ()=>{ leDrag=null; leResize=null; });
+
+function leToggleSelected(){
+  if(!leSelected) return;
+  leState[leSelected].vis = !leState[leSelected].vis;
+  renderLeCanvas();
+  document.querySelectorAll('.le-widget').forEach(w=>{if(w.id==='le-'+leSelected)w.classList.add('selected');});
+  updateLeSelLabel();
+}
+function leResetLayout(){
+  leState = JSON.parse(JSON.stringify(LE_PRESETS[leCurrentPreset]||LE_PRESETS.default));
+  renderLeCanvas();
+}
+
+// Preset buttons in editor
+document.querySelectorAll('[data-le-preset]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const p = btn.dataset.lePreset;
+    const src = LE_PRESETS[p] || leCustomLayouts[p];
+    if(src){ leState=JSON.parse(JSON.stringify(src)); leCurrentPreset=p; renderLeCanvas(); highlightLePreset(p);}
+  });
+});
+
+function highlightLePreset(name){
+  document.querySelectorAll('[data-le-preset]').forEach(b=>b.classList.toggle('active',b.dataset.lePreset===name));
+  document.querySelectorAll('[data-custom-preset]').forEach(b=>b.classList.toggle('active',b.dataset.customPreset===name));
+}
+
+function leSaveLayout(){
+  const name = document.getElementById('leLayoutName').value.trim();
+  if(!name){alert('Enter a layout name first'); return;}
+  leCustomLayouts[name] = JSON.parse(JSON.stringify(leState));
+  setLS('customLayouts', leCustomLayouts);
+  leCurrentPreset = name;
+  renderCustomPresetBtns();
+  highlightLePreset(name);
+  leApplyToKiosk();
+  flashSaved();
+}
+function leUpdateLayout(){
+  if(!leCurrentPreset){alert('No current layout to update'); return;}
+  if(LE_PRESETS[leCurrentPreset]){
+    // Don't overwrite built-in, save as copy
+    const name = leCurrentPreset + '-custom';
+    leCustomLayouts[name] = JSON.parse(JSON.stringify(leState));
+    setLS('customLayouts', leCustomLayouts);
+    leCurrentPreset = name;
+    renderCustomPresetBtns();
+  } else {
+    leCustomLayouts[leCurrentPreset] = JSON.parse(JSON.stringify(leState));
+    setLS('customLayouts', leCustomLayouts);
+  }
+  leApplyToKiosk(); flashSaved();
+}
+function leApplyToKiosk(){
+  // Convert leState to kiosk layout format and broadcast
+  const kLayout = {};
+  Object.entries(leState).forEach(([id, s])=>{
+    const right = s.x + s.w;
+    kLayout[id] = {
+      x: s.x, y: s.y, w: s.w, h: s.h, show: s.vis,
+      left: s.x+'px', top: s.y+'px',
+      width: s.w+'px', height: s.h+'px',
+    };
+  });
+  setLS('activeLayout', leCurrentPreset);
+  setLS('customLayout_'+leCurrentPreset, kLayout);
+  const s = getSettings(); s.layout = leCurrentPreset; s.customLayouts = leCustomLayouts;
+  setLS('kioskSettings', s);
+  broadcast();
+  flashSaved();
+}
+
+function renderCustomPresetBtns(){
+  const container = document.getElementById('customPresetBtns');
+  container.innerHTML='';
+  Object.keys(leCustomLayouts).forEach(name=>{
+    const btn = document.createElement('button');
+    btn.className='le-preset-chip'; btn.textContent=name; btn.dataset.customPreset=name;
+    btn.style.marginLeft='4px';
+    btn.addEventListener('click',()=>{
+      leState=JSON.parse(JSON.stringify(leCustomLayouts[name]));
+      leCurrentPreset=name; renderLeCanvas(); highlightLePreset(name);
+    });
+    container.appendChild(btn);
+  });
+}
+</script>
+</body>
+</html>

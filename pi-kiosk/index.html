@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1024">
+<title>alfredo</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap");
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #080E18; --surface: rgba(8,14,24,0.76); --surface2: #0d1520;
+    --text-primary: #ABB2BF; --text-secondary: #5C6370; --text-emphasis: #E8EAED;
+    --accent: #61AFEF; --accent-border: rgba(97,175,239,0.28);
+    --accent-grid: rgba(97,175,239,0.035);
+    --success: #98C379; --warning: #E5C07B; --danger: #E06C75;
+    --font: "JetBrains Mono", monospace;
+    --fs: 11px;
+  }
+  body { background: var(--bg); color: var(--text-primary); font-family: var(--font); font-size: var(--fs); height: 100vh; width: 100vw; overflow: hidden; display: flex; flex-direction: column; }
+  body::before { content:''; position:fixed; inset:0; background-image: linear-gradient(var(--accent-grid) 1px,transparent 1px), linear-gradient(90deg,var(--accent-grid) 1px,transparent 1px); background-size:80px 80px; pointer-events:none; z-index:0; }
+
+  /* Status bar */
+  .statusbar {
+    flex-shrink: 0; height: 28px; z-index: 10;
+    display: flex; align-items: center; gap: 0;
+    padding: 0 12px;
+    border-top: 1px solid var(--accent-border);
+    background: rgba(8,14,24,0.9);
+  }
+  .status-item {
+    display: flex; align-items: center; gap: 5px;
+    padding: 0 10px; height: 100%;
+    border-right: 1px solid rgba(97,175,239,0.1);
+    font-size: 9px; font-weight: 500; letter-spacing: 1px;
+    color: var(--text-secondary);
+  }
+  .status-item:first-child { padding-left: 0; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-secondary); opacity: 0.3; flex-shrink: 0; }
+  .status-dot.on { background: var(--success); opacity: 1; animation: statpulse 3s ease-in-out infinite; }
+  .status-dot.warn { background: var(--warning); opacity: 1; }
+  .status-dot.off { background: var(--danger); opacity: 0.6; }
+  @keyframes statpulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+  .statusbar .spacer { flex: 1; }
+  .statusbar .presets { display: flex; gap: 4px; align-items: center; }
+  .preset-btn {
+    font-family: var(--font); font-size: 8px; font-weight: 700; letter-spacing: 1px;
+    padding: 3px 8px; border-radius: 3px; border: 1px solid var(--accent-border);
+    cursor: pointer; background: transparent; color: var(--text-secondary);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .preset-btn.active { background: rgba(97,175,239,0.15); color: var(--accent); border-color: var(--accent); }
+  .preset-btn:active { opacity: 0.7; }
+
+  .fs-controls { display: flex; gap: 4px; align-items: center; margin-left: 12px; }
+  .fs-btn {
+    font-family: var(--font); font-size: 9px; color: var(--text-secondary);
+    width: 22px; height: 18px; border-radius: 3px;
+    border: 1px solid var(--accent-border); background: transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Canvas */
+  .canvas { position: relative; z-index: 1; flex: 1; overflow: hidden; }
+
+  /* Widget */
+  .widget { position: absolute; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.2s, transform 0.2s; }
+  .widget.hidden { opacity: 0; pointer-events: none; transform: scale(0.97); }
+  .widget-header { display:flex; align-items:center; gap:8px; padding:6px 10px; background:rgba(97,175,239,0.05); border-bottom:1px solid var(--accent-border); font-size:10px; font-weight:700; color:var(--accent); letter-spacing:2px; flex-shrink:0; }
+  .badge { font-size:9px; font-weight:500; color:var(--text-secondary); letter-spacing:1px; }
+  .zone { margin-left:auto; font-size:8px; color:var(--text-secondary); opacity:0.5; }
+  .widget-body { padding:10px; flex:1; overflow:hidden; }
+
+  /* Clock */
+  .clock-time { display:flex; align-items:baseline; gap:2px; cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; }
+  .clock-time .hm { font-size:38px; font-weight:700; color:var(--text-emphasis); }
+  .clock-time .sec { font-size:18px; color:var(--accent); opacity:0.6; }
+  .clock-time .ampm { font-size:12px; color:var(--text-secondary); margin-left:4px; }
+  .clock-date { font-size:11px; font-weight:500; color:var(--accent); letter-spacing:2px; margin-top:4px; }
+  .clock-time.flash .hm { color:#ff6b35; }
+
+  /* Today bar */
+  .today-bar { display:flex; height:100%; align-items:center; }
+  .today-stat { flex:1; text-align:center; }
+  .today-stat .val { font-size:20px; font-weight:700; color:var(--text-emphasis); }
+  .today-stat .lbl { font-size:8px; font-weight:500; color:var(--text-secondary); letter-spacing:1px; margin-top:2px; }
+  .today-divider { width:1px; height:36px; background:rgba(92,99,112,0.2); }
+
+  /* Tasks */
+  .task-list { display:flex; flex-direction:column; gap:2px; height:100%; overflow-y:auto; }
+  .task-item { display:flex; align-items:center; gap:8px; padding:4px 0; cursor:pointer; }
+  .task-dot { width:8px; height:8px; border-radius:50%; border:1.5px solid var(--accent-border); flex-shrink:0; transition:transform 0.1s; }
+  .task-dot.done { background:var(--success); border-color:var(--success); }
+  .task-text { font-size:11px; color:var(--text-primary); }
+  .task-text.done { text-decoration:line-through; color:var(--text-secondary); }
+  .task-blank { display:flex; align-items:center; gap:8px; padding:4px 0; opacity:0.3; cursor:pointer; }
+  .task-blank .task-dot { border-style:dashed; }
+  .task-blank .task-text { color:var(--text-secondary); font-style:italic; }
+
+  /* Terminal */
+  .term-status { display:flex; align-items:center; gap:6px; padding:4px 10px; background:rgba(8,14,24,0.4); flex-shrink:0; }
+  .term-dot { width:5px; height:5px; border-radius:50%; }
+  .term-dot.on { background:var(--success); }
+  .term-dot.off { background:var(--text-secondary); opacity:0.3; }
+  .term-label { font-size:9px; font-weight:500; color:var(--text-secondary); }
+  .term-output { padding:6px 8px; flex:1; overflow-y:auto; font-size:10px; line-height:1.6; }
+  .term-line { color:var(--text-primary); }
+  .term-line.sys { color:var(--text-secondary); }
+  .term-input { display:flex; align-items:center; gap:6px; padding:6px 10px; border-top:1px solid var(--accent-border); background:rgba(8,14,24,0.5); flex-shrink:0; }
+  .term-prompt { font-size:12px; font-weight:700; color:var(--accent); }
+  .term-cursor-blink { animation:slowblink 2s step-end infinite; color:var(--accent); }
+  @keyframes slowblink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+
+  /* Calendar */
+  .cal-event { display:flex; gap:8px; padding:4px 0; align-items:center; }
+  .cal-time { font-size:10px; color:var(--text-secondary); width:50px; flex-shrink:0; }
+  .cal-bar { width:2px; height:16px; background:var(--accent); border-radius:1px; flex-shrink:0; }
+  .cal-title { font-size:10px; color:var(--text-primary); }
+
+  /* Stats */
+  .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .stat-block .stat-val { font-size:22px; font-weight:700; color:var(--text-emphasis); }
+  .stat-block .stat-lbl { font-size:8px; color:var(--text-secondary); letter-spacing:1px; margin-top:2px; }
+
+  /* Scratchpad */
+  .scratch-body { display:flex; flex-direction:column; gap:2px; height:100%; overflow-y:auto; }
+  .scratch-line { font-size:10px; color:var(--text-primary); padding:2px 0; }
+  .scratch-add { display:flex; align-items:center; gap:6px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--accent-border); cursor:pointer; opacity:0.4; }
+  .scratch-add:active { opacity:0.8; }
+  .scratch-add span { font-size:10px; color:var(--text-secondary); font-style:italic; }
+
+  /* Voice btn */
+  .voice-btn { position:absolute; bottom:40px; right:16px; width:40px; height:40px; border-radius:50%; background:rgba(97,175,239,0.07); border:1px solid var(--accent-border); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; font-size:16px; opacity:0.4; }
+
+  /* Modal */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:100; align-items:flex-end; justify-content:center; padding-bottom:50px; }
+  .modal-overlay.show { display:flex; }
+  .modal-box { background:#0a0f1a; color-scheme:dark; border:1px solid var(--accent-border); border-radius:8px; padding:16px; width:560px; display:flex; flex-direction:column; gap:10px; }
+  .modal-title { font-size:10px; font-weight:700; color:var(--accent); letter-spacing:2px; }
+  .modal-input { background:#0a0f1a; border:1px solid rgba(97,175,239,0.28); border-radius:4px; padding:8px 10px; font-family:var(--font); font-size:13px; color:#E8EAED; outline:none; width:100%; -webkit-text-fill-color:#E8EAED; caret-color:#61AFEF; color-scheme:dark; }
+  .modal-input:focus { border-color:var(--accent); }
+  .modal-btns { display:flex; gap:8px; justify-content:flex-end; }
+  .modal-btn { font-family:var(--font); font-size:10px; font-weight:700; padding:6px 14px; border-radius:4px; border:1px solid rgba(97,175,239,0.28); cursor:pointer; letter-spacing:1px; background:transparent; color:#5C6370; }
+  .modal-btn.primary { background:rgba(97,175,239,0.15); color:var(--accent); border-color:var(--accent); }
+
+  /* Exit */
+  .exit-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:200; flex-direction:column; align-items:center; justify-content:center; gap:12px; }
+  .exit-overlay.show { display:flex; }
+  .exit-overlay span { font-size:13px; color:#555; letter-spacing:3px; }
+</style>
+</head>
+<body>
+
+<div class="canvas" id="canvas">
+  <!-- CLOCK.SYS -->
+  <div class="widget" id="w-clock" style="left:16px;top:8px;width:280px;height:90px">
+    <div class="widget-header">CLOCK.SYS <span class="zone">primary</span></div>
+    <div class="widget-body">
+      <div class="clock-time" id="clock">
+        <span class="hm" id="clockHM"></span><span class="sec" id="clockSec"></span><span class="ampm" id="clockAMPM"></span>
+      </div>
+      <div class="clock-date" id="clockDate"></div>
+    </div>
+  </div>
+
+  <!-- TODAY.EXE -->
+  <div class="widget" id="w-today" style="left:310px;top:8px;right:16px;height:90px">
+    <div class="widget-header">TODAY.EXE <span class="zone">primary</span></div>
+    <div class="widget-body">
+      <div class="today-bar">
+        <div class="today-stat"><div class="val" id="taskCount">0/0</div><div class="lbl">TASKS</div></div>
+        <div class="today-divider"></div>
+        <div class="today-stat"><div class="val" id="habitCount">—</div><div class="lbl">HABITS</div></div>
+        <div class="today-divider"></div>
+        <div class="today-stat"><div class="val" id="focusHrs">0.0</div><div class="lbl">FOCUS HRS</div></div>
+        <div class="today-divider"></div>
+        <div class="today-stat"><div class="val" id="eventsLeft">4</div><div class="lbl">EVENTS LEFT</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORK.TODO -->
+  <div class="widget" id="w-work" style="left:16px;top:110px;width:310px;height:230px">
+    <div class="widget-header">WORK.TODO <span class="badge" id="workBadge"></span><span class="zone">primary</span></div>
+    <div class="widget-body"><div class="task-list" id="workTasks"></div></div>
+  </div>
+
+  <!-- LIFE.TODO -->
+  <div class="widget" id="w-life" style="left:340px;top:110px;width:310px;height:230px">
+    <div class="widget-header">LIFE.TODO <span class="badge" id="lifeBadge"></span><span class="zone">primary</span></div>
+    <div class="widget-body"><div class="task-list" id="lifeTasks"></div></div>
+  </div>
+
+  <!-- CALENDAR.DAT -->
+  <div class="widget" id="w-cal" style="left:16px;top:352px;width:310px;height:195px">
+    <div class="widget-header">CALENDAR.DAT <span class="zone">primary</span></div>
+    <div class="widget-body" id="calendarBody"></div>
+  </div>
+
+  <!-- CLAUDE.TTY -->
+  <div class="widget" id="w-tty" style="left:340px;top:352px;width:310px;height:195px">
+    <div class="widget-header">CLAUDE.TTY <span class="badge" id="termBadge">OFF</span><span class="zone">system</span></div>
+    <div class="term-status"><div class="term-dot off" id="termDot"></div><span class="term-label" id="termLabel">checking...</span></div>
+    <div class="term-output" id="termOutput">
+      <div class="term-line sys">CLAUDE.TTY v0.3</div>
+      <div class="term-line sys">bridge → claude code on this pi</div>
+    </div>
+    <div class="term-input">
+      <span class="term-prompt">&gt;</span>
+      <span style="color:var(--text-secondary);font-size:10px">_</span><span class="term-cursor-blink">█</span>
+    </div>
+  </div>
+
+  <!-- STATS.DAT -->
+  <div class="widget" id="w-stats" style="right:16px;top:110px;width:336px;height:165px">
+    <div class="widget-header">STATS.DAT <span class="zone">primary</span></div>
+    <div class="widget-body">
+      <div class="stat-grid">
+        <div class="stat-block"><div class="stat-val" id="statStreak">3</div><div class="stat-lbl">DAY STREAK</div></div>
+        <div class="stat-block"><div class="stat-val" id="statCompleted">0</div><div class="stat-lbl">COMPLETED</div></div>
+        <div class="stat-block"><div class="stat-val" id="statFocus">0.0h</div><div class="stat-lbl">FOCUS TODAY</div></div>
+        <div class="stat-block"><div class="stat-val" id="statUptime">—</div><div class="stat-lbl">SESSION</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRATCH.PAD -->
+  <div class="widget" id="w-scratch" style="right:16px;top:287px;width:336px;height:260px">
+    <div class="widget-header">SCRATCH.PAD <span class="zone">primary</span></div>
+    <div class="widget-body"><div class="scratch-body" id="scratchBody"></div></div>
+  </div>
+
+  <!-- Voice -->
+  <div class="voice-btn" id="voiceBtn" title="voice — mic coming soon">🎙</div>
+</div>
+
+<!-- Status bar -->
+<div class="statusbar">
+  <div class="status-item"><div class="status-dot" id="sd-bridge"></div>BRIDGE</div>
+  <div class="status-item"><div class="status-dot" id="sd-ws"></div>WS</div>
+  <div class="status-item"><div class="status-dot" id="sd-net"></div>NET</div>
+  <div class="status-item"><div class="status-dot" id="sd-icloud"></div>ICLOUD</div>
+  <div class="status-item"><div class="status-dot" id="sd-ts"></div>TAILSCALE</div>
+  <div class="status-item" style="gap:6px"><div class="status-dot" id="sd-sync"></div><span id="sync-lbl" style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">SYNC</span></div>
+  <div class="status-item" style="gap:6px"><div class="status-dot" id="sd-presence"></div><span style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">NEARBY</span></div>
+  <div class="spacer"></div>
+  <div class="presets">
+    <span style="font-size:8px;color:var(--text-secondary);letter-spacing:1px;margin-right:4px">LAYOUT</span>
+    <button class="preset-btn active" data-preset="default">DEFAULT</button>
+    <button class="preset-btn" data-preset="focus">FOCUS</button>
+    <button class="preset-btn" data-preset="terminal">TERMINAL</button>
+  </div>
+  <div class="fs-controls">
+    <button class="fs-btn" id="fsDown">A−</button>
+    <button class="fs-btn" id="fsUp">A+</button>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-title" id="modalTitle">ADD ITEM</div>
+    <input class="modal-input" id="modalInput" type="text" autocomplete="off" autocorrect="off" spellcheck="false">
+    <div style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">ENTER to save · ESC to cancel</div>
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="closeModal()">CANCEL</button>
+      <button class="modal-btn primary" onclick="saveModal()">SAVE</button>
+    </div>
+  </div>
+</div>
+
+<div class="exit-overlay" id="exitOverlay"><span>closing alfredo...</span></div>
+
+<script>
+// ── Clock ───────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const h = now.getHours()%12||12, m = String(now.getMinutes()).padStart(2,'0'), s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clockHM').textContent = h+':'+m;
+  document.getElementById('clockSec').textContent = s;
+  document.getElementById('clockAMPM').textContent = now.getHours()>=12?'PM':'AM';
+  const D=['SUN','MON','TUE','WED','THU','FRI','SAT'], M=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  document.getElementById('clockDate').textContent = D[now.getDay()]+' . '+M[now.getMonth()]+' '+String(now.getDate()).padStart(2,'0')+' . '+now.getFullYear();
+}
+setInterval(updateClock,1000); updateClock();
+
+// Triple-tap clock → exit
+let tapCount=0, tapTimer=null;
+document.getElementById('clock').addEventListener('click',()=>{
+  tapCount++;
+  const el=document.getElementById('clock');
+  el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),150);
+  clearTimeout(tapTimer); tapTimer=setTimeout(()=>{tapCount=0;},800);
+  if(tapCount>=3){tapCount=0;document.getElementById('exitOverlay').classList.add('show');fetch('/exit-kiosk',{method:'POST'}).catch(()=>{});setTimeout(()=>window.close(),1500);}
+});
+
+// ── Tasks ───────────────────────────────────────────────────
+function loadData(key,def){try{return JSON.parse(localStorage.getItem(key))||def;}catch{return def;}}
+function saveData(key,val){localStorage.setItem(key,JSON.stringify(val));}
+
+let workTasks=loadData('workTasks',[{text:'Check bridge status',done:true},{text:'Review kiosk layout',done:false},{text:'Deploy dashboard v2',done:false}]);
+let lifeTasks=loadData('lifeTasks',[{text:'Set up Pi screen',done:true},{text:'Organize desk cables',done:false}]);
+let scratchLines=loadData('scratch',['// jot things here']);
+
+function renderTasks(cid,bid,tasks,key){
+  const el=document.getElementById(cid);
+  const open=tasks.filter(t=>!t.done).length;
+  document.getElementById(bid).textContent=open>0?open+' open':'';
+  el.innerHTML='';
+  tasks.forEach((t,i)=>{
+    const row=document.createElement('div'); row.className='task-item';
+    row.innerHTML='<div class="task-dot'+(t.done?' done':'')+'"></div><span class="task-text'+(t.done?' done':'')+'">'+t.text+'</span>';
+    row.addEventListener('click',()=>{tasks[i].done=!tasks[i].done;saveData(key,tasks);renderTasks(cid,bid,tasks,key);updateTodayBar();});
+    el.appendChild(row);
+  });
+  const blank=document.createElement('div'); blank.className='task-blank';
+  blank.innerHTML='<div class="task-dot"></div><span class="task-text">add item...</span>';
+  blank.addEventListener('click',()=>openModal('ADD TO '+(key==='workTasks'?'WORK.TODO':'LIFE.TODO'),val=>{if(val){tasks.push({text:val,done:false});saveData(key,tasks);renderTasks(cid,bid,tasks,key);updateTodayBar();}}));
+  el.appendChild(blank);
+}
+renderTasks('workTasks','workBadge',workTasks,'workTasks');
+renderTasks('lifeTasks','lifeBadge',lifeTasks,'lifeTasks');
+
+function updateTodayBar(){
+  const all=[...workTasks,...lifeTasks], done=all.filter(t=>t.done).length;
+  document.getElementById('taskCount').textContent=done+'/'+all.length;
+  document.getElementById('statCompleted').textContent=done;
+}
+updateTodayBar();
+
+// ── Calendar ────────────────────────────────────────────────
+document.getElementById('calendarBody').innerHTML=[
+  {time:'9:00 AM',title:'Standup'},{time:'10:30',title:'Design review'},
+  {time:'1:00 PM',title:'Lunch break'},{time:'3:00 PM',title:'Sprint planning'}
+].map(e=>'<div class="cal-event"><span class="cal-time">'+e.time+'</span><div class="cal-bar"></div><span class="cal-title">'+e.title+'</span></div>').join('');
+
+// ── Scratchpad ──────────────────────────────────────────────
+function renderScratch(){
+  const el=document.getElementById('scratchBody'); el.innerHTML='';
+  scratchLines.forEach(l=>{const d=document.createElement('div');d.className='scratch-line';d.textContent=l;el.appendChild(d);});
+  const add=document.createElement('div'); add.className='scratch-add';
+  add.innerHTML='<span>+ add note...</span>';
+  add.addEventListener('click',()=>openModal('ADD TO SCRATCH.PAD',val=>{if(val){scratchLines.push(val);saveData('scratch',scratchLines);renderScratch();}}));
+  el.appendChild(add);
+}
+renderScratch();
+
+// ── Uptime ──────────────────────────────────────────────────
+const bootTime=Date.now();
+function updateUptime(){
+  const diff=Date.now()-bootTime, h=Math.floor(diff/3600000), m=Math.floor((diff%3600000)/60000);
+  document.getElementById('statUptime').textContent=h>0?h+'h'+String(m).padStart(2,'0')+'m':m+'m';
+}
+setInterval(updateUptime,30000); updateUptime();
+
+// -- Status bar with staleness + sync indicator -------------
+const syncTimes = {};
+const STALE_WARN = 5 * 60 * 1000;
+const STALE_ERR  = 30 * 60 * 1000;
+
+function setDot(id, state, ts) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'status-dot ' + state;
+  if (ts) syncTimes[id] = ts;
+}
+
+function updateSyncDot() {
+  const now = Date.now();
+  const services = ['sd-bridge','sd-ws','sd-net','sd-icloud','sd-ts'];
+  let worst = 'on', oldestAge = 0;
+  services.forEach(id => {
+    const t = syncTimes[id];
+    if (!t) { worst = 'off'; return; }
+    const age = now - t;
+    oldestAge = Math.max(oldestAge, age);
+    if (age > STALE_ERR && worst !== 'off') worst = 'off';
+    else if (age > STALE_WARN && worst === 'on') worst = 'warn';
+  });
+  const dot = document.getElementById('sd-sync');
+  if (dot) dot.className = 'status-dot ' + worst;
+  const lbl = document.getElementById('sync-lbl');
+  if (!lbl) return;
+  const mins = Math.floor(oldestAge / 60000);
+  lbl.textContent = oldestAge === 0 ? 'SYNC' : mins < 1 ? 'SYNC · now' : 'SYNC · ' + mins + 'm ago';
+  lbl.style.color = worst === 'on' ? 'var(--success)' : worst === 'warn' ? 'var(--warning)' : 'var(--danger)';
+}
+setInterval(updateSyncDot, 10000);
+
+async function checkStatus() {
+  const now = Date.now();
+  setDot('sd-net', 'on', now);
+
+  try {
+    const r = await fetch('/proxy/health', {signal: AbortSignal.timeout(3000)});
+    const j = await r.json();
+    if (j.status === 'ok') {
+      setDot('sd-bridge','on',now); setDot('sd-ws','on',now);
+      document.getElementById('termDot').className = 'term-dot on';
+      document.getElementById('termLabel').textContent = 'pihub.local \u2714 ws:' + j.ws_port;
+      document.getElementById('termBadge').textContent = 'ON';
+    } else {
+      setDot('sd-bridge','off'); setDot('sd-ws','warn');
+      document.getElementById('termDot').className = 'term-dot off';
+      document.getElementById('termBadge').textContent = 'ERR';
+    }
+  } catch {
+    setDot('sd-bridge','off'); setDot('sd-ws','off');
+    document.getElementById('termDot').className = 'term-dot off';
+    document.getElementById('termLabel').textContent = 'bridge offline';
+    document.getElementById('termBadge').textContent = 'OFF';
+  }
+
+  try {
+    const r = await fetch('/proxy/icloud', {signal: AbortSignal.timeout(4000)});
+    const j = await r.json();
+    setDot('sd-icloud', j.ok ? 'on' : 'warn', j.ok ? now : null);
+  } catch { setDot('sd-icloud','warn'); }
+
+  try {
+    const r = await fetch('/proxy/tailscale', {signal: AbortSignal.timeout(3000)});
+    const j = await r.json();
+    setDot('sd-ts', j.ok ? 'on' : 'off', j.ok ? now : null);
+  } catch { setDot('sd-ts','warn'); }
+
+  // Presence
+  try {
+    const r = await fetch('/proxy/presence', {signal: AbortSignal.timeout(4000)});
+    const j = await r.json();
+    setDot('sd-presence', j.present ? 'on' : 'off', j.present ? now : null);
+    if (!j.present && j.absent_mins > 10) {
+      // Screen blank after 10 min away
+      fetch('/proxy/display', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({on: false})}).catch(()=>{});
+    }
+  } catch { setDot('sd-presence','warn'); }
+
+  updateSyncDot();
+}
+setInterval(checkStatus, 15000); checkStatus();
+
+// ── Layout presets ──────────────────────────────────────────
+const layouts = {
+  default: {
+    'w-clock':  {left:'16px',top:'8px',width:'280px',height:'90px',show:true},
+    'w-today':  {left:'310px',top:'8px',right:'16px',height:'90px',show:true},
+    'w-work':   {left:'16px',top:'110px',width:'310px',height:'230px',show:true},
+    'w-life':   {left:'340px',top:'110px',width:'310px',height:'230px',show:true},
+    'w-cal':    {left:'16px',top:'352px',width:'310px',height:'195px',show:true},
+    'w-tty':    {left:'340px',top:'352px',width:'310px',height:'195px',show:true},
+    'w-stats':  {right:'16px',top:'110px',width:'336px',height:'165px',show:true},
+    'w-scratch':{right:'16px',top:'287px',width:'336px',height:'260px',show:true},
+  },
+  focus: {
+    'w-clock':  {left:'16px',top:'8px',width:'340px',height:'90px',show:true},
+    'w-today':  {left:'370px',top:'8px',right:'16px',height:'90px',show:true},
+    'w-work':   {left:'16px',top:'110px',width:'480px',height:'430px',show:true},
+    'w-life':   {left:'510px',top:'110px',width:'480px',height:'430px',show:true},
+    'w-cal':    {show:false},
+    'w-tty':    {show:false},
+    'w-stats':  {show:false},
+    'w-scratch':{show:false},
+  },
+  terminal: {
+    'w-clock':  {left:'16px',top:'8px',width:'280px',height:'90px',show:true},
+    'w-today':  {left:'310px',top:'8px',right:'16px',height:'90px',show:true},
+    'w-work':   {left:'16px',top:'110px',width:'300px',height:'430px',show:true},
+    'w-life':   {show:false},
+    'w-cal':    {show:false},
+    'w-tty':    {left:'330px',top:'110px',right:'16px',height:'430px',show:true},
+    'w-stats':  {show:false},
+    'w-scratch':{show:false},
+  },
+};
+
+function applyLayout(name){
+  const layout=layouts[name];
+  if(!layout) return;
+  Object.entries(layout).forEach(([id,cfg])=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    if(!cfg.show){ el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    ['left','top','right','bottom','width','height'].forEach(p=>{
+      el.style[p]=cfg[p]||'';
+    });
+  });
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',b.dataset.preset===name));
+  saveData('activeLayout',name);
+}
+
+document.querySelectorAll('.preset-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>applyLayout(btn.dataset.preset));
+});
+
+// Apply saved layout on load
+const savedLayout=loadData('activeLayout','default');
+applyLayout(savedLayout);
+
+// ── Font size ───────────────────────────────────────────────
+function applyFontSize(px){
+  document.documentElement.style.setProperty('--fs',px+'px');
+  saveData('fontSize',px);
+}
+let currentFs=loadData('fontSize',11);
+applyFontSize(currentFs);
+document.getElementById('fsUp').addEventListener('click',()=>applyFontSize(Math.min(16,currentFs=currentFs+1)));
+document.getElementById('fsDown').addEventListener('click',()=>applyFontSize(Math.max(9,currentFs=currentFs-1)));
+
+// ── Settings sync from settings page ───────────────────────
+let lastSettingsTs=localStorage.getItem('kioskSettingsUpdate')||0;
+setInterval(()=>{
+  const ts=localStorage.getItem('kioskSettingsUpdate')||0;
+  if(ts!==lastSettingsTs){
+    lastSettingsTs=ts;
+    try{
+      const s=JSON.parse(localStorage.getItem('kioskSettings')||'{}');
+      if(s.fontSize){currentFs=s.fontSize;applyFontSize(s.fontSize);}
+      if(s.accent) applyAccent(s.accent);
+      if(s.layout) applyLayout(s.layout);
+      const wt=JSON.parse(localStorage.getItem('workTasks')||'null');
+      if(wt){workTasks=wt;renderTasks('workTasks','workBadge',workTasks,'workTasks');updateTodayBar();}
+      const lt=JSON.parse(localStorage.getItem('lifeTasks')||'null');
+      if(lt){lifeTasks=lt;renderTasks('lifeTasks','lifeBadge',lifeTasks,'lifeTasks');updateTodayBar();}
+      const sc=JSON.parse(localStorage.getItem('scratch')||'null');
+      if(sc){scratchLines=sc;renderScratch();}
+    }catch(e){}
+  }
+},2000);
+
+function applyAccent(hex){
+  document.documentElement.style.setProperty('--accent',hex);
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  document.documentElement.style.setProperty('--accent-border','rgba('+r+','+g+','+b+',0.28)');
+  document.documentElement.style.setProperty('--accent-grid','rgba('+r+','+g+','+b+',0.035)');
+}
+const savedAccent=loadData('kioskSettings',{}).accent;
+if(savedAccent) applyAccent(savedAccent);
+
+// ── Voice placeholder ───────────────────────────────────────
+document.getElementById('voiceBtn').addEventListener('click',()=>{
+  const out=document.getElementById('termOutput');
+  const line=document.createElement('div'); line.className='term-line sys';
+  line.textContent='# voice input — mic coming soon';
+  out.appendChild(line); out.scrollTop=out.scrollHeight;
+});
+
+// ── Modal ───────────────────────────────────────────────────
+let _cb=null;
+function openModal(title,cb){_cb=cb;document.getElementById('modalTitle').textContent=title;document.getElementById('modalInput').value='';document.getElementById('modal').classList.add('show');setTimeout(()=>document.getElementById('modalInput').focus(),50);}
+function closeModal(){document.getElementById('modal').classList.remove('show');_cb=null;}
+function saveModal(){const v=document.getElementById('modalInput').value.trim();if(_cb)_cb(v);closeModal();}
+document.getElementById('modalInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveModal();if(e.key==='Escape')closeModal();});
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+</script>
+</body>
+</html>
