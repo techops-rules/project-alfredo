@@ -16,14 +16,15 @@ final class EmailService {
             ? 8420
             : UserDefaults.standard.integer(forKey: "terminal.piPort")
     }
-    private var baseURL: URL {
-        URL(string: "http://\(piHost):\(piPort)")!
+    private var baseURL: URL? {
+        URL(string: "http://\(piHost):\(piPort)")
     }
 
     // MARK: - Fetch thread
 
     func fetchThread(messageId: String) async -> EmailThread? {
-        guard let url = URL(string: "\(baseURL)/email/thread/\(messageId)") else { return nil }
+        guard let base = baseURL,
+              let url = URL(string: "\(base)/email/thread/\(messageId)") else { return nil }
         guard let (data, _) = try? await URLSession.shared.data(from: url),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return nil }
@@ -34,7 +35,8 @@ final class EmailService {
     // MARK: - Send reply
 
     func sendReply(messageId: String, threadId: String?, body: String) async -> Bool {
-        guard let url = URL(string: "\(baseURL)/email/reply") else { return false }
+        guard let base = baseURL,
+              let url = URL(string: "\(base)/email/reply") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -63,8 +65,9 @@ final class EmailService {
             .prefix(4)
             .joined(separator: " ")
 
-        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(baseURL)/email/search?q=\(encoded)&max=1")
+        guard let base = baseURL,
+              let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "\(base)/email/search?q=\(encoded)&max=1")
         else { return nil }
 
         guard let (data, _) = try? await URLSession.shared.data(from: url),

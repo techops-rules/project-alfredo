@@ -8,6 +8,7 @@ struct BootScreen: View {
     @State private var progress: Double = 0
     @State private var phase: BootPhase = .banner
     @State private var showCursor = true
+    @State private var cursorTimer: Timer?
 
     // Static boot lines (connection status lines are appended dynamically)
     private static let bootSequencePre: [(String, Double, BootLineStyle)] = [
@@ -106,6 +107,10 @@ struct BootScreen: View {
             .frame(maxWidth: .infinity)
         }
         .onAppear { startBoot() }
+        .onDisappear {
+            cursorTimer?.invalidate()
+            cursorTimer = nil
+        }
     }
 
     // MARK: - Boot Line View
@@ -155,7 +160,7 @@ struct BootScreen: View {
 
     private func startBoot() {
         // Cursor blink
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+        cursorTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
             showCursor.toggle()
         }
 
@@ -259,6 +264,8 @@ struct BootScreen: View {
                         progress = 1.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        cursorTimer?.invalidate()
+                        cursorTimer = nil
                         onComplete()
                     }
                 }

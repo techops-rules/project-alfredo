@@ -20,8 +20,8 @@ final class TaskEnrichmentService {
             ? 8420
             : UserDefaults.standard.integer(forKey: "terminal.piPort")
     }
-    private var bridgeURL: URL {
-        URL(string: "http://\(piHost):\(piPort)")!
+    private var bridgeURL: URL? {
+        URL(string: "http://\(piHost):\(piPort)")
     }
 
     // MARK: - Public
@@ -68,7 +68,8 @@ final class TaskEnrichmentService {
     // MARK: - Subtask generation via Claude bridge
 
     private func fetchSubtasks(for task: AppTask) async -> [Subtask] {
-        guard let url = URL(string: "\(bridgeURL)/subtasks") else { return [] }
+        guard let bridge = bridgeURL,
+              let url = URL(string: "\(bridge)/subtasks") else { return [] }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

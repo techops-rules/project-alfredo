@@ -24,11 +24,15 @@ struct WidgetShell<Content: View>: View {
                         .font(.system(size: theme.fontSize, weight: .bold, design: .monospaced))
                         .foregroundColor(theme.accentFull)
                         .tracking(2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .layoutPriority(1)
 
                     if let badgeView {
                         badgeView
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
+                            .fixedSize()
                     } else if let badge {
                         Text(badge)
                             .font(.system(size: theme.fontSize - 2, design: .monospaced))
@@ -45,6 +49,8 @@ struct WidgetShell<Content: View>: View {
                         Text(zone)
                             .font(.system(size: theme.fontSize - 3, design: .monospaced))
                             .foregroundColor(ThemeManager.textSecondary.opacity(0.5))
+                            .lineLimit(1)
+                            .layoutPriority(-1)
                     }
                 }
                 .padding(.horizontal, 12)

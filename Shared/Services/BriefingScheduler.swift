@@ -28,8 +28,8 @@ final class BriefingScheduler {
         checkTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             self?.tick()
         }
-        // Also run immediately
-        tick()
+        // Note: don't run immediately on app launch — let CalendarService initialize first
+        // tick()
     }
 
     func stop() {
@@ -54,7 +54,6 @@ final class BriefingScheduler {
 
     private func checkMorningBrief(now: Date, cal: Calendar) {
         let hour = cal.component(.hour, from: now)
-        let today = cal.startOfDay(for: now)
 
         // Already sent today?
         if let sent = morningBriefSentToday, cal.isDate(sent, inSameDayAs: now) {

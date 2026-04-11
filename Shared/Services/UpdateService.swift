@@ -94,7 +94,8 @@ final class UpdateService {
 
     private func relaunch() {
         #if os(macOS)
-        let url = URL(fileURLWithPath: Bundle.main.resourcePath!)
+        guard let resourcePath = Bundle.main.resourcePath else { return }
+        let url = URL(fileURLWithPath: resourcePath)
         let path = url.deletingLastPathComponent().deletingLastPathComponent().absoluteString
         let task = Process()
         task.launchPath = "/usr/bin/open"

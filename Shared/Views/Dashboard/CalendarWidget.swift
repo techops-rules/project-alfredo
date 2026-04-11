@@ -90,7 +90,7 @@ struct CalendarEventRow: View {
         case collapsed, brief, full
         var next: MeetingDisplayState {
             let all = Self.allCases
-            let idx = all.firstIndex(of: self)!
+            guard let idx = all.firstIndex(of: self) else { return .collapsed }
             return all[(idx + 1) % all.count]
         }
     }

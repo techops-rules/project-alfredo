@@ -20,7 +20,7 @@ struct alfredoApp: App {
             MacApp()
                 .onAppear {
                     menuBarManager.setup()
-                    updateService.startChecking()
+                    // updateService.startChecking()
                     briefingScheduler.start()
                 }
         }
@@ -32,7 +32,7 @@ struct alfredoApp: App {
                 .environment(\.theme, ThemeManager.shared)
                 .preferredColorScheme(.dark)
                 .onAppear {
-                    updateService.startChecking()
+                    // updateService.startChecking()
                     briefingScheduler.start()
                 }
         }

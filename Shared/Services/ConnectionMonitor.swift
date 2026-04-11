@@ -157,7 +157,7 @@ final class ConnectionMonitor {
     func checkCalendar() {
         let ekStatus = EKEventStore.authorizationStatus(for: .event)
         switch ekStatus {
-        case .fullAccess, .authorized:
+        case .fullAccess, .authorized, .writeOnly:
             calendarStatus = .connected
         case .notDetermined:
             calendarStatus = .disconnected
