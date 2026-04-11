@@ -71,6 +71,18 @@ final class TaskBoardService {
         tasks.filter { $0.section == .later }
     }
 
+    var deferredTasks: [AppTask] {
+        tasks.filter { $0.section == .deferred }
+    }
+
+    var waitingTasks: [AppTask] {
+        tasks.filter { $0.section == .waiting }
+    }
+
+    var longTermTasks: [AppTask] {
+        tasks.filter { $0.section == .later }
+    }
+
     var doneTasks: [AppTask] {
         todayTasks.filter { $0.isDone }
     }

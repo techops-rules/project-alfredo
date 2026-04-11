@@ -5,6 +5,7 @@ import SwiftUI
 enum WidgetID: String, CaseIterable, Identifiable {
     case clock = "CLOCK.SYS"
     case todayBar = "TODAY.EXE"
+    case weather = "WEATHER.SYS"
     case workTasks = "WORK.TODO"
     case lifeTasks = "LIFE.TODO"
     case habits = "HABITS.LOG"
@@ -15,23 +16,32 @@ enum WidgetID: String, CaseIterable, Identifiable {
     case hotlist = "HOTLIST.EXE"
     case stats = "STATS.BIN"
     case terminal = "CLAUDE.TTY"
+    case deferredTasks = "DEFERRED.TODO"
+    case waitingTasks = "WAITING.TODO"
+    case longTermTasks = "LONGTERM.TODO"
+    case funFact = "FUNFACT.TXT"
 
     var id: String { rawValue }
 
     var icon: String {
         switch self {
-        case .clock:      return "clock"
-        case .todayBar:   return "chart.bar.fill"
-        case .workTasks:  return "briefcase"
-        case .lifeTasks:  return "heart"
-        case .habits:     return "checkmark.circle"
-        case .calendar:   return "calendar"
-        case .projects:   return "folder"
-        case .goals:      return "flag"
-        case .scratchpad: return "note.text"
-        case .hotlist:    return "exclamationmark.triangle"
-        case .stats:      return "chart.line.uptrend.xyaxis"
-        case .terminal:   return "terminal"
+        case .clock:         return "clock"
+        case .todayBar:      return "chart.bar.fill"
+        case .weather:       return "cloud.sun.fill"
+        case .workTasks:     return "briefcase"
+        case .lifeTasks:     return "heart"
+        case .habits:        return "checkmark.circle"
+        case .calendar:      return "calendar"
+        case .projects:      return "folder"
+        case .goals:         return "flag"
+        case .scratchpad:    return "note.text"
+        case .hotlist:       return "exclamationmark.triangle"
+        case .stats:         return "chart.line.uptrend.xyaxis"
+        case .terminal:      return "terminal"
+        case .deferredTasks: return "clock.arrow.circlepath"
+        case .waitingTasks:  return "hourglass"
+        case .longTermTasks: return "scope"
+        case .funFact:       return "lightbulb"
         }
     }
 }

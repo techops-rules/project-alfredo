@@ -15,6 +15,7 @@ struct DashboardView: View {
     private let calendarService = CalendarService.shared
     private let updateService = UpdateService.shared
     private let prepService = MeetingPrepService.shared
+    private let weatherService = WeatherService.shared
 
     // Zoom
     @State private var canvasScale: CGFloat = 1.0
@@ -34,7 +35,11 @@ struct DashboardView: View {
     @State private var minimapVisible = false
     @State private var minimapHideTask: Task<Void, Never>?
 
+    #if os(iOS)
+    private let worldSize = CGSize(width: 800, height: 1600)
+    #else
     private let worldSize = CGSize(width: 2800, height: 1200)
+    #endif
 
     // Platform-specific edit mode: macOS always allows drag/resize, iOS requires edit mode
     private var widgetsEditable: Bool {
@@ -53,13 +58,17 @@ struct DashboardView: View {
                 GridBackground().ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Breadcrumb bar (fixed)
+                    // Top chrome (fixed)
+                    #if os(iOS)
+                    iOSTopChrome(onHamburger: { showSettingsSheet = true })
+                    #else
                     BreadcrumbBar(
                         engine: whatNext,
                         tasks: taskBoard.todayTasks,
                         onStartTask: { _ in },
                         onSync: { syncAll() }
                     )
+                    #endif
 
                     // Canvas with zoom
                     ZStack {
@@ -364,7 +373,23 @@ struct DashboardView: View {
         }
 
         // Bottom zone
-        // Terminal widget (bottom left)
+        // Weather widget
+        if widgetVisibility.isVisible(.weather) {
+            DraggableWidgetContainer(
+                widgetId: "weather",
+                layoutManager: layoutManager,
+                defaultLayout: defaultLayout("weather"),
+                isEditMode: widgetsEditable
+            ) {
+                WidgetShell(title: "WEATHER.SYS", zone: "live") {
+                    WeatherWidget(weather: weatherService.current)
+                }
+            }
+            .transition(.opacity)
+        }
+
+        // Terminal widget (macOS only on canvas; iOS uses pinned AlfredoInputBar)
+        #if os(macOS)
         if widgetVisibility.isVisible(.terminal) {
             DraggableWidgetContainer(
                 widgetId: "terminal",
@@ -376,7 +401,9 @@ struct DashboardView: View {
             }
             .transition(.opacity)
         }
-                if widgetVisibility.isVisible(.stats) {
+        #endif
+
+        if widgetVisibility.isVisible(.stats) {
             DraggableWidgetContainer(
                 widgetId: "stats",
                 layoutManager: layoutManager,
@@ -388,9 +415,84 @@ struct DashboardView: View {
             .transition(.opacity)
         }
 
-        // Edge hints
+        // Deferred tasks
+        if widgetVisibility.isVisible(.deferredTasks) {
+            DraggableWidgetContainer(
+                widgetId: "deferredTasks",
+                layoutManager: layoutManager,
+                defaultLayout: defaultLayout("deferredTasks"),
+                isEditMode: widgetsEditable
+            ) {
+                TaskListWidget(
+                    title: "DEFERRED.TODO",
+                    tasks: taskBoard.deferredTasks,
+                    onToggle: { taskBoard.toggleTask($0) },
+                    onToggleSubtask: { taskBoard.toggleSubtask($0) },
+                    onTapTask: { whatNext.startTask($0) },
+                    onNavigate: { handleTaskNavigation($0) }
+                )
+            }
+            .transition(.opacity)
+        }
+
+        // Waiting tasks
+        if widgetVisibility.isVisible(.waitingTasks) {
+            DraggableWidgetContainer(
+                widgetId: "waitingTasks",
+                layoutManager: layoutManager,
+                defaultLayout: defaultLayout("waitingTasks"),
+                isEditMode: widgetsEditable
+            ) {
+                TaskListWidget(
+                    title: "WAITING.TODO",
+                    tasks: taskBoard.waitingTasks,
+                    onToggle: { taskBoard.toggleTask($0) },
+                    onToggleSubtask: { taskBoard.toggleSubtask($0) },
+                    onTapTask: { whatNext.startTask($0) },
+                    onNavigate: { handleTaskNavigation($0) }
+                )
+            }
+            .transition(.opacity)
+        }
+
+        // Long-term tasks
+        if widgetVisibility.isVisible(.longTermTasks) {
+            DraggableWidgetContainer(
+                widgetId: "longTermTasks",
+                layoutManager: layoutManager,
+                defaultLayout: defaultLayout("longTermTasks"),
+                isEditMode: widgetsEditable
+            ) {
+                TaskListWidget(
+                    title: "LONGTERM.TODO",
+                    tasks: taskBoard.longTermTasks,
+                    onToggle: { taskBoard.toggleTask($0) },
+                    onToggleSubtask: { taskBoard.toggleSubtask($0) },
+                    onTapTask: { whatNext.startTask($0) },
+                    onNavigate: { handleTaskNavigation($0) }
+                )
+            }
+            .transition(.opacity)
+        }
+
+        // Fun fact
+        if widgetVisibility.isVisible(.funFact) {
+            DraggableWidgetContainer(
+                widgetId: "funFact",
+                layoutManager: layoutManager,
+                defaultLayout: defaultLayout("funFact"),
+                isEditMode: widgetsEditable
+            ) {
+                FunFactWidget()
+            }
+            .transition(.opacity)
+        }
+
+        // Edge hints (macOS only)
+        #if os(macOS)
         edgeHint("PROJECTS >", x: 1260, y: 300, vertical: true)
         edgeHint("STATS v", x: 400, y: 780, vertical: false)
+        #endif
     }
 
     // MARK: - Overlays
@@ -398,40 +500,12 @@ struct DashboardView: View {
     @ViewBuilder
     private func overlays(geo: GeometryProxy) -> some View {
         #if os(iOS)
-        // iOS: bottom toolbar only
-        VStack {
+        // iOS: pinned ALFREDO.TTY input bar at bottom
+        VStack(spacing: 0) {
             Spacer()
-
-            HStack(spacing: 12) {
-                // Settings / hamburger — opens SettingsSheet
-                Button {
-                    showSettingsSheet = true
-                } label: {
-                    toolbarIcon("line.3.horizontal")
-                }
-
-                Spacer()
-
-                // Minimap — auto-hides when not panning
-                if minimapVisible {
-                    MinimapView(
-                        worldSize: worldSize,
-                        viewportSize: geo.size,
-                        offset: canvasOffset
-                    )
-                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                }
-
-                Spacer()
-
-                // Terminal quick-launch
-                Button { showTerminal() } label: {
-                    toolbarIcon("terminal")
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 12)
+            AlfredoInputBar()
         }
+        .ignoresSafeArea(.keyboard)
         #else
         // macOS: inline overlays
         ZStack {
@@ -545,38 +619,153 @@ struct DashboardView: View {
 
     private func macOSDefaultLayout(_ widgetId: String) -> WidgetLayoutState {
         switch widgetId {
-        case "clock":      return WidgetLayoutState(position: CGPoint(x: 40, y: 20), size: CGSize(width: 340, height: 110))
-        case "todayBar":   return WidgetLayoutState(position: CGPoint(x: 400, y: 20), size: CGSize(width: 840, height: 110))
-        case "workTasks":  return WidgetLayoutState(position: CGPoint(x: 40, y: 150), size: CGSize(width: 360, height: 340))
-        case "lifeTasks":  return WidgetLayoutState(position: CGPoint(x: 420, y: 150), size: CGSize(width: 360, height: 340))
-        case "habits":     return WidgetLayoutState(position: CGPoint(x: 800, y: 150), size: CGSize(width: 440, height: 340))
-        case "calendar":   return WidgetLayoutState(position: CGPoint(x: 40, y: 510), size: CGSize(width: 560, height: 270))
-        case "hotlist":    return WidgetLayoutState(position: CGPoint(x: 620, y: 510), size: CGSize(width: 620, height: 270))
-        case "projects":   return WidgetLayoutState(position: CGPoint(x: 1320, y: 150), size: CGSize(width: 500, height: 320))
-        case "goals":      return WidgetLayoutState(position: CGPoint(x: 1320, y: 490), size: CGSize(width: 500, height: 260))
-        case "scratchpad":return WidgetLayoutState(position: CGPoint(x: 1840, y: 150), size: CGSize(width: 420, height: 600))
-        case "stats":      return WidgetLayoutState(position: CGPoint(x: 40, y: 820), size: CGSize(width: 700, height: 280))
-        case "terminal":   return WidgetLayoutState(position: CGPoint(x: 800, y: 820), size: CGSize(width: 460, height: 280))
-        default:           return WidgetLayoutState(position: .zero, size: CGSize(width: 300, height: 200))
+        case "clock":         return WidgetLayoutState(position: CGPoint(x: 40, y: 20), size: CGSize(width: 340, height: 110))
+        case "todayBar":      return WidgetLayoutState(position: CGPoint(x: 400, y: 20), size: CGSize(width: 840, height: 110))
+        case "weather":       return WidgetLayoutState(position: CGPoint(x: 1260, y: 20), size: CGSize(width: 500, height: 200))
+        case "workTasks":     return WidgetLayoutState(position: CGPoint(x: 40, y: 150), size: CGSize(width: 360, height: 340))
+        case "lifeTasks":     return WidgetLayoutState(position: CGPoint(x: 420, y: 150), size: CGSize(width: 360, height: 340))
+        case "habits":        return WidgetLayoutState(position: CGPoint(x: 800, y: 150), size: CGSize(width: 440, height: 340))
+        case "calendar":      return WidgetLayoutState(position: CGPoint(x: 40, y: 510), size: CGSize(width: 560, height: 270))
+        case "hotlist":       return WidgetLayoutState(position: CGPoint(x: 620, y: 510), size: CGSize(width: 620, height: 270))
+        case "projects":      return WidgetLayoutState(position: CGPoint(x: 1320, y: 240), size: CGSize(width: 500, height: 320))
+        case "goals":         return WidgetLayoutState(position: CGPoint(x: 1320, y: 580), size: CGSize(width: 500, height: 260))
+        case "scratchpad":    return WidgetLayoutState(position: CGPoint(x: 1840, y: 150), size: CGSize(width: 420, height: 600))
+        case "stats":         return WidgetLayoutState(position: CGPoint(x: 40, y: 820), size: CGSize(width: 700, height: 280))
+        case "terminal":      return WidgetLayoutState(position: CGPoint(x: 800, y: 820), size: CGSize(width: 460, height: 280))
+        case "deferredTasks": return WidgetLayoutState(position: CGPoint(x: 1840, y: 770), size: CGSize(width: 420, height: 200))
+        case "waitingTasks":  return WidgetLayoutState(position: CGPoint(x: 1840, y: 980), size: CGSize(width: 420, height: 200))
+        case "longTermTasks": return WidgetLayoutState(position: CGPoint(x: 1320, y: 860), size: CGSize(width: 500, height: 200))
+        case "funFact":       return WidgetLayoutState(position: CGPoint(x: 40, y: 1120), size: CGSize(width: 500, height: 120))
+        default:              return WidgetLayoutState(position: .zero, size: CGSize(width: 300, height: 200))
         }
     }
 
+    // MARK: - iOS Flow Layout
+
+    /// Widget layout definitions for each screen.
+    /// Positions are computed dynamically by iOSFlowLayout, skipping hidden widgets.
+    private enum WidgetWidth { case full, halfLeft, halfRight }
+    private typealias WidgetSlot = (id: String, width: WidgetWidth, height: CGFloat)
+
+    private static let screen1Slots: [WidgetSlot] = [
+        ("weather",    .full,      130),
+        ("scratchpad", .halfLeft,  200),
+        ("hotlist",    .halfRight, 200),
+        ("calendar",   .full,      250),
+        ("workTasks",  .full,      280),
+    ]
+
+    private static let screen2Slots: [WidgetSlot] = [
+        ("lifeTasks",     .full,      230),
+        ("habits",        .full,      180),
+        ("projects",      .full,      200),
+        ("goals",         .full,      160),
+        ("stats",         .halfLeft,  160),
+        ("deferredTasks", .halfRight, 160),
+        ("waitingTasks",  .halfLeft,  160),
+        ("longTermTasks", .halfRight, 160),
+        ("funFact",       .full,      120),
+    ]
+
     private func iOSDefaultLayout(_ widgetId: String) -> WidgetLayoutState {
-        // From design brief Section 7 — compact layout for phone screens
-        switch widgetId {
-        case "clock":      return WidgetLayoutState(position: CGPoint(x: 0, y: 0), size: CGSize(width: 300, height: 100))
-        case "todayBar":   return WidgetLayoutState(position: CGPoint(x: 320, y: 0), size: CGSize(width: 300, height: 100))
-        case "workTasks":  return WidgetLayoutState(position: CGPoint(x: 0, y: 120), size: CGSize(width: 300, height: 260))
-        case "lifeTasks":  return WidgetLayoutState(position: CGPoint(x: 320, y: 120), size: CGSize(width: 300, height: 200))
-        case "calendar":   return WidgetLayoutState(position: CGPoint(x: 0, y: 400), size: CGSize(width: 300, height: 260))
-        case "hotlist":    return WidgetLayoutState(position: CGPoint(x: 320, y: 680), size: CGSize(width: 300, height: 260))
-        case "habits":     return WidgetLayoutState(position: CGPoint(x: 0, y: 680), size: CGSize(width: 300, height: 260))
-        case "scratchpad":return WidgetLayoutState(position: CGPoint(x: 320, y: 340), size: CGSize(width: 300, height: 320))
-        case "goals":      return WidgetLayoutState(position: CGPoint(x: 640, y: 0), size: CGSize(width: 300, height: 260))
-        case "projects":   return WidgetLayoutState(position: CGPoint(x: 640, y: 280), size: CGSize(width: 300, height: 260))
-        case "stats":      return WidgetLayoutState(position: CGPoint(x: 640, y: 560), size: CGSize(width: 300, height: 260))
-        case "terminal":   return WidgetLayoutState(position: CGPoint(x: 0, y: 960), size: CGSize(width: 340, height: 280))
-        default:           return WidgetLayoutState(position: .zero, size: CGSize(width: 300, height: 200))
+        let fw: CGFloat = 375
+        let hw: CGFloat = 182
+        let gap: CGFloat = 11
+        let spacing: CGFloat = 5
+        let s2: CGFloat = 395
+
+        // Flow screen 1
+        if let result = flowPosition(for: widgetId, in: Self.screen1Slots, xBase: 0, fw: fw, hw: hw, gap: gap, spacing: spacing) {
+            return result
+        }
+
+        // Flow screen 2
+        if let result = flowPosition(for: widgetId, in: Self.screen2Slots, xBase: s2, fw: fw, hw: hw, gap: gap, spacing: spacing) {
+            return result
+        }
+
+        // Widgets not in iOS flow (clock, todayBar, terminal — replaced by chrome/input bar)
+        // Return off-screen position so they don't appear
+        return WidgetLayoutState(position: CGPoint(x: -1000, y: -1000), size: CGSize(width: 0, height: 0))
+    }
+
+    private func flowPosition(for widgetId: String, in slots: [WidgetSlot], xBase: CGFloat, fw: CGFloat, hw: CGFloat, gap: CGFloat, spacing: CGFloat) -> WidgetLayoutState? {
+        var y: CGFloat = 0
+        var i = 0
+
+        while i < slots.count {
+            let slot = slots[i]
+
+            // Check if this is a half-width pair
+            if slot.width == .halfLeft && i + 1 < slots.count && slots[i + 1].width == .halfRight {
+                let leftSlot = slot
+                let rightSlot = slots[i + 1]
+                let leftVisible = isWidgetVisibleForFlow(leftSlot.id)
+                let rightVisible = isWidgetVisibleForFlow(rightSlot.id)
+                let pairHeight = max(leftSlot.height, rightSlot.height)
+
+                if leftVisible || rightVisible {
+                    if widgetId == leftSlot.id {
+                        return WidgetLayoutState(
+                            position: CGPoint(x: xBase, y: y),
+                            size: CGSize(width: leftVisible ? hw : 0, height: pairHeight)
+                        )
+                    }
+                    if widgetId == rightSlot.id {
+                        return WidgetLayoutState(
+                            position: CGPoint(x: xBase + hw + gap, y: y),
+                            size: CGSize(width: rightVisible ? hw : 0, height: pairHeight)
+                        )
+                    }
+                    y += pairHeight + spacing
+                }
+                i += 2
+                continue
+            }
+
+            // Full-width widget
+            let visible = isWidgetVisibleForFlow(slot.id)
+            if visible {
+                if widgetId == slot.id {
+                    return WidgetLayoutState(
+                        position: CGPoint(x: xBase, y: y),
+                        size: CGSize(width: fw, height: slot.height)
+                    )
+                }
+                y += slot.height + spacing
+            }
+            i += 1
+        }
+
+        return nil
+    }
+
+    private func isWidgetVisibleForFlow(_ id: String) -> Bool {
+        guard let widgetId = WidgetID.allCases.first(where: { $0.rawValue.lowercased().contains(id.lowercased()) || widgetIdString($0) == id }) else {
+            return true
+        }
+        return widgetVisibility.isVisible(widgetId)
+    }
+
+    private func widgetIdString(_ id: WidgetID) -> String {
+        switch id {
+        case .clock: return "clock"
+        case .todayBar: return "todayBar"
+        case .weather: return "weather"
+        case .workTasks: return "workTasks"
+        case .lifeTasks: return "lifeTasks"
+        case .habits: return "habits"
+        case .calendar: return "calendar"
+        case .projects: return "projects"
+        case .goals: return "goals"
+        case .scratchpad: return "scratchpad"
+        case .hotlist: return "hotlist"
+        case .stats: return "stats"
+        case .terminal: return "terminal"
+        case .deferredTasks: return "deferredTasks"
+        case .waitingTasks: return "waitingTasks"
+        case .longTermTasks: return "longTermTasks"
+        case .funFact: return "funFact"
         }
     }
 
@@ -639,6 +828,9 @@ struct DashboardView: View {
 
         // Background-enrich work tasks with subtasks + source tags
         TaskEnrichmentService.shared.enrichIfNeeded(taskBoard.workTasks, taskBoard: taskBoard)
+
+        // Start weather service
+        weatherService.start()
     }
 
     private func syncAll() {

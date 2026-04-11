@@ -57,6 +57,16 @@ open ~/Library/Developer/Xcode/DerivedData/alfredo-bsnsupimkylzxhfsgrhgetcenjaf/
 - [ ] Pi kiosk live calendar data (Phase 4)
 - [ ] Back-to-back meeting brief bundling UI
 
+## Active implementation plan
+
+**Read `docs/PLAN-calendar-todo-intelligence.md` before starting any feature work.** It contains:
+- Pre-work stability audit (S1-S13): security fixes, crash fixes, memory leaks
+- Bug fixes: scroll wheel panning (BF-A), ~~TTY yellow icon (BF-B, DONE)~~
+- Phase 0: Responsive widget content (WidgetSizeClass environment)
+- Phases 1-5: Calendar/todo intelligence (time-aware display, tappable events, context briefings, Pi kiosk integration)
+
+Execute in the order listed in the plan. Run stability fixes first.
+
 ## Terminal widget Pi setup
 
 Widget POSTs to `http://{host}:8420/chat`. Configure in app settings or:

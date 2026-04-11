@@ -134,6 +134,24 @@
 		AA00001200000008EMSV0002 /* EmailService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00001100000004EMSV0001 /* EmailService.swift */; };
 		9F070B564BA1430D4552CD99 /* TaskBriefingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD428C085C65B72EB2A9257 /* TaskBriefingSheet.swift */; };
 		F6ED67841BFC4098BDDAED1C /* TaskBriefingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCD428C085C65B72EB2A9257 /* TaskBriefingSheet.swift */; };
+		D6238E29FC744E4A9DFF49A3 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB8889B0DBD847AAA299579E /* WeatherService.swift */; };
+		CC92104FE19049CE9D0ED766 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB8889B0DBD847AAA299579E /* WeatherService.swift */; };
+		D6F5E35B114144DDA9A209E3 /* ProjectService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC697A1E69347B0B9F29421 /* ProjectService.swift */; };
+		E0CC9558213E4F9D97B2AEF7 /* ProjectService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC697A1E69347B0B9F29421 /* ProjectService.swift */; };
+		12721EE5C9664448BC5612E9 /* WeatherWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7188E16FE1A14C099AE5AFFF /* WeatherWidget.swift */; };
+		267C36724B5E4ED587C83C5C /* WeatherWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7188E16FE1A14C099AE5AFFF /* WeatherWidget.swift */; };
+		1DD80A318D534182B388E04A /* FunFactWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 190F7F07A7504BDD970CF448 /* FunFactWidget.swift */; };
+		37A71EB096264A9D9C972B63 /* FunFactWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 190F7F07A7504BDD970CF448 /* FunFactWidget.swift */; };
+		31558E425F8F422FA9C31480 /* ProjectDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B2E96FEDF3D46D981002C0D /* ProjectDetailSheet.swift */; };
+		923DD381F8FF400095182D5E /* ProjectDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B2E96FEDF3D46D981002C0D /* ProjectDetailSheet.swift */; };
+		E93B37F3EE774DD590541B4B /* StatusDotsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF261885D91B4FA58BB85F55 /* StatusDotsView.swift */; };
+		A9B1B237232142D9A4462760 /* StatusDotsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF261885D91B4FA58BB85F55 /* StatusDotsView.swift */; };
+		745A40E25FAA43B2BA296C91 /* iOSTopChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC5A2EE52AA48FBB92845A2 /* iOSTopChrome.swift */; };
+		ED16E9C22706461E88030B8A /* iOSTopChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC5A2EE52AA48FBB92845A2 /* iOSTopChrome.swift */; };
+		F89F5ECA578A4098A9ED9A00 /* AlfredoInputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1825F809E95D4E3AB132A4A0 /* AlfredoInputBar.swift */; };
+		732CBDDF9756461BAAA46372 /* AlfredoInputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1825F809E95D4E3AB132A4A0 /* AlfredoInputBar.swift */; };
+		439BEA34898A4B79B635930D /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = C543FCAEFDE440FFBCEF5FA6 /* Project.swift */; };
+		37C6CE1413E5474C8148DD38 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = C543FCAEFDE440FFBCEF5FA6 /* Project.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -206,6 +224,15 @@
 		AA00001100000002EMRP0001 /* EmailReplySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailReplySheet.swift; sourceTree = "<group>"; };
 		AA00001100000003TENR0001 /* TaskEnrichmentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEnrichmentService.swift; sourceTree = "<group>"; };
 		AA00001100000004EMSV0001 /* EmailService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailService.swift; sourceTree = "<group>"; };
+		BB8889B0DBD847AAA299579E /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
+		1AC697A1E69347B0B9F29421 /* ProjectService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectService.swift; sourceTree = "<group>"; };
+		7188E16FE1A14C099AE5AFFF /* WeatherWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherWidget.swift; sourceTree = "<group>"; };
+		190F7F07A7504BDD970CF448 /* FunFactWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FunFactWidget.swift; sourceTree = "<group>"; };
+		1B2E96FEDF3D46D981002C0D /* ProjectDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDetailSheet.swift; sourceTree = "<group>"; };
+		CF261885D91B4FA58BB85F55 /* StatusDotsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusDotsView.swift; sourceTree = "<group>"; };
+		7AC5A2EE52AA48FBB92845A2 /* iOSTopChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSTopChrome.swift; sourceTree = "<group>"; };
+		1825F809E95D4E3AB132A4A0 /* AlfredoInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlfredoInputBar.swift; sourceTree = "<group>"; };
+		C543FCAEFDE440FFBCEF5FA6 /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -224,7 +251,10 @@
 				411267E8ED5DE832DB0CBC55 /* WhatNextButton.swift */,
 				C78BA413E6D3FF2E8A686120 /* WidgetShell.swift */,
 				EB86BBF9EEF54F426859E837 /* ConnectionStatusBar.swift */,
-			);
+			
+				CF261885D91B4FA58BB85F55 /* StatusDotsView.swift */,
+				7AC5A2EE52AA48FBB92845A2 /* iOSTopChrome.swift */,
+				1825F809E95D4E3AB132A4A0 /* AlfredoInputBar.swift */,);
 			path = Components;
 			sourceTree = "<group>";
 		};
@@ -238,7 +268,8 @@
 				A490310687EAE684B08EC7F3 /* ScratchpadFile.swift */,
 				8668D9C67BDA380945AF125E /* Task.swift */,
 				40BA3C7BBFDE276C1E5A69C3 /* WidgetLayout.swift */,
-			);
+			
+				C543FCAEFDE440FFBCEF5FA6 /* Project.swift */,);
 			path = Models;
 			sourceTree = "<group>";
 		};
@@ -262,7 +293,9 @@
 				16B45014686062B92D1B28B9 /* MeetingPrepService.swift */,
 				AA00001100000003TENR0001 /* TaskEnrichmentService.swift */,
 				AA00001100000004EMSV0001 /* EmailService.swift */,
-			);
+			
+				BB8889B0DBD847AAA299579E /* WeatherService.swift */,
+				1AC697A1E69347B0B9F29421 /* ProjectService.swift */,);
 			path = Services;
 			sourceTree = "<group>";
 		};
@@ -372,7 +405,10 @@
 				607BD3EAAC29AF4DBD08FD72 /* ThemeControlPanel.swift */,
 				442608306ECD68E4409E2766 /* TodayBarWidget.swift */,
 				A8D276D3BB7871FA66B9CBEB /* WidgetSidebar.swift */,
-			);
+			
+				7188E16FE1A14C099AE5AFFF /* WeatherWidget.swift */,
+				190F7F07A7504BDD970CF448 /* FunFactWidget.swift */,
+				1B2E96FEDF3D46D981002C0D /* ProjectDetailSheet.swift */,);
 			path = Dashboard;
 			sourceTree = "<group>";
 		};
@@ -493,6 +529,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				439BEA34898A4B79B635930D /* Project.swift in Sources */,
+				F89F5ECA578A4098A9ED9A00 /* AlfredoInputBar.swift in Sources */,
+				745A40E25FAA43B2BA296C91 /* iOSTopChrome.swift in Sources */,
+				E93B37F3EE774DD590541B4B /* StatusDotsView.swift in Sources */,
+				31558E425F8F422FA9C31480 /* ProjectDetailSheet.swift in Sources */,
+				1DD80A318D534182B388E04A /* FunFactWidget.swift in Sources */,
+				12721EE5C9664448BC5612E9 /* WeatherWidget.swift in Sources */,
+				D6F5E35B114144DDA9A209E3 /* ProjectService.swift in Sources */,
+				D6238E29FC744E4A9DFF49A3 /* WeatherService.swift in Sources */,
 				FFA2B7C698A8BA920311BF04 /* AccentColor.swift in Sources */,
 				ABEA99D008D45FDBBD5F1001 /* AsciiMascot.swift in Sources */,
 				DA1E4422DF317FFC1023AA37 /* BootScreen.swift in Sources */,
@@ -563,6 +608,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				37C6CE1413E5474C8148DD38 /* Project.swift in Sources */,
+				732CBDDF9756461BAAA46372 /* AlfredoInputBar.swift in Sources */,
+				ED16E9C22706461E88030B8A /* iOSTopChrome.swift in Sources */,
+				A9B1B237232142D9A4462760 /* StatusDotsView.swift in Sources */,
+				923DD381F8FF400095182D5E /* ProjectDetailSheet.swift in Sources */,
+				37A71EB096264A9D9C972B63 /* FunFactWidget.swift in Sources */,
+				267C36724B5E4ED587C83C5C /* WeatherWidget.swift in Sources */,
+				E0CC9558213E4F9D97B2AEF7 /* ProjectService.swift in Sources */,
+				CC92104FE19049CE9D0ED766 /* WeatherService.swift in Sources */,
 				8FC89C7351397763B77CA68D /* AccentColor.swift in Sources */,
 				DB628CCB90EE852DD2D18A28 /* AsciiMascot.swift in Sources */,
 				F625D2BCFCEA3993FFFA6BB8 /* BootScreen.swift in Sources */,
