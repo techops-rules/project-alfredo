@@ -24,6 +24,33 @@ struct DashboardView: View {
     // Edit mode (iOS)
     @State private var isEditMode = false
 
+    // Context-aware layout
+    @State private var contextNow = Date()
+    private let contextTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+
+    private enum AppContext { case workFocus, night, weekend, personal }
+
+    private var appContext: AppContext {
+        let cal = Calendar.current
+        let hour = cal.component(.hour, from: contextNow)
+        let weekday = cal.component(.weekday, from: contextNow)
+        let isWeekend = weekday == 1 || weekday == 7
+        let isNight = hour >= 20 || hour < 7
+        let isWork = !isWeekend && hour >= 9 && hour < 18
+        if isWeekend { return .weekend }
+        if isNight   { return .night }
+        if isWork    { return .workFocus }
+        return .personal
+    }
+
+    /// Show weekend schedule on Sat, Sun, or Friday night (6pm+)
+    private var isWeekendCalendarMode: Bool {
+        let cal = Calendar.current
+        let weekday = cal.component(.weekday, from: contextNow)
+        let hour = cal.component(.hour, from: contextNow)
+        return weekday == 1 || weekday == 7 || (weekday == 6 && hour >= 18)
+    }
+
     // iOS bottom sheets
     @State private var showSettingsSheet = false
     @State private var showWidgetSheet = false
@@ -135,6 +162,7 @@ struct DashboardView: View {
             }
         }
         .onAppear { loadData() }
+        .onReceive(contextTimer) { _ in contextNow = Date() }
         .onChange(of: canvasOffset) { _, _ in
             flashMinimap()
         }
@@ -311,7 +339,10 @@ struct DashboardView: View {
                 defaultLayout: defaultLayout("calendar"),
                 isEditMode: widgetsEditable
             ) {
-                CalendarWidget(events: calendarService.events.isEmpty ? CalendarEvent.sampleEvents : calendarService.events)
+                CalendarWidget(
+                    events: calendarService.events.isEmpty ? CalendarEvent.sampleEvents : calendarService.events,
+                    weekendMode: isWeekendCalendarMode
+                )
             }
             .transition(.opacity)
         }
@@ -647,25 +678,84 @@ struct DashboardView: View {
     private enum WidgetWidth { case full, halfLeft, halfRight }
     private typealias WidgetSlot = (id: String, width: WidgetWidth, height: CGFloat)
 
-    private static let screen1Slots: [WidgetSlot] = [
-        ("weather",    .full,      130),
-        ("scratchpad", .halfLeft,  200),
-        ("hotlist",    .halfRight, 200),
-        ("calendar",   .full,      250),
-        ("workTasks",  .full,      280),
-    ]
+    private var screen1Slots: [WidgetSlot] {
+        #if os(iOS)
+        let base: [WidgetSlot] = [("weather", .full, 130)]
+        switch appContext {
+        case .workFocus:
+            return base + [
+                ("hotlist",   .full, 220),
+                ("calendar",  .full, 250),
+                ("workTasks", .full, 280),
+            ]
+        case .night:
+            return base + [("hotlist", .full, 220)]
+        case .weekend:
+            return base + [
+                ("hotlist",   .full, 200),
+                ("calendar",  .full, 220),
+                ("lifeTasks", .full, 280),
+            ]
+        case .personal:
+            return base + [
+                ("hotlist",   .full, 200),
+                ("calendar",  .full, 220),
+                ("workTasks", .full, 240),
+            ]
+        }
+        #else
+        return [
+            ("weather",    .full,      130),
+            ("scratchpad", .halfLeft,  200),
+            ("hotlist",    .halfRight, 200),
+            ("calendar",   .full,      250),
+            ("workTasks",  .full,      280),
+        ]
+        #endif
+    }
 
-    private static let screen2Slots: [WidgetSlot] = [
-        ("lifeTasks",     .full,      230),
-        ("habits",        .full,      180),
-        ("projects",      .full,      200),
-        ("goals",         .full,      160),
-        ("stats",         .halfLeft,  160),
-        ("deferredTasks", .halfRight, 160),
-        ("waitingTasks",  .halfLeft,  160),
-        ("longTermTasks", .halfRight, 160),
-        ("funFact",       .full,      120),
-    ]
+    private var screen2Slots: [WidgetSlot] {
+        #if os(iOS)
+        switch appContext {
+        case .weekend:
+            return [
+                ("workTasks",     .full,      230),
+                ("habits",        .full,      180),
+                ("projects",      .full,      200),
+                ("goals",         .full,      160),
+                ("stats",         .halfLeft,  160),
+                ("deferredTasks", .halfRight, 160),
+                ("waitingTasks",  .halfLeft,  160),
+                ("longTermTasks", .halfRight, 160),
+                ("funFact",       .full,      120),
+            ]
+        default:
+            return [
+                ("lifeTasks",     .full,      230),
+                ("habits",        .full,      180),
+                ("projects",      .full,      200),
+                ("goals",         .full,      160),
+                ("stats",         .halfLeft,  160),
+                ("deferredTasks", .halfRight, 160),
+                ("waitingTasks",  .halfLeft,  160),
+                ("longTermTasks", .halfRight, 160),
+                ("funFact",       .full,      120),
+            ]
+        }
+        #else
+        return [
+            ("lifeTasks",     .full,      230),
+            ("habits",        .full,      180),
+            ("projects",      .full,      200),
+            ("goals",         .full,      160),
+            ("stats",         .halfLeft,  160),
+            ("deferredTasks", .halfRight, 160),
+            ("waitingTasks",  .halfLeft,  160),
+            ("longTermTasks", .halfRight, 160),
+            ("funFact",       .full,      120),
+        ]
+        #endif
+    }
 
     private func iOSDefaultLayout(_ widgetId: String) -> WidgetLayoutState {
         let fw: CGFloat = 375
@@ -675,12 +765,12 @@ struct DashboardView: View {
         let s2: CGFloat = 395
 
         // Flow screen 1
-        if let result = flowPosition(for: widgetId, in: Self.screen1Slots, xBase: 0, fw: fw, hw: hw, gap: gap, spacing: spacing) {
+        if let result = flowPosition(for: widgetId, in: screen1Slots, xBase: 0, fw: fw, hw: hw, gap: gap, spacing: spacing) {
             return result
         }
 
         // Flow screen 2
-        if let result = flowPosition(for: widgetId, in: Self.screen2Slots, xBase: s2, fw: fw, hw: hw, gap: gap, spacing: spacing) {
+        if let result = flowPosition(for: widgetId, in: screen2Slots, xBase: s2, fw: fw, hw: hw, gap: gap, spacing: spacing) {
             return result
         }
 

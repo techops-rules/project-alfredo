@@ -23,11 +23,17 @@ class WidgetLayoutManager: ObservableObject {
     }
 
     func getLayout(_ widgetId: String, default defaultLayout: WidgetLayoutState) -> WidgetLayoutState {
+        #if os(iOS)
+        // iOS uses a computed flow layout — always recompute from defaults so
+        // context-aware slot ordering (work/night/weekend) takes effect immediately.
+        return defaultLayout
+        #else
         if let existing = layouts[widgetId] {
             return existing
         }
         layouts[widgetId] = defaultLayout
         return defaultLayout
+        #endif
     }
 
     // Live position update during drag — no snap, no save

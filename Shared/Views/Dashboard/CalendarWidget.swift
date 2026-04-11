@@ -2,41 +2,81 @@ import SwiftUI
 
 struct CalendarWidget: View {
     let events: [CalendarEvent]
+    var weekendMode: Bool = false
     @Environment(\.theme) private var theme
     @State private var selectedEvent: CalendarEvent?
 
-    /// Active + upcoming events only (past events auto-clear)
+    /// Active + upcoming events for today
     private func activeEvents(at now: Date) -> [CalendarEvent] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: now)
         guard let tomorrow = cal.date(byAdding: .day, value: 1, to: today) else { return [] }
-
-        return events.filter { event in
-            event.startTime >= today && event.startTime < tomorrow && event.endTime > now
-        }
+        return events.filter { $0.startTime >= today && $0.startTime < tomorrow && $0.endTime > now }
     }
 
-    private var todayString: String {
-        let f = DateFormatter()
-        f.dateFormat = "EEE, MMM d"
-        return f.string(from: Date()).uppercased()
+    /// Weekend events (Sat+Sun of the coming weekend), T&S calendar first
+    private func weekendEvents(at now: Date) -> [CalendarEvent] {
+        let cal = Calendar.current
+        let weekday = cal.component(.weekday, from: now) // 1=Sun,2=Mon,...,6=Fri,7=Sat
+
+        let daysUntilSat: Int
+        switch weekday {
+        case 7: daysUntilSat = 0   // Saturday already
+        case 1: daysUntilSat = 6   // Sunday — show next weekend
+        case 6: daysUntilSat = 1   // Friday night — tomorrow
+        default: daysUntilSat = 7 - weekday + 1
+        }
+
+        guard let saturday = cal.date(byAdding: .day, value: daysUntilSat, to: cal.startOfDay(for: now)),
+              let monday   = cal.date(byAdding: .day, value: 2, to: saturday) else { return [] }
+
+        return events
+            .filter { !$0.isAllDay && $0.startTime >= saturday && $0.startTime < monday }
+            .sorted { a, b in
+                let aIsTS = isTS(a)
+                let bIsTS = isTS(b)
+                if aIsTS != bIsTS { return aIsTS }
+                return a.startTime < b.startTime
+            }
+    }
+
+    private func isTS(_ event: CalendarEvent) -> Bool {
+        guard let name = event.calendarName?.lowercased() else { return false }
+        return name.contains("t&s") || name.contains("t & s") || name.contains("sierra")
+    }
+
+    private func headerString(at now: Date) -> String {
+        if weekendMode {
+            let cal = Calendar.current
+            let weekday = cal.component(.weekday, from: now)
+            let daysUntilSat = weekday == 7 ? 0 : weekday == 1 ? 6 : weekday == 6 ? 1 : 7 - weekday + 1
+            guard let sat = cal.date(byAdding: .day, value: daysUntilSat, to: cal.startOfDay(for: now)),
+                  let sun = cal.date(byAdding: .day, value: 1, to: sat) else {
+                return "WEEKEND"
+            }
+            let f = DateFormatter(); f.dateFormat = "MMM d"
+            return "WKD \(f.string(from: sat).uppercased()) – \(f.string(from: sun).uppercased())"
+        }
+        let f = DateFormatter(); f.dateFormat = "EEE, MMM d"
+        return f.string(from: now).uppercased()
     }
 
     var body: some View {
         // TimelineView refreshes every 60s so events auto-clear and live states update
         TimelineView(.periodic(from: .now, by: 60)) { timeline in
             let now = timeline.date
-            let visible = activeEvents(at: now)
+            let visible = weekendMode ? weekendEvents(at: now) : activeEvents(at: now)
+            let emptyMsg = weekendMode ? "no weekend events" : "no more events today"
 
             WidgetShell(
                 title: "CALENDAR.DAT",
-                badge: "\(visible.count) today",
+                badge: weekendMode ? "WKD" : "\(visible.count) today",
                 zone: "primary"
             ) {
                 VStack(spacing: 12) {
-                    // Today indicator
+                    // Date header
                     HStack(spacing: 8) {
-                        Text(todayString)
+                        Text(headerString(at: now))
                             .font(.system(size: 9, weight: .medium, design: .monospaced))
                             .foregroundColor(theme.accentFull)
                         Spacer()
@@ -49,7 +89,7 @@ struct CalendarWidget: View {
 
                     // Event list
                     if visible.isEmpty {
-                        Text("no more events today")
+                        Text(emptyMsg)
                             .font(.system(size: theme.fontSize, design: .monospaced))
                             .foregroundColor(ThemeManager.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -57,7 +97,7 @@ struct CalendarWidget: View {
                     } else {
                         VStack(spacing: 8) {
                             ForEach(visible) { event in
-                                CalendarEventRow(event: event, now: now)
+                                CalendarEventRow(event: event, now: now, showDay: weekendMode)
                                     .contentShape(Rectangle())
                                     .onLongPressGesture(minimumDuration: 0.5) {
                                         selectedEvent = event
@@ -83,6 +123,7 @@ struct CalendarWidget: View {
 struct CalendarEventRow: View {
     let event: CalendarEvent
     let now: Date
+    var showDay: Bool = false
     @Environment(\.theme) private var theme
     @State private var displayState: MeetingDisplayState = .collapsed
 
@@ -141,15 +182,25 @@ struct CalendarEventRow: View {
 
                 // Time
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(event.timeString)
-                        .font(.system(size: theme.fontSize - 1, weight: event.isLive ? .bold : .medium, design: .monospaced))
-                        .foregroundColor(dimmed ? ThemeManager.textSecondary.opacity(0.4) : theme.accentFull)
-                        .frame(width: 70, alignment: .leading)
+                    if showDay {
+                        let f: DateFormatter = {
+                            let df = DateFormatter(); df.dateFormat = "EEE h:mm a"; return df
+                        }()
+                        Text(f.string(from: event.startTime).uppercased())
+                            .font(.system(size: theme.fontSize - 1, weight: .medium, design: .monospaced))
+                            .foregroundColor(dimmed ? ThemeManager.textSecondary.opacity(0.4) : theme.accentFull)
+                            .frame(width: 100, alignment: .leading)
+                    } else {
+                        Text(event.timeString)
+                            .font(.system(size: theme.fontSize - 1, weight: event.isLive ? .bold : .medium, design: .monospaced))
+                            .foregroundColor(dimmed ? ThemeManager.textSecondary.opacity(0.4) : theme.accentFull)
+                            .frame(width: 70, alignment: .leading)
 
-                    if event.isLive || event.isStartingSoon {
-                        Text(event.isLive ? "NOW" : "in \(event.minutesUntilStart)m")
-                            .font(.system(size: theme.fontSize - 3, weight: .bold, design: .monospaced))
-                            .foregroundColor(event.isLive ? ThemeManager.success : ThemeManager.warning)
+                        if event.isLive || event.isStartingSoon {
+                            Text(event.isLive ? "NOW" : "in \(event.minutesUntilStart)m")
+                                .font(.system(size: theme.fontSize - 3, weight: .bold, design: .monospaced))
+                                .foregroundColor(event.isLive ? ThemeManager.success : ThemeManager.warning)
+                        }
                     }
                 }
 

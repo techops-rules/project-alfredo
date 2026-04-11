@@ -44,17 +44,23 @@ struct HotlistWidget: View {
             zone: "urgent"
         ) {
             if allItems.isEmpty {
-                Text("nothing urgent right now")
-                    .font(.system(size: theme.fontSize, design: .monospaced))
-                    .foregroundColor(ThemeManager.textSecondary)
-                    .opacity(0.5)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack {
+                    Text("nothing urgent right now")
+                        .font(.system(size: theme.fontSize, design: .monospaced))
+                        .foregroundColor(ThemeManager.textSecondary)
+                        .opacity(0.5)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Spacer()
+                }
+                .frame(maxHeight: .infinity)
             } else {
-                VStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 6) {
                     ForEach(allItems) { item in
                         HotlistRow(item: item, onToggle: onToggle)
                     }
+                    Spacer()
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
     }

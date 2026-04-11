@@ -260,37 +260,30 @@ private struct HourStripView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 2) {
                             ForEach(visibleHours) { hour in
-                                let isCurrent = hour.hour == currentHour
                                 let isPast = hour.time < now
 
                                 VStack(spacing: 3) {
                                     // Weather icon
                                     let colors = WeatherService.conditionColor(for: hour.code)
                                     Image(systemName: WeatherService.conditionSymbol(for: hour.code))
-                                        .font(.system(size: isCurrent ? 16 : 11))
+                                        .font(.system(size: 11))
                                         .foregroundColor(
                                             Color(red: colors.r, green: colors.g, blue: colors.b)
                                         )
 
                                     // Temp
                                     Text("\(Int(hour.temp))°")
-                                        .font(.system(size: isCurrent ? 12 : 9, weight: isCurrent ? .bold : .regular, design: .monospaced))
-                                        .foregroundColor(isCurrent ? ThemeManager.textEmphasis : ThemeManager.textPrimary)
+                                        .font(.system(size: 9, design: .monospaced))
+                                        .foregroundColor(ThemeManager.textPrimary)
 
                                     // Hour label
                                     Text(hourLabel(hour.hour))
                                         .font(.system(size: 8, design: .monospaced))
                                         .foregroundColor(ThemeManager.textSecondary)
                                 }
-                                .frame(width: isCurrent ? 48 : 36)
+                                .frame(width: 36)
                                 .padding(.vertical, 4)
-                                .opacity(isPast ? 0.5 : 1.0)
-                                .background(
-                                    isCurrent
-                                        ? RoundedRectangle(cornerRadius: 4)
-                                            .fill(theme.accentFull.opacity(0.1))
-                                        : nil
-                                )
+                                .opacity(isPast ? 0.4 : 1.0)
                                 .id(hour.hour)
                             }
                         }
