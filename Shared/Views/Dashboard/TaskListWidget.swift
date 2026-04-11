@@ -47,8 +47,7 @@ struct TaskListWidget: View {
                     }
 
                     if hiddenCount > 0 {
-                        Text("+
-\(hiddenCount) more hidden at this size")
+                        Text("+\(hiddenCount) more hidden at this size")
                             .font(.system(size: metrics.captionFontSize, design: .monospaced))
                             .foregroundColor(ThemeManager.textSecondary.opacity(0.7))
                     }

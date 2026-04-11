@@ -152,6 +152,8 @@
 		732CBDDF9756461BAAA46372 /* AlfredoInputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1825F809E95D4E3AB132A4A0 /* AlfredoInputBar.swift */; };
 		439BEA34898A4B79B635930D /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = C543FCAEFDE440FFBCEF5FA6 /* Project.swift */; };
 		37C6CE1413E5474C8148DD38 /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = C543FCAEFDE440FFBCEF5FA6 /* Project.swift */; };
+		AA11CC3300000002PTKS0001 /* PushTokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11CC3300000001PTKS0001 /* PushTokenService.swift */; };
+		AA11CC3300000003PTKS0002 /* PushTokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11CC3300000001PTKS0001 /* PushTokenService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -162,6 +164,7 @@
 		911E9935C07519687F2F6C07 /* WebSocketSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketSession.swift; sourceTree = "<group>"; };
 		16179758663BE33EE9B95CD3 /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
 		1626F9AF3D7A73915AE520D9 /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
+		AA11CC3300000001PTKS0001 /* PushTokenService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTokenService.swift; sourceTree = "<group>"; };
 		1C1DBB3AF8D61EAD55997EF3 /* MemoryFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryFile.swift; sourceTree = "<group>"; };
 		2469CD70AD9F19C123F93312 /* AsciiMascot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsciiMascot.swift; sourceTree = "<group>"; };
 		3341665366C92100017CD0C3 /* ScratchpadWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScratchpadWidget.swift; sourceTree = "<group>"; };
@@ -293,7 +296,8 @@
 				16B45014686062B92D1B28B9 /* MeetingPrepService.swift */,
 				AA00001100000003TENR0001 /* TaskEnrichmentService.swift */,
 				AA00001100000004EMSV0001 /* EmailService.swift */,
-			
+				AA11CC3300000001PTKS0001 /* PushTokenService.swift */,
+
 				BB8889B0DBD847AAA299579E /* WeatherService.swift */,
 				1AC697A1E69347B0B9F29421 /* ProjectService.swift */,);
 			path = Services;
@@ -553,6 +557,7 @@
 				AA00001200000003EMRP0001 /* EmailReplySheet.swift in Sources */,
 				AA00001200000005TENR0001 /* TaskEnrichmentService.swift in Sources */,
 				AA00001200000007EMSV0001 /* EmailService.swift in Sources */,
+				AA11CC3300000002PTKS0001 /* PushTokenService.swift in Sources */,
 				C600B91A8CC7C1C9A41B6A23 /* ClockWidget.swift in Sources */,
 				0C2136ECF6C0F9447B9D9E54 /* DashboardView.swift in Sources */,
 				9AEDF2452D12DF52D44EEBD9 /* DraggableWidgetContainer.swift in Sources */,
@@ -632,6 +637,7 @@
 				AA00001200000004EMRP0002 /* EmailReplySheet.swift in Sources */,
 				AA00001200000006TENR0002 /* TaskEnrichmentService.swift in Sources */,
 				AA00001200000008EMSV0002 /* EmailService.swift in Sources */,
+				AA11CC3300000003PTKS0002 /* PushTokenService.swift in Sources */,
 				16C9B8D06245F5BF818C4DF2 /* ClockWidget.swift in Sources */,
 				FD875FCE06B90981ECFCB09C /* DashboardView.swift in Sources */,
 				0914F7B659D82CEBAD1BAC2C /* DraggableWidgetContainer.swift in Sources */,
