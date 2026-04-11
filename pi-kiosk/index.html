@@ -97,7 +97,7 @@
 
   /* Widget */
   .widget { position: absolute; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.2s, transform 0.2s; }
-  .widget.hidden { opacity: 0; pointer-events: none; transform: scale(0.97); }
+  .widget.hidden { display: none !important; }
   .widget-header { display:flex; align-items:center; gap:8px; padding:6px 10px; background:rgba(97,175,239,0.05); border-bottom:1px solid var(--accent-border); font-size:10px; font-weight:700; color:var(--accent); letter-spacing:2px; flex-shrink:0; zoom:var(--content-zoom,1); }
   .badge { font-size:9px; font-weight:500; color:var(--text-secondary); letter-spacing:1px; }
   .zone { margin-left:auto; font-size:8px; color:var(--text-secondary); opacity:0.5; }
@@ -269,6 +269,28 @@
   .exit-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:200; flex-direction:column; align-items:center; justify-content:center; gap:12px; }
   .exit-overlay.show { display:flex; }
   .exit-overlay span { font-size:13px; color:#555; letter-spacing:3px; }
+
+  /* ── Mode system ─────────────────────────────────────────── */
+  /* Night mode dimming */
+  body.mode-night .canvas { filter: brightness(0.6); }
+  body.mode-night .widget { opacity: 0.8; }
+
+  /* Meeting widget */
+  .meeting-title { font-size: 16px; font-weight: 700; color: var(--text-emphasis); margin-bottom: 6px; }
+  .meeting-attendees { font-size: 10px; color: var(--text-secondary); margin-bottom: 10px; letter-spacing: 0.5px; }
+  .meeting-brief { font-size: 11px; color: var(--text-primary); line-height: 1.5; margin-bottom: 12px; max-height: 80px; overflow-y: auto; }
+  .meeting-notes { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .meeting-notes-label { font-size: 8px; font-weight: 700; letter-spacing: 2px; color: var(--text-secondary); margin-bottom: 4px; }
+  .meeting-scratchpad { flex: 1; background: rgba(97,175,239,0.03); border: 1px solid var(--accent-border); border-radius: 4px; padding: 8px; font-family: var(--font); font-size: 11px; color: var(--text-primary); line-height: 1.5; overflow-y: auto; outline: none; min-height: 120px; }
+  .meeting-scratchpad:focus { border-color: var(--accent); }
+  #w-meeting .widget-body { display: flex; flex-direction: column; height: calc(100% - 28px); }
+
+  /* Meeting countdown pulse */
+  @keyframes meeting-pulse { 0%,100%{box-shadow:inset 0 0 0 0 transparent} 50%{box-shadow:inset 0 0 0 2px var(--warning)} }
+  body.meeting-ending .canvas { animation: meeting-pulse 2s ease-in-out infinite; }
+
+  /* Mode indicator in status bar */
+  .mode-indicator { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--accent); opacity: 0.7; margin-right: 8px; }
 </style>
 </head>
 <body>
@@ -365,6 +387,20 @@
     <div class="widget-body"><div class="scratch-body" id="scratchBody"></div></div>
   </div>
 
+  <!-- MEETING.LIVE -->
+  <div class="widget hidden" id="w-meeting" style="left:16px;top:130px;width:992px;height:410px">
+    <div class="widget-header">MEETING.LIVE <span class="badge" id="meetingBadge"></span><span class="zone">active</span></div>
+    <div class="widget-body" id="meetingBody">
+      <div class="meeting-title" id="meetingTitle"></div>
+      <div class="meeting-attendees" id="meetingAttendees"></div>
+      <div class="meeting-brief" id="meetingBrief"></div>
+      <div class="meeting-notes">
+        <div class="meeting-notes-label">NOTES</div>
+        <div class="meeting-scratchpad" id="meetingScratchpad" contenteditable="true" spellcheck="false"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Voice -->
   <div class="voice-btn" id="voiceBtn" title="voice — mic coming soon">🎙</div>
 </div>
@@ -379,18 +415,22 @@
   <div class="status-item" style="gap:6px"><div class="status-dot" id="sd-sync"></div><span id="sync-lbl" style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">SYNC</span></div>
   <div class="status-item" style="gap:6px"><div class="status-dot" id="sd-presence"></div><span style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">NEARBY</span></div>
   <div class="spacer"></div>
-  <span style="font-size:10px;color:var(--text-secondary);opacity:0.5;margin-right:6px">v0.46.0</span>
+  <span class="mode-indicator" id="modeIndicator">WORK</span>
+  <span style="font-size:10px;color:var(--text-secondary);opacity:0.5;margin-right:6px">v0.47.0</span>
   <button class="hbg-btn" id="hbgToggle">☰</button>
 </div>
 
 <!-- Hamburger panel -->
 <div class="hbg-panel" id="hbgPanel">
   <div class="hbg-section">
-    <div class="hbg-label">LAYOUT</div>
+    <div class="hbg-label">MODE</div>
     <div class="hbg-row">
-      <button class="hbg-chip active" data-preset="default">DEFAULT</button>
-      <button class="hbg-chip" data-preset="focus">FOCUS</button>
-      <button class="hbg-chip" data-preset="terminal">TERMINAL</button>
+      <button class="hbg-chip active" data-mode="auto">AUTO</button>
+      <button class="hbg-chip" data-mode="work">WORK</button>
+      <button class="hbg-chip" data-mode="meeting">MEETING</button>
+      <button class="hbg-chip" data-mode="focus">FOCUS</button>
+      <button class="hbg-chip" data-mode="weekend">WEEKEND</button>
+      <button class="hbg-chip" data-mode="night">NIGHT</button>
     </div>
   </div>
   <div class="hbg-divider"></div>
@@ -1017,41 +1057,155 @@ setInterval(() => {
   }
 }, 30000); // check every 30s
 
-// ── Time-aware widget visibility ────────────────────────────
-// Work hours 9am-6pm: both todos visible
-// Evening 6pm-10pm: work todo hidden, personal visible
-// Night 10pm-6am: both compacted to tap-to-expand bar
-let _lastTimeMode=null;
-function checkTimeMode(){
-  const h=new Date().getHours();
-  const mode=(h>=22||h<6)?'night':(h>=18?'evening':'work');
-  if(mode===_lastTimeMode) return; // only apply on mode change so user expansions persist
-  _lastTimeMode=mode;
-  const wWork=document.getElementById('w-work');
-  const wLife=document.getElementById('w-life');
-  if(mode==='night'){
-    if(wWork){wWork.classList.remove('time-hidden');wWork.classList.add('compact');}
-    if(wLife){wLife.classList.remove('time-hidden');wLife.classList.add('compact');}
-  } else if(mode==='evening'){
-    if(wWork){wWork.classList.add('time-hidden');wWork.classList.remove('compact');}
-    if(wLife){wLife.classList.remove('time-hidden');wLife.classList.remove('compact');}
+// ── Mode system ─────────────────────────────────────────────
+// Replaces time-aware visibility with full context-aware modes
+let _currentMode = null;
+let _meetingSticky = false; // meeting mode stays until dismissed
+
+function isInMeeting() {
+  const now = Date.now();
+  return hotlistCalEvents.some(e => {
+    const start = new Date(e.startTime).getTime();
+    const end = new Date(e.endTime || e.startTime).getTime();
+    return now >= start && now <= end;
+  });
+}
+
+function getCurrentMeeting() {
+  const now = Date.now();
+  return hotlistCalEvents.find(e => {
+    const start = new Date(e.startTime).getTime();
+    const end = new Date(e.endTime || e.startTime).getTime();
+    return now >= start && now <= end;
+  }) || null;
+}
+
+function getNextMeeting() {
+  const now = Date.now();
+  const upcoming = hotlistCalEvents
+    .filter(e => new Date(e.startTime).getTime() > now)
+    .sort((a,b) => new Date(a.startTime) - new Date(b.startTime));
+  if (!upcoming.length) return null;
+  const m = upcoming[0];
+  return { event: m, minsUntil: Math.round((new Date(m.startTime).getTime() - now) / 60000) };
+}
+
+function isInFocusBlock() {
+  const blocks = loadData('focusBlocks', null);
+  if (!blocks || !blocks.length) return false;
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  const mins = h * 60 + m;
+  const day = now.getDay();
+  return blocks.some(b => {
+    if (b.days && !b.days.includes(day)) return false;
+    return mins >= b.start && mins < b.end;
+  });
+}
+
+function updateMode() {
+  const now = new Date();
+  const h = now.getHours();
+  const day = now.getDay();
+  const isWeekend = (day === 0 || day === 6);
+  const manualMode = loadData('manualMode', null);
+
+  // Manual override persists until cleared
+  if (manualMode) {
+    applyMode(manualMode);
+    return;
+  }
+
+  // Auto-select based on priority: night > weekend > focus > meeting > work
+  if (h >= 22 || h < 6) {
+    applyMode('night');
+  } else if (isWeekend) {
+    applyMode('weekend');
+  } else if (isInFocusBlock()) {
+    applyMode('focus');
+  } else if (isInMeeting() || _meetingSticky) {
+    applyMode('meeting');
+    _meetingSticky = true;
   } else {
-    if(wWork){wWork.classList.remove('time-hidden','compact');}
-    if(wLife){wLife.classList.remove('time-hidden','compact');}
+    _meetingSticky = false;
+    applyMode('work');
   }
 }
-checkTimeMode();
-setInterval(checkTimeMode,60000);
 
-// ── Layout presets ──────────────────────────────────────────
-// Layout geometry (1024×572 usable canvas)
-// Row 1: clock (left) + weather (far right, wide)
-// Row 2: work + life tasks
-// Row 3: calendar + today.exe [+ scratch at sm]
-const layouts = {
-  // ── Compact: ≤13px ─────────────────────────────────────────
-  // Clock left · weather far right · middle open · tasks mid · cal+today bottom
-  default: {
+function applyMode(mode) {
+  if (mode === _currentMode) {
+    // Still check meeting countdown even if mode hasn't changed
+    checkMeetingCountdown();
+    return;
+  }
+  _currentMode = mode;
+
+  // Remove all mode classes
+  document.body.classList.remove('mode-night','mode-weekend','mode-focus','mode-meeting','mode-work','meeting-ending');
+
+  // Add current mode class
+  document.body.classList.add('mode-' + mode);
+
+  // Apply layout for this mode
+  applyModeLayout(mode);
+
+  // Update mode indicator
+  const ind = document.getElementById('modeIndicator');
+  if (ind) ind.textContent = mode.toUpperCase();
+
+  // Update hamburger button states
+  document.querySelectorAll('.hbg-chip[data-mode]').forEach(b => {
+    const isAuto = b.dataset.mode === 'auto';
+    const isManual = loadData('manualMode', null);
+    if (isAuto) b.classList.toggle('active', !isManual);
+    else b.classList.toggle('active', b.dataset.mode === mode);
+  });
+
+  // Populate meeting widget if in meeting mode
+  if (mode === 'meeting') populateMeetingWidget();
+
+  checkMeetingCountdown();
+}
+
+function checkMeetingCountdown() {
+  const meeting = getCurrentMeeting();
+  if (meeting && meeting.endTime) {
+    const remaining = (new Date(meeting.endTime).getTime() - Date.now()) / 1000;
+    document.body.classList.toggle('meeting-ending', remaining > 0 && remaining <= 60);
+  } else {
+    document.body.classList.remove('meeting-ending');
+  }
+}
+
+function populateMeetingWidget() {
+  const meeting = getCurrentMeeting();
+  const titleEl = document.getElementById('meetingTitle');
+  const attendeesEl = document.getElementById('meetingAttendees');
+  const briefEl = document.getElementById('meetingBrief');
+  const badgeEl = document.getElementById('meetingBadge');
+
+  if (!meeting) {
+    if (titleEl) titleEl.textContent = 'No active meeting';
+    if (attendeesEl) attendeesEl.textContent = '';
+    if (briefEl) briefEl.textContent = '';
+    if (badgeEl) badgeEl.textContent = '';
+    return;
+  }
+
+  if (titleEl) titleEl.textContent = meeting.title || 'Meeting';
+  if (attendeesEl) attendeesEl.textContent = meeting.attendees ? meeting.attendees.join(', ') : '';
+  if (briefEl) briefEl.textContent = meeting.notes || meeting.location || '';
+  if (badgeEl) {
+    const end = new Date(meeting.endTime || meeting.startTime);
+    badgeEl.textContent = end.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  }
+}
+
+// ── Mode-based layouts ──────────────────────────────────────
+// Each mode has a layout defining widget positions on 1024×572 canvas
+const modeLayouts = {
+  // Work mode: full dashboard (default weekday view)
+  work: {
     'w-clock':   {left:'16px',  top:'8px',   width:'230px', height:'140px',show:true},
     'w-hotlist': {left:'258px', top:'8px',   width:'396px', height:'165px',show:true},
     'w-weather': {right:'16px', top:'8px',   width:'340px', height:'165px',show:true},
@@ -1062,9 +1216,69 @@ const layouts = {
     'w-stats':   {show:false},
     'w-scratch': {show:false},
     'w-tty':     {show:false},
+    'w-meeting': {show:false},
   },
-  // ── Readable: 14–15px ──────────────────────────────────────
-  'default-md': {
+  // Meeting mode: immersive meeting view
+  meeting: {
+    'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'110px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'200px', height:'60px',show:true},
+    'w-today':   {left:'218px', top:'8px',   width:'580px', height:'60px',show:true},
+    'w-meeting': {left:'16px',  top:'130px', width:'992px', height:'410px',show:true},
+    'w-work':    {show:false},
+    'w-life':    {show:false},
+    'w-cal':     {show:false},
+    'w-hotlist': {show:false},
+    'w-tty':     {show:false},
+    'w-stats':   {show:false},
+    'w-scratch': {show:false},
+  },
+  // Night mode: dimmed, minimal (10pm-6am)
+  night: {
+    'w-clock':   {left:'256px', top:'80px',  width:'512px', height:'200px',show:true},
+    'w-weather': {left:'356px', top:'290px', width:'312px', height:'80px',show:true},
+    'w-work':    {left:'16px',  top:'390px', width:'494px', height:'150px',show:true},
+    'w-life':    {left:'522px', top:'390px', width:'486px', height:'150px',show:true},
+    'w-cal':     {show:false},
+    'w-today':   {show:false},
+    'w-hotlist': {show:false},
+    'w-tty':     {show:false},
+    'w-stats':   {show:false},
+    'w-scratch': {show:false},
+    'w-meeting': {show:false},
+  },
+  // Weekend mode: personal focus, no work (Sat/Sun 6am-10pm)
+  weekend: {
+    'w-clock':   {left:'16px',  top:'8px',   width:'230px', height:'140px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'340px', height:'140px',show:true},
+    'w-life':    {left:'16px',  top:'160px', width:'494px', height:'220px',show:true},
+    'w-scratch': {left:'522px', top:'160px', width:'486px', height:'220px',show:true},
+    'w-cal':     {left:'16px',  top:'392px', width:'494px', height:'165px',show:true},
+    'w-today':   {left:'522px', top:'392px', width:'486px', height:'165px',show:true},
+    'w-work':    {show:false},
+    'w-hotlist': {show:false},
+    'w-tty':     {show:false},
+    'w-stats':   {show:false},
+    'w-meeting': {show:false},
+  },
+  // Focus mode: deep work, tasks only
+  focus: {
+    'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'110px',show:true},
+    'w-today':   {right:'16px', top:'8px',   width:'336px', height:'110px',show:true},
+    'w-work':    {left:'16px',  top:'130px', width:'992px', height:'410px',show:true},
+    'w-weather': {show:false},
+    'w-life':    {show:false},
+    'w-hotlist': {show:false},
+    'w-cal':     {show:false},
+    'w-tty':     {show:false},
+    'w-stats':   {show:false},
+    'w-scratch': {show:false},
+    'w-meeting': {show:false},
+  },
+};
+
+// Font-size variants for work mode
+const workVariants = {
+  'work-md': {
     'w-clock':   {left:'16px',  top:'8px',   width:'230px', height:'134px',show:true},
     'w-hotlist': {left:'258px', top:'8px',   width:'396px', height:'158px',show:true},
     'w-weather': {right:'16px', top:'8px',   width:'340px', height:'158px',show:true},
@@ -1075,9 +1289,9 @@ const layouts = {
     'w-stats':   {show:false},
     'w-scratch': {show:false},
     'w-tty':     {show:false},
+    'w-meeting': {show:false},
   },
-  // ── Large: 16px+ ───────────────────────────────────────────
-  'default-lg': {
+  'work-lg': {
     'w-clock':   {left:'16px',  top:'8px',   width:'230px', height:'126px',show:true},
     'w-hotlist': {left:'258px', top:'8px',   width:'396px', height:'150px',show:true},
     'w-weather': {right:'16px', top:'8px',   width:'340px', height:'150px',show:true},
@@ -1088,56 +1302,81 @@ const layouts = {
     'w-stats':   {show:false},
     'w-scratch': {show:false},
     'w-tty':     {show:false},
-  },
-  focus: {
-    'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'110px',show:true},
-    'w-weather': {left:'218px', top:'8px',   width:'320px', height:'110px',show:true},
-    'w-today':   {right:'16px', top:'8px',   width:'336px', height:'110px',show:true},
-    'w-work':    {left:'16px',  top:'130px', width:'480px', height:'410px',show:true},
-    'w-life':    {left:'510px', top:'130px', width:'480px', height:'410px',show:true},
-    'w-hotlist': {show:false},
-    'w-cal':     {show:false},
-    'w-tty':     {show:false},
-    'w-stats':   {show:false},
-    'w-scratch': {show:false},
-  },
-  terminal: {
-    'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'110px',show:true},
-    'w-weather': {left:'218px', top:'8px',   width:'320px', height:'110px',show:true},
-    'w-today':   {right:'16px', top:'8px',   width:'336px', height:'110px',show:true},
-    'w-work':    {left:'16px',  top:'130px', width:'300px', height:'410px',show:true},
-    'w-hotlist': {show:false},
-    'w-life':    {show:false},
-    'w-cal':     {show:false},
-    'w-tty':     {left:'330px', top:'130px', right:'16px',  height:'410px',show:true},
-    'w-stats':   {show:false},
-    'w-scratch': {show:false},
+    'w-meeting': {show:false},
   },
 };
 
-function applyLayout(name){
-  const layout=layouts[name];
-  if(!layout) return;
-  Object.entries(layout).forEach(([id,cfg])=>{
-    const el=document.getElementById(id);
-    if(!el) return;
-    if(!cfg.show){ el.classList.add('hidden'); return; }
+function applyModeLayout(mode) {
+  // For work mode, pick font-size variant
+  let layout;
+  if (mode === 'work') {
+    const px = parseInt(loadData('fontSize', 13)) || 13;
+    if (px >= 16) layout = workVariants['work-lg'];
+    else if (px >= 14) layout = workVariants['work-md'];
+    else layout = modeLayouts.work;
+  } else {
+    layout = modeLayouts[mode];
+  }
+  if (!layout) return;
+
+  // Hide ALL widgets first, then show only those in this mode
+  document.querySelectorAll('.widget').forEach(el => el.classList.add('hidden'));
+
+  Object.entries(layout).forEach(([id, cfg]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!cfg.show) return;
     el.classList.remove('hidden');
-    ['left','top','right','bottom','width','height'].forEach(p=>{
-      el.style[p]=cfg[p]||'';
+    ['left','top','right','bottom','width','height'].forEach(p => {
+      el.style[p] = cfg[p] || '';
     });
   });
-  document.querySelectorAll('.hbg-chip[data-preset]').forEach(b=>b.classList.toggle('active',b.dataset.preset===name));
-  saveData('activeLayout',name);
+
+  // Night mode: compact task widgets
+  if (mode === 'night') {
+    ['w-work','w-life'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('compact');
+    });
+  } else {
+    ['w-work','w-life'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('compact');
+    });
+  }
 }
 
-document.querySelectorAll('.hbg-chip[data-preset]').forEach(btn=>{
-  btn.addEventListener('click',()=>{ applyLayout(btn.dataset.preset); closeHbg(); });
+// Legacy compat: applyLayout still works for settings sync
+function applyLayout(name) {
+  // Map old preset names to modes
+  if (name === 'default' || name === 'default-md' || name === 'default-lg') {
+    applyMode('work');
+  } else if (modeLayouts[name]) {
+    applyMode(name);
+  }
+}
+
+// Mode button handlers
+document.querySelectorAll('.hbg-chip[data-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.mode;
+    if (mode === 'auto') {
+      saveData('manualMode', null);
+      _meetingSticky = false;
+      _currentMode = null; // force re-evaluation
+      updateMode();
+    } else {
+      saveData('manualMode', mode);
+      _meetingSticky = (mode === 'meeting');
+      applyMode(mode);
+    }
+    closeHbg();
+  });
 });
 
-// Apply saved layout on load
-const savedLayout=loadData('activeLayout','default');
-applyLayout(savedLayout);
+// Apply mode on load
+updateMode();
+setInterval(updateMode, 60000);
 
 // Tap compact widget header to expand/collapse
 ['w-work','w-life'].forEach(id=>{
@@ -1146,19 +1385,13 @@ applyLayout(savedLayout);
 });
 
 // ── Font size ───────────────────────────────────────────────
-function layoutVariantForSize(px){
-  const base = loadData('activeLayout','default');
-  if(base==='focus'||base==='terminal') return base; // never override manual presets
-  if(px>=16) return 'default-lg';
-  if(px>=14) return 'default-md';
-  return 'default';
-}
 function applyFontSize(px){
   const scale = px / 13;
   document.documentElement.style.setProperty('--content-zoom', scale);
   document.documentElement.style.setProperty('--fs', px+'px');
   document.body.style.zoom = '';
-  applyLayout(layoutVariantForSize(px));
+  // Re-apply current mode layout (picks correct work variant)
+  if (_currentMode === 'work') applyModeLayout('work');
   saveData('fontSize', px);
 }
 let currentFs = parseInt(loadData('fontSize', 13)) || 13;

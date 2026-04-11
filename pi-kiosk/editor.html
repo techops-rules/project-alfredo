@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>alfredo kiosk editor</title>
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap");
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg: #080E18; --surface: rgba(8,14,24,0.76); --surface2: #0d1520;
+    --text-primary: #ABB2BF; --text-secondary: #5C6370; --text-emphasis: #E8EAED;
+    --accent: #61AFEF; --accent-border: rgba(97,175,239,0.28);
+    --success: #98C379; --warning: #E5C07B; --danger: #E06C75;
+    --font: "JetBrains Mono", monospace;
+    --editor-bg: #0a0e16;
+  }
+  body { background:#111; color:var(--text-primary); font-family:var(--font); font-size:12px; display:flex; height:100vh; overflow:hidden; }
+
+  /* Sidebar */
+  .sidebar { width:260px; background:var(--editor-bg); border-right:1px solid var(--accent-border); display:flex; flex-direction:column; flex-shrink:0; }
+  .sidebar-header { padding:12px 16px; border-bottom:1px solid var(--accent-border); }
+  .sidebar-header h1 { font-size:11px; font-weight:700; letter-spacing:2px; color:var(--accent); }
+  .sidebar-header .ver { font-size:9px; color:var(--text-secondary); margin-top:2px; }
+  .sidebar-body { flex:1; overflow-y:auto; padding:8px; }
+  .sidebar-footer { padding:12px; border-top:1px solid var(--accent-border); display:flex; flex-direction:column; gap:6px; }
+
+  /* Sidebar widget list */
+  .sw-item { display:flex; align-items:center; gap:8px; padding:8px; border-radius:4px; cursor:pointer; border:1px solid transparent; margin-bottom:2px; }
+  .sw-item:hover { background:rgba(97,175,239,0.05); }
+  .sw-item.selected { border-color:var(--accent); background:rgba(97,175,239,0.08); }
+  .sw-eye { width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:10px; opacity:0.5; cursor:pointer; }
+  .sw-eye.on { opacity:1; color:var(--success); }
+  .sw-name { font-size:10px; font-weight:700; letter-spacing:1px; color:var(--text-emphasis); flex:1; }
+  .sw-size { font-size:8px; color:var(--text-secondary); }
+
+  /* Properties panel */
+  .props { display:none; padding:8px; }
+  .props.visible { display:block; }
+  .props-title { font-size:9px; font-weight:700; letter-spacing:2px; color:var(--accent); margin-bottom:8px; border-bottom:1px solid var(--accent-border); padding-bottom:6px; }
+  .prop-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+  .prop-label { font-size:9px; color:var(--text-secondary); letter-spacing:1px; width:50px; flex-shrink:0; }
+  .prop-input { background:#0a0f1a; border:1px solid var(--accent-border); border-radius:3px; padding:4px 6px; font-family:var(--font); font-size:10px; color:var(--text-emphasis); width:70px; outline:none; }
+  .prop-input:focus { border-color:var(--accent); }
+
+  /* Preset selector */
+  .preset-row { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px; }
+  .preset-btn { font-family:var(--font); font-size:8px; font-weight:700; letter-spacing:1px; padding:4px 8px; border-radius:3px; border:1px solid var(--accent-border); background:transparent; color:var(--text-secondary); cursor:pointer; }
+  .preset-btn.active { background:rgba(97,175,239,0.15); color:var(--accent); border-color:var(--accent); }
+
+  /* Action buttons */
+  .btn { font-family:var(--font); font-size:9px; font-weight:700; letter-spacing:1px; padding:8px 12px; border-radius:4px; border:1px solid var(--accent-border); background:transparent; color:var(--text-secondary); cursor:pointer; width:100%; text-align:center; }
+  .btn:hover { background:rgba(97,175,239,0.05); }
+  .btn.primary { background:rgba(97,175,239,0.15); color:var(--accent); border-color:var(--accent); }
+  .btn.deploy { background:rgba(152,195,121,0.15); color:var(--success); border-color:var(--success); }
+  .btn.danger { border-color:var(--danger); color:var(--danger); }
+
+  /* Canvas area */
+  .canvas-wrap { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#111; overflow:auto; padding:20px; }
+  .canvas-label { font-size:9px; color:var(--text-secondary); letter-spacing:2px; margin-bottom:8px; }
+
+  /* The kiosk canvas */
+  .kiosk-canvas {
+    width:1024px; height:600px; position:relative;
+    background:var(--bg); border:1px solid var(--accent-border); border-radius:4px; overflow:hidden; flex-shrink:0;
+    background-image: linear-gradient(rgba(97,175,239,0.035) 1px,transparent 1px), linear-gradient(90deg,rgba(97,175,239,0.035) 1px,transparent 1px);
+    background-size:80px 80px;
+  }
+
+  /* Editor widgets */
+  .ew {
+    position:absolute; border:1px solid var(--accent-border); border-radius:6px;
+    background:var(--surface); cursor:move; user-select:none;
+    display:flex; flex-direction:column; transition:box-shadow 0.15s;
+  }
+  .ew:hover { box-shadow:0 0 0 1px var(--accent); }
+  .ew.selected { box-shadow:0 0 0 2px var(--accent), 0 0 12px rgba(97,175,239,0.2); z-index:10; }
+  .ew.hidden-widget { opacity:0.15; pointer-events:none; }
+  .ew.dragging { opacity:0.85; z-index:100; transition:none; }
+  .ew-header {
+    display:flex; align-items:center; gap:6px; padding:4px 8px;
+    background:rgba(97,175,239,0.05); border-bottom:1px solid var(--accent-border);
+    font-size:9px; font-weight:700; color:var(--accent); letter-spacing:2px; flex-shrink:0;
+  }
+  .ew-body { flex:1; padding:6px 8px; overflow:hidden; font-size:9px; color:var(--text-secondary); display:flex; align-items:center; justify-content:center; }
+
+  /* Resize handles */
+  .ew .resize-handle {
+    position:absolute; width:10px; height:10px; background:var(--accent); border-radius:2px; opacity:0; z-index:20;
+  }
+  .ew.selected .resize-handle { opacity:0.6; }
+  .ew .resize-handle:hover { opacity:1; }
+  .resize-br { bottom:-5px; right:-5px; cursor:nwse-resize; }
+  .resize-bl { bottom:-5px; left:-5px; cursor:nesw-resize; }
+  .resize-tr { top:-5px; right:-5px; cursor:nesw-resize; }
+  .resize-r { top:50%; right:-5px; transform:translateY(-50%); cursor:ew-resize; width:6px; height:20px; }
+  .resize-b { bottom:-5px; left:50%; transform:translateX(-50%); cursor:ns-resize; width:20px; height:6px; }
+
+  /* Snap lines */
+  .snap-line { position:absolute; z-index:50; pointer-events:none; }
+  .snap-line.h { left:0; right:0; height:1px; background:rgba(225,80,100,0.6); }
+  .snap-line.v { top:0; bottom:0; width:1px; background:rgba(225,80,100,0.6); }
+
+  /* Status bar mock */
+  .kiosk-statusbar {
+    position:absolute; bottom:0; left:0; right:0; height:28px;
+    background:rgba(8,14,24,0.9); border-top:1px solid var(--accent-border);
+    display:flex; align-items:center; padding:0 12px;
+    font-size:9px; color:var(--text-secondary); letter-spacing:1px;
+  }
+
+  /* Export modal */
+  .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:200; align-items:center; justify-content:center; }
+  .modal-bg.open { display:flex; }
+  .modal-content { background:var(--editor-bg); border:1px solid var(--accent-border); border-radius:8px; padding:20px; width:700px; max-height:80vh; overflow-y:auto; }
+  .modal-content h2 { font-size:10px; font-weight:700; letter-spacing:2px; color:var(--accent); margin-bottom:12px; }
+  .modal-content pre { background:#080E18; border:1px solid var(--accent-border); border-radius:4px; padding:12px; font-size:10px; color:var(--text-primary); white-space:pre-wrap; word-break:break-all; max-height:50vh; overflow-y:auto; }
+  .modal-actions { display:flex; gap:8px; margin-top:12px; justify-content:flex-end; }
+  .modal-actions .btn { width:auto; padding:8px 20px; }
+
+  /* Toast */
+  .toast { position:fixed; bottom:20px; right:20px; background:rgba(152,195,121,0.15); border:1px solid var(--success); color:var(--success); padding:10px 16px; border-radius:6px; font-size:10px; letter-spacing:1px; z-index:300; display:none; }
+  .toast.show { display:block; animation:fadeIn 0.2s; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>KIOSK EDITOR</h1>
+    <div class="ver">1024 x 600 &middot; alfredo</div>
+  </div>
+
+  <div style="padding:8px;">
+    <div style="font-size:8px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:6px;">PRESET</div>
+    <div class="preset-row" id="presetRow"></div>
+  </div>
+
+  <div style="padding:0 8px;">
+    <div style="font-size:8px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:6px;">WIDGETS</div>
+  </div>
+
+  <div class="sidebar-body" id="widgetList"></div>
+
+  <div class="props" id="propsPanel">
+    <div class="props-title">PROPERTIES</div>
+    <div class="prop-row"><span class="prop-label">LEFT</span><input class="prop-input" id="propLeft" type="number"></div>
+    <div class="prop-row"><span class="prop-label">TOP</span><input class="prop-input" id="propTop" type="number"></div>
+    <div class="prop-row"><span class="prop-label">WIDTH</span><input class="prop-input" id="propWidth" type="number"></div>
+    <div class="prop-row"><span class="prop-label">HEIGHT</span><input class="prop-input" id="propHeight" type="number"></div>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="btn primary" onclick="exportLayout()">EXPORT LAYOUT</button>
+    <button class="btn deploy" onclick="copyAndDeploy()">COPY & DEPLOY</button>
+  </div>
+</div>
+
+<div class="canvas-wrap">
+  <div class="canvas-label">1024 x 600 &middot; ROADOM 7"</div>
+  <div class="kiosk-canvas" id="canvas">
+    <div class="kiosk-statusbar">
+      BRIDGE &middot; WS &middot; NET &middot; ICLOUD &middot; TAILSCALE &middot; SYNC &middot; NEARBY
+      <span style="flex:1"></span>
+      <span id="editorVersion">v0.46.0</span>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="exportModal">
+  <div class="modal-content">
+    <h2>EXPORTED LAYOUT</h2>
+    <p style="font-size:9px;color:var(--text-secondary);margin-bottom:8px;">Copy this into <code>const modeLayouts</code> in index.html, replacing the current mode.</p>
+    <pre id="exportCode"></pre>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeExport()">CLOSE</button>
+      <button class="btn primary" onclick="copyExport()">COPY TO CLIPBOARD</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Widget definitions ─────────────────────────────────────
+const WIDGETS = [
+  { id:'w-clock',   name:'CLOCK.SYS',    zone:'primary',  content:'12:00:00 PM' },
+  { id:'w-weather', name:'WEATHER.SYS',   zone:'live',     content:'72F Partly Cloudy' },
+  { id:'w-hotlist', name:'HOTLIST.EXE',   zone:'urgent',   content:'Priority items' },
+  { id:'w-work',    name:'WORK.TODO',     zone:'primary',  content:'Work tasks' },
+  { id:'w-life',    name:'LIFE.TODO',     zone:'primary',  content:'Life tasks' },
+  { id:'w-cal',     name:'CALENDAR.DAT',  zone:'primary',  content:'Calendar events' },
+  { id:'w-today',   name:'TODAY.EXE',     zone:'primary',  content:'Progress dots' },
+  { id:'w-stats',   name:'STATS.DAT',     zone:'primary',  content:'Stats grid' },
+  { id:'w-scratch', name:'SCRATCH.PAD',   zone:'primary',  content:'Notes' },
+  { id:'w-tty',     name:'CLAUDE.TTY',    zone:'system',   content:'Terminal bridge' },
+  { id:'w-meeting', name:'MEETING.LIVE',  zone:'active',   content:'Meeting view' },
+];
+
+// ── Mode layouts (synced from index.html) ───────────────────
+const layouts = {
+  work: {
+    'w-clock':   {left:16,  top:8,   width:230, height:140, show:true},
+    'w-hotlist': {left:258, top:8,   width:396, height:165, show:true},
+    'w-weather': {left:668, top:8,   width:340, height:165, show:true},
+    'w-work':    {left:16,  top:185, width:494, height:165, show:true},
+    'w-life':    {left:522, top:185, width:486, height:165, show:true},
+    'w-cal':     {left:16,  top:362, width:494, height:195, show:true},
+    'w-today':   {left:522, top:362, width:486, height:195, show:true},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+  meeting: {
+    'w-clock':   {left:16,  top:8,   width:190, height:110, show:true},
+    'w-weather': {left:808, top:8,   width:200, height:60,  show:true},
+    'w-today':   {left:218, top:8,   width:580, height:60,  show:true},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:true},
+    'w-work':    {left:16,  top:185, width:494, height:165, show:false},
+    'w-life':    {left:522, top:185, width:486, height:165, show:false},
+    'w-cal':     {left:16,  top:362, width:494, height:195, show:false},
+    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
+    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+  },
+  night: {
+    'w-clock':   {left:256, top:80,  width:512, height:200, show:true},
+    'w-weather': {left:356, top:290, width:312, height:80,  show:true},
+    'w-work':    {left:16,  top:390, width:494, height:150, show:true},
+    'w-life':    {left:522, top:390, width:486, height:150, show:true},
+    'w-cal':     {left:16,  top:362, width:494, height:195, show:false},
+    'w-today':   {left:522, top:362, width:486, height:195, show:false},
+    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
+    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+  weekend: {
+    'w-clock':   {left:16,  top:8,   width:230, height:140, show:true},
+    'w-weather': {left:668, top:8,   width:340, height:140, show:true},
+    'w-life':    {left:16,  top:160, width:494, height:220, show:true},
+    'w-scratch': {left:522, top:160, width:486, height:220, show:true},
+    'w-cal':     {left:16,  top:392, width:494, height:165, show:true},
+    'w-today':   {left:522, top:392, width:486, height:165, show:true},
+    'w-work':    {left:16,  top:185, width:494, height:165, show:false},
+    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
+    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+  focus: {
+    'w-clock':   {left:16,  top:8,   width:190, height:110, show:true},
+    'w-today':   {left:672, top:8,   width:336, height:110, show:true},
+    'w-work':    {left:16,  top:130, width:992, height:410, show:true},
+    'w-weather': {left:218, top:8,   width:320, height:110, show:false},
+    'w-life':    {left:510, top:130, width:480, height:410, show:false},
+    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
+    'w-cal':     {left:16,  top:352, width:310, height:185, show:false},
+    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+};
+
+let currentPreset = 'work';
+let selectedWidget = null;
+let snapLines = [];
+const SNAP_THRESHOLD = 8;
+const CANVAS_W = 1024;
+const CANVAS_H = 572; // minus statusbar
+
+// ── State (deep clone current layout) ───────────────────────
+let state = JSON.parse(JSON.stringify(layouts[currentPreset]));
+
+// ── Init ────────────────────────────────────────────────────
+function init() {
+  renderPresets();
+  renderCanvas();
+  renderWidgetList();
+}
+
+// ── Presets ──────────────────────────────────────────────────
+function renderPresets() {
+  const row = document.getElementById('presetRow');
+  row.innerHTML = '';
+  Object.keys(layouts).forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn' + (name === currentPreset ? ' active' : '');
+    btn.textContent = name.toUpperCase();
+    btn.onclick = () => switchPreset(name);
+    row.appendChild(btn);
+  });
+}
+
+function switchPreset(name) {
+  currentPreset = name;
+  state = JSON.parse(JSON.stringify(layouts[name]));
+  selectedWidget = null;
+  renderPresets();
+  renderCanvas();
+  renderWidgetList();
+  hideProps();
+}
+
+// ── Canvas ──────────────────────────────────────────────────
+function renderCanvas() {
+  const canvas = document.getElementById('canvas');
+  // Remove old widgets + snap lines
+  canvas.querySelectorAll('.ew, .snap-line').forEach(el => el.remove());
+
+  WIDGETS.forEach(w => {
+    const s = state[w.id];
+    if (!s) return;
+
+    const el = document.createElement('div');
+    el.className = 'ew' + (s.show === false ? ' hidden-widget' : '') + (w.id === selectedWidget ? ' selected' : '');
+    el.dataset.id = w.id;
+    el.style.left = s.left + 'px';
+    el.style.top = s.top + 'px';
+    el.style.width = s.width + 'px';
+    el.style.height = s.height + 'px';
+
+    el.innerHTML = `
+      <div class="ew-header">${w.name} <span style="margin-left:auto;font-size:7px;opacity:0.4">${w.zone}</span></div>
+      <div class="ew-body">${w.content}</div>
+      <div class="resize-handle resize-br"></div>
+      <div class="resize-handle resize-r"></div>
+      <div class="resize-handle resize-b"></div>
+    `;
+
+    // Drag
+    el.addEventListener('mousedown', e => {
+      if (e.target.classList.contains('resize-handle')) return;
+      e.preventDefault();
+      selectWidget(w.id);
+      startDrag(e, w.id);
+    });
+
+    // Resize handles
+    el.querySelector('.resize-br').addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'br'); });
+    el.querySelector('.resize-r').addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'r'); });
+    el.querySelector('.resize-b').addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'b'); });
+
+    canvas.appendChild(el);
+  });
+}
+
+// ── Widget list (sidebar) ───────────────────────────────────
+function renderWidgetList() {
+  const list = document.getElementById('widgetList');
+  list.innerHTML = '';
+  WIDGETS.forEach(w => {
+    const s = state[w.id] || {};
+    const item = document.createElement('div');
+    item.className = 'sw-item' + (w.id === selectedWidget ? ' selected' : '');
+    const vis = s.show !== false;
+    item.innerHTML = `
+      <div class="sw-eye ${vis ? 'on' : ''}" data-id="${w.id}" title="Toggle visibility">${vis ? '&#9673;' : '&#9675;'}</div>
+      <span class="sw-name">${w.name}</span>
+      <span class="sw-size">${s.width || '?'}x${s.height || '?'}</span>
+    `;
+    item.addEventListener('click', e => {
+      if (e.target.classList.contains('sw-eye')) {
+        toggleVisibility(w.id);
+        return;
+      }
+      selectWidget(w.id);
+    });
+    list.appendChild(item);
+  });
+}
+
+function toggleVisibility(id) {
+  if (!state[id]) return;
+  state[id].show = !state[id].show;
+  renderCanvas();
+  renderWidgetList();
+  if (selectedWidget === id) showProps(id);
+}
+
+function selectWidget(id) {
+  selectedWidget = id;
+  renderCanvas();
+  renderWidgetList();
+  showProps(id);
+}
+
+// ── Properties panel ────────────────────────────────────────
+function showProps(id) {
+  const s = state[id];
+  if (!s) return;
+  document.getElementById('propsPanel').classList.add('visible');
+  document.getElementById('propLeft').value = s.left;
+  document.getElementById('propTop').value = s.top;
+  document.getElementById('propWidth').value = s.width;
+  document.getElementById('propHeight').value = s.height;
+}
+
+function hideProps() {
+  document.getElementById('propsPanel').classList.remove('visible');
+}
+
+// Property input handlers
+['propLeft','propTop','propWidth','propHeight'].forEach(pid => {
+  document.getElementById(pid).addEventListener('input', e => {
+    if (!selectedWidget || !state[selectedWidget]) return;
+    const key = {propLeft:'left', propTop:'top', propWidth:'width', propHeight:'height'}[pid];
+    state[selectedWidget][key] = parseInt(e.target.value) || 0;
+    renderCanvas();
+  });
+});
+
+// ── Drag ────────────────────────────────────────────────────
+function startDrag(e, id) {
+  const s = state[id];
+  const canvas = document.getElementById('canvas');
+  const rect = canvas.getBoundingClientRect();
+  const startX = e.clientX, startY = e.clientY;
+  const origLeft = s.left, origTop = s.top;
+  const el = canvas.querySelector(`[data-id="${id}"]`);
+  el.classList.add('dragging');
+
+  function onMove(e) {
+    let newLeft = origLeft + (e.clientX - startX);
+    let newTop = origTop + (e.clientY - startY);
+
+    // Clamp
+    newLeft = Math.max(0, Math.min(CANVAS_W - s.width, newLeft));
+    newTop = Math.max(0, Math.min(CANVAS_H - s.height, newTop));
+
+    // Snap
+    const snaps = calcSnaps(id, newLeft, newTop, s.width, s.height);
+    if (snaps.snapX !== null) newLeft = snaps.snapX;
+    if (snaps.snapY !== null) newTop = snaps.snapY;
+    showSnapLines(snaps.lines);
+
+    s.left = Math.round(newLeft);
+    s.top = Math.round(newTop);
+
+    el.style.left = s.left + 'px';
+    el.style.top = s.top + 'px';
+    showProps(id);
+  }
+
+  function onUp() {
+    el.classList.remove('dragging');
+    clearSnapLines();
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    renderWidgetList();
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ── Resize ──────────────────────────────────────────────────
+function startResize(e, id, handle) {
+  const s = state[id];
+  const canvas = document.getElementById('canvas');
+  const el = canvas.querySelector(`[data-id="${id}"]`);
+  const startX = e.clientX, startY = e.clientY;
+  const origW = s.width, origH = s.height;
+
+  function onMove(e) {
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if (handle === 'br' || handle === 'r') s.width = Math.max(100, origW + dx);
+    if (handle === 'br' || handle === 'b') s.height = Math.max(60, origH + dy);
+    s.width = Math.round(Math.min(s.width, CANVAS_W - s.left));
+    s.height = Math.round(Math.min(s.height, CANVAS_H - s.top));
+    el.style.width = s.width + 'px';
+    el.style.height = s.height + 'px';
+    showProps(id);
+
+    const snaps = calcSnaps(id, s.left, s.top, s.width, s.height);
+    showSnapLines(snaps.lines);
+  }
+
+  function onUp() {
+    clearSnapLines();
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    renderWidgetList();
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ── Snap logic ──────────────────────────────────────────────
+function calcSnaps(dragId, left, top, w, h) {
+  const edges = { left, right: left + w, top, bottom: top + h, cx: left + w/2, cy: top + h/2 };
+  let snapX = null, snapY = null;
+  const lines = [];
+
+  // Canvas edges + margins
+  const guides = [
+    { type:'v', pos:16 },    // left margin
+    { type:'v', pos:CANVAS_W - 16 },  // right margin
+    { type:'v', pos:CANVAS_W / 2 },   // center
+    { type:'h', pos:8 },     // top margin
+    { type:'h', pos:CANVAS_H - 8 },   // bottom margin (above statusbar)
+  ];
+
+  // Other widget edges
+  WIDGETS.forEach(w => {
+    if (w.id === dragId) return;
+    const s = state[w.id];
+    if (!s || s.show === false) return;
+    guides.push({ type:'v', pos:s.left });
+    guides.push({ type:'v', pos:s.left + s.width });
+    guides.push({ type:'h', pos:s.top });
+    guides.push({ type:'h', pos:s.top + s.height });
+  });
+
+  guides.forEach(g => {
+    if (g.type === 'v') {
+      [edges.left, edges.right, edges.cx].forEach(e => {
+        if (Math.abs(e - g.pos) < SNAP_THRESHOLD) {
+          const offset = e - edges.left;
+          snapX = g.pos - offset;
+          lines.push({ type:'v', pos:g.pos });
+        }
+      });
+    } else {
+      [edges.top, edges.bottom, edges.cy].forEach(e => {
+        if (Math.abs(e - g.pos) < SNAP_THRESHOLD) {
+          const offset = e - edges.top;
+          snapY = g.pos - offset;
+          lines.push({ type:'h', pos:g.pos });
+        }
+      });
+    }
+  });
+
+  return { snapX, snapY, lines };
+}
+
+function showSnapLines(lines) {
+  clearSnapLines();
+  const canvas = document.getElementById('canvas');
+  lines.forEach(l => {
+    const el = document.createElement('div');
+    el.className = 'snap-line ' + (l.type === 'h' ? 'h' : 'v');
+    if (l.type === 'h') el.style.top = l.pos + 'px';
+    else el.style.left = l.pos + 'px';
+    canvas.appendChild(el);
+  });
+}
+
+function clearSnapLines() {
+  document.querySelectorAll('.snap-line').forEach(el => el.remove());
+}
+
+// ── Export ───────────────────────────────────────────────────
+function exportLayout() {
+  let code = `  '${currentPreset}': {\n`;
+  WIDGETS.forEach(w => {
+    const s = state[w.id];
+    if (!s) return;
+    if (s.show === false) {
+      code += `    '${w.id}':${' '.repeat(Math.max(1,12-w.id.length))}{show:false},\n`;
+    } else {
+      const parts = [`left:'${s.left}px'`, `top:'${s.top}px'`, `width:'${s.width}px'`, `height:'${s.height}px'`, `show:true`];
+      code += `    '${w.id}':${' '.repeat(Math.max(1,12-w.id.length))}{${parts.join(', ')}},\n`;
+    }
+  });
+  code += `  },`;
+
+  document.getElementById('exportCode').textContent = code;
+  document.getElementById('exportModal').classList.add('open');
+}
+
+function closeExport() {
+  document.getElementById('exportModal').classList.remove('open');
+}
+
+function copyExport() {
+  const code = document.getElementById('exportCode').textContent;
+  navigator.clipboard.writeText(code).then(() => toast('Copied to clipboard'));
+}
+
+function copyAndDeploy() {
+  exportLayout();
+  toast('Export the layout, paste into index.html, then run: bash pi-kiosk/deploy.sh');
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Keyboard shortcuts ──────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (!selectedWidget || !state[selectedWidget]) return;
+  const s = state[selectedWidget];
+  const step = e.shiftKey ? 10 : 1;
+
+  switch(e.key) {
+    case 'ArrowLeft':  s.left = Math.max(0, s.left - step); break;
+    case 'ArrowRight': s.left = Math.min(CANVAS_W - s.width, s.left + step); break;
+    case 'ArrowUp':    s.top = Math.max(0, s.top - step); break;
+    case 'ArrowDown':  s.top = Math.min(CANVAS_H - s.height, s.top + step); break;
+    case 'Delete': case 'Backspace':
+      if (document.activeElement.tagName === 'INPUT') return;
+      s.show = false;
+      renderCanvas(); renderWidgetList();
+      return;
+    case 'Escape':
+      selectedWidget = null;
+      hideProps(); renderCanvas(); renderWidgetList();
+      return;
+    default: return;
+  }
+  e.preventDefault();
+  renderCanvas();
+  showProps(selectedWidget);
+});
+
+// Click canvas to deselect
+document.getElementById('canvas').addEventListener('mousedown', e => {
+  if (e.target.id === 'canvas' || e.target.classList.contains('kiosk-statusbar')) {
+    selectedWidget = null;
+    hideProps();
+    renderCanvas();
+    renderWidgetList();
+  }
+});
+
+// ── Go ──────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
