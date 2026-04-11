@@ -1,0 +1,16 @@
+[Unit]
+Description=Alfredo Wake Word Listener
+After=network.target alfredo-bridge.service
+Wants=alfredo-bridge.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/alfredo-kiosk
+ExecStart=/usr/bin/python3 /home/pi/alfredo-kiosk/alfredo-wake.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

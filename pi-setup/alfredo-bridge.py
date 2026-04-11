@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """
-Alfredo Bridge v2 — WebSocket + HTTP server for interactive Claude Code.
+Alfredo Bridge v3 — WebSocket + HTTP server for interactive Claude Code.
 
 Endpoints:
-  GET  /health  → 200 OK (HTTP, for connection monitoring)
-  POST /chat    → one-shot mode (HTTP, backward compat)
-  WS   /ws      → interactive PTY session (WebSocket)
+  GET  /health         → 200 OK (HTTP, for connection monitoring)
+  POST /chat           → one-shot mode (HTTP, backward compat)
+  POST /register-push  → store APNs device token
+  WS   /ws             → interactive PTY session (WebSocket)
 
 The WebSocket endpoint spawns `claude` in a PTY and streams I/O bidirectionally.
 One claude process per WebSocket connection, killed on disconnect.
+
+Agent mode: when init message includes "mode":"agent", spawns claude with
+the Codex system prompt from ~/alfredo-kiosk/agent-prompt.txt.
 """
 
 import asyncio
@@ -31,6 +35,10 @@ PORT_HTTP = 8420
 PORT_WS = 8421
 LOG = logging.getLogger("alfredo-bridge")
 
+AGENT_PROMPT_PATH = os.path.expanduser("~/alfredo-kiosk/agent-prompt.txt")
+APNS_CONFIG_PATH = os.path.expanduser("~/alfredo-kiosk/apns-config.json")
+DEVICE_TOKEN_PATH = os.path.expanduser("~/alfredo-kiosk/device-token.txt")
+
 
 # =============================================================================
 # HTTP Server (health check + one-shot fallback)
@@ -44,6 +52,9 @@ class HTTPHandler(BaseHTTPRequestHandler):
             self._json(404, {"error": "not found"})
 
     def do_POST(self):
+        if self.path == "/register-push":
+            self._handle_register_push()
+            return
         if self.path != "/chat":
             self._json(404, {"error": "not found"})
             return
@@ -64,6 +75,22 @@ class HTTPHandler(BaseHTTPRequestHandler):
             self._json(504, {"error": "claude timed out"})
         except FileNotFoundError:
             self._json(503, {"error": "claude cli not found"})
+        except Exception as e:
+            self._json(500, {"error": str(e)})
+
+    def _handle_register_push(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+            token = body.get("device_token", "").strip()
+            if not token:
+                self._json(400, {"error": "missing device_token"})
+                return
+            # Persist the token
+            with open(DEVICE_TOKEN_PATH, "w") as f:
+                f.write(token)
+            LOG.info("Registered APNs device token: %s...%s", token[:8], token[-4:])
+            self._json(200, {"status": "registered", "token_prefix": token[:8]})
         except Exception as e:
             self._json(500, {"error": str(e)})
 
@@ -101,15 +128,17 @@ async def ws_handler(websocket):
         # Client should send {"type":"init","model":"haiku"} before any input.
         # If first message isn't init, treat it as input after claude starts.
         model = os.environ.get("CLAUDE_MODEL", "haiku")
+        mode = "raw"
         first_input = None
         try:
             raw = await asyncio.wait_for(websocket.recv(), timeout=2.0)
             msg = json.loads(raw)
             if msg.get("type") == "init":
                 model = msg.get("model", model)
-                LOG.info("Client requested model: %s", model)
+                mode = msg.get("mode", "raw")
+                LOG.info("Client requested model=%s mode=%s", model, mode)
             else:
-                # Not an init message — save as first input
+                # Not an init message -- save as first input
                 first_input = raw
         except (asyncio.TimeoutError, json.JSONDecodeError):
             pass
@@ -128,7 +157,15 @@ async def ws_handler(websocket):
         env["LINES"] = "24"
 
         claude_cmd = ["claude", "--model", model]
-        LOG.info("Starting claude with model=%s", model)
+
+        # Agent mode: prepend the Codex system prompt
+        if mode == "agent" and os.path.exists(AGENT_PROMPT_PATH):
+            claude_cmd.extend(["--system-prompt", AGENT_PROMPT_PATH])
+            LOG.info("Agent mode: loading system prompt from %s", AGENT_PROMPT_PATH)
+        elif mode == "agent":
+            LOG.warning("Agent mode requested but %s not found, running raw", AGENT_PROMPT_PATH)
+
+        LOG.info("Starting claude with model=%s mode=%s", model, mode)
 
         proc = subprocess.Popen(
             claude_cmd,

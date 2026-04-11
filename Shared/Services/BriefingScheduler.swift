@@ -1,5 +1,8 @@
 import Foundation
 import UserNotifications
+#if os(iOS)
+import UIKit
+#endif
 
 /// Schedules morning briefing compilation and pre-meeting reminders.
 /// Runs as a singleton, started on app launch.
@@ -148,7 +151,14 @@ final class BriefingScheduler {
     // MARK: - Notifications
 
     private func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            guard granted else { return }
+            #if os(iOS)
+            DispatchQueue.main.async {
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+            #endif
+        }
     }
 
     private func sendNotification(title: String, body: String, id: String) {

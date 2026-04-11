@@ -30,6 +30,9 @@ final class WebSocketSession: ObservableObject {
 
     var onMessage: ((TerminalMessage) -> Void)?
 
+    /// When true, the bridge spawns claude with the Codex agent system prompt
+    var agentMode: Bool = true
+
     private var host: String? {
         UserDefaults.standard.string(forKey: "terminal.piHost")
     }
@@ -66,10 +69,11 @@ final class WebSocketSession: ObservableObject {
 
         wsTask.resume()
 
-        // Send init message with model preference
+        // Send init message with model preference and mode
         let initMsg = try? JSONSerialization.data(withJSONObject: [
             "type": "init",
             "model": model,
+            "mode": agentMode ? "agent" : "raw",
         ])
         if let data = initMsg, let str = String(data: data, encoding: .utf8) {
             wsTask.send(.string(str)) { _ in }

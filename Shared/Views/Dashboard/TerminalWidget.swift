@@ -10,7 +10,7 @@ struct TerminalWidget: View {
     @StateObject private var session = TerminalSession()
 
     var body: some View {
-        WidgetShell(title: "CLAUDE.TTY", badge: session.statusBadge, zone: "system") {
+        WidgetShell(title: session.widgetTitle, badge: session.statusBadge, zone: "system") {
             VStack(spacing: 0) {
                 // Connection status bar
                 HStack(spacing: 6) {
@@ -153,6 +153,7 @@ final class TerminalSession: ObservableObject {
     // WebSocket session for interactive mode
     private let wsSession = WebSocketSession()
     private var useWebSocket = false
+    private var useAgentMode = true
 
     var statusBadge: String? {
         if isLoading { return "..." }
@@ -205,6 +206,10 @@ final class TerminalSession: ObservableObject {
         }
     }
 
+    var widgetTitle: String {
+        useAgentMode ? "ALFREDO.TTY" : "CLAUDE.TTY"
+    }
+
     var pendingCount: String {
         pendingMessages.isEmpty ? "" : "\(pendingMessages.count) queued"
     }
@@ -220,9 +225,17 @@ final class TerminalSession: ObservableObject {
         }
         pendingMessages = cached.pendingMessages
 
+        // Sync agent mode to WebSocket session
+        wsSession.agentMode = useAgentMode
+
         if lines.isEmpty {
-            lines.append(.system("CLAUDE.TTY v0.3"))
-            lines.append(.system("interactive terminal for claude code"))
+            if useAgentMode {
+                lines.append(.system("ALFREDO.TTY v0.4"))
+                lines.append(.system("agent mode // codex system prompt active"))
+            } else {
+                lines.append(.system("CLAUDE.TTY v0.4"))
+                lines.append(.system("interactive terminal for claude code"))
+            }
         }
 
         if !pendingMessages.isEmpty {
@@ -361,6 +374,7 @@ final class TerminalSession: ObservableObject {
             let port = UserDefaults.standard.object(forKey: "terminal.piPort") as? Int ?? 8420
             lines.append(.system("host: \(host):\(port)"))
             lines.append(.system("mode: \(useWebSocket ? "websocket (interactive)" : "http (one-shot)")"))
+            lines.append(.system("agent: \(useAgentMode ? "on (codex prompt)" : "off (raw)")"))
             lines.append(.system("model: \(wsSession.model)"))
             lines.append(.system("ws state: \(wsSession.state)"))
             lines.append(.system("pi status: \(monitor.status == .connected ? "reachable" : "unreachable")"))
@@ -394,6 +408,24 @@ final class TerminalSession: ObservableObject {
             } else {
                 lines.append(.system("already in http mode"))
             }
+        case "/agent":
+            if !useAgentMode {
+                useAgentMode = true
+                wsSession.agentMode = true
+                lines.append(.system("switched to agent mode (codex system prompt)"))
+                lines.append(.system("reconnect (/connect) to apply"))
+            } else {
+                lines.append(.system("already in agent mode"))
+            }
+        case "/raw":
+            if useAgentMode {
+                useAgentMode = false
+                wsSession.agentMode = false
+                lines.append(.system("switched to raw mode (no system prompt)"))
+                lines.append(.system("reconnect (/connect) to apply"))
+            } else {
+                lines.append(.system("already in raw mode"))
+            }
         case _ where command.lowercased().hasPrefix("/model"):
             let parts = command.split(separator: " ", maxSplits: 1)
             if parts.count < 2 {
@@ -413,15 +445,17 @@ final class TerminalSession: ObservableObject {
                 }
             }
         case "/help":
-            lines.append(.system("/clear    \u{2014} clear terminal"))
-            lines.append(.system("/status   \u{2014} connection info"))
-            lines.append(.system("/connect  \u{2014} reconnect"))
-            lines.append(.system("/model    \u{2014} change model (haiku/sonnet/opus)"))
-            lines.append(.system("/ws       \u{2014} switch to websocket (interactive)"))
-            lines.append(.system("/http     \u{2014} switch to http (one-shot)"))
-            lines.append(.system("/help     \u{2014} show commands"))
+            lines.append(.system("/clear    - clear terminal"))
+            lines.append(.system("/status   - connection info"))
+            lines.append(.system("/connect  - reconnect"))
+            lines.append(.system("/model    - change model (haiku/sonnet/opus)"))
+            lines.append(.system("/ws       - switch to websocket (interactive)"))
+            lines.append(.system("/http     - switch to http (one-shot)"))
+            lines.append(.system("/agent    - agent mode (codex system prompt)"))
+            lines.append(.system("/raw      - raw mode (no system prompt)"))
+            lines.append(.system("/help     - show commands"))
             lines.append(.system(""))
-            lines.append(.system("anything else goes to claude code"))
+            lines.append(.system("anything else goes to alfredo"))
         default:
             lines.append(.error("unknown command: \(command)"))
             lines.append(.system("type /help for available commands"))
