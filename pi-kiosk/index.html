@@ -96,12 +96,12 @@
   .canvas { position: relative; z-index: 1; flex: 1; overflow: hidden; }
 
   /* Widget */
-  .widget { position: absolute; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.2s, transform 0.2s; }
+  .widget { position: absolute; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.2s, transform 0.2s; min-width:120px; min-height:60px; }
   .widget.hidden { display: none !important; }
   .widget-header { display:flex; align-items:center; gap:8px; padding:6px 10px; background:rgba(97,175,239,0.05); border-bottom:1px solid var(--accent-border); font-size:10px; font-weight:700; color:var(--accent); letter-spacing:2px; flex-shrink:0; zoom:var(--content-zoom,1); }
   .badge { font-size:9px; font-weight:500; color:var(--text-secondary); letter-spacing:1px; }
   .zone { margin-left:auto; font-size:8px; color:var(--text-secondary); opacity:0.5; }
-  .widget-body { padding:10px; flex:1; overflow:hidden; zoom:var(--content-zoom,1); }
+  .widget-body { padding:10px; flex:1; overflow-y:auto; overflow-x:hidden; zoom:var(--content-zoom,1); }
 
   /* Clock */
   .clock-time { display:flex; align-items:baseline; gap:2px; cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; }
@@ -180,14 +180,59 @@
   .today-dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); transition:all 0.3s; }
   .today-dot.lit { background:var(--success,#4ade80); border-color:var(--success,#4ade80); box-shadow:0 0 4px var(--success,#4ade80); }
 
-  /* Weather */
-  .wx-row { display:flex; align-items:center; gap:8px; padding:2px 0; }
-  .wx-temp { font-size:20px; font-weight:700; color:var(--text-emphasis); white-space:nowrap; }
-  .wx-desc { font-size:10px; color:var(--text-secondary); white-space:nowrap; }
-  .wx-icon { font-size:16px; }
-  .wx-forecast { display:flex; gap:10px; margin-top:2px; }
-  .wx-hour { text-align:center; font-size:9px; color:var(--text-secondary); }
-  .wx-hour .wx-h-temp { color:var(--text-primary); font-weight:600; }
+  /* Weather Timeline */
+  .wx-timeline { position:relative; width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden; min-height:100px; }
+  .wx-arc { position:relative; flex:0 0 55%; min-height:50px; overflow:hidden; }
+  .wx-arc-path { position:absolute; bottom:0; left:5%; right:5%; height:100%;
+    border:1px dashed rgba(97,175,239,0.12); border-bottom:none;
+    border-radius:100% 100% 0 0; pointer-events:none; }
+  .wx-horizon { position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent 0%, rgba(97,175,239,0.15) 20%, rgba(97,175,239,0.25) 50%, rgba(97,175,239,0.15) 80%, transparent 100%); }
+  .wx-celestial { position:absolute; z-index:3; transition:left 60s linear, bottom 60s linear; }
+  .wx-sun { width:20px; height:20px; border-radius:50%; background:radial-gradient(circle, #FFD700 30%, #FFA500 70%, transparent 100%);
+    box-shadow:0 0 12px 4px rgba(255,184,77,0.5), 0 0 24px 8px rgba(255,165,0,0.2); }
+  .wx-sun.zenith { box-shadow:0 0 16px 6px rgba(255,184,77,0.7), 0 0 32px 12px rgba(255,165,0,0.35); }
+  .wx-sun.horizon-glow { box-shadow:0 0 8px 3px rgba(255,140,50,0.4), 0 0 16px 6px rgba(255,100,30,0.15); }
+  .wx-moon-body { width:18px; height:18px; border-radius:50%; background:#E0E4F0; position:relative; overflow:hidden;
+    box-shadow:0 0 8px 2px rgba(200,210,240,0.3); }
+  .wx-moon-shadow { position:absolute; top:-1px; width:18px; height:20px; border-radius:50%; background:var(--bg); }
+  .wx-moon-body.full { box-shadow:0 0 12px 4px rgba(220,230,255,0.5), 0 0 24px 8px rgba(200,210,240,0.2); }
+  .wx-moon-body.new { background:#3a3f4a; box-shadow:none; opacity:0.4; }
+  .wx-current-info { position:absolute; z-index:4; display:flex; flex-direction:column; align-items:center; gap:1px; pointer-events:none; }
+  .wx-current-temp { font-size:16px; font-weight:700; color:var(--text-emphasis); text-shadow:0 1px 4px rgba(0,0,0,0.6); }
+  .wx-current-desc { font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-shadow:0 1px 2px rgba(0,0,0,0.6); }
+  .wx-current-hilo { font-size:8px; color:var(--text-secondary); opacity:0.7; }
+  .wx-hours { flex:1; display:flex; align-items:center; gap:0; padding:4px 6px; position:relative; z-index:2; border-top:1px solid rgba(97,175,239,0.08); overflow:hidden; }
+  .wx-hour { flex:1; text-align:center; font-size:9px; color:var(--text-secondary); min-width:0; padding:2px 1px; border-radius:3px; transition:background 0.3s; }
+  .wx-hour .wx-h-icon { font-size:12px; line-height:1; }
+  .wx-hour .wx-h-temp { color:var(--text-primary); font-weight:600; font-size:10px; }
+  .wx-hour .wx-h-time { font-size:8px; opacity:0.6; }
+  .wx-hour.now { background:rgba(97,175,239,0.1); color:var(--text-emphasis); }
+  .wx-hour.now .wx-h-temp { color:var(--text-emphasis); font-weight:700; }
+  .wx-hour.past { opacity:0.4; }
+  .wx-rise-set { position:absolute; bottom:2px; font-size:7px; color:var(--text-secondary); opacity:0.5; letter-spacing:0.5px; z-index:2; }
+  .wx-rise-set.rise { left:8px; }
+  .wx-rise-set.set { right:8px; }
+
+  /* Weather effects (layered behind arc) */
+  .wx-fx { position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:0; border-radius:0 0 5px 5px; }
+  .wx-drop { position:absolute; top:-20px; width:1px; opacity:0.6;
+    background:linear-gradient(transparent, rgba(74,144,217,0.7));
+    animation:wx-rain-fall linear infinite; }
+  .wx-flake { position:absolute; top:-10px; border-radius:50%;
+    background:rgba(220,225,255,0.7); box-shadow:0 0 3px rgba(200,210,255,0.3);
+    animation:wx-snow-fall linear infinite, wx-snow-drift ease-in-out infinite; }
+  .wx-sun-glow { position:absolute; inset:0;
+    background:radial-gradient(ellipse at 50% 60%, rgba(255,184,77,0.08), transparent 65%);
+    animation:wx-sun-pulse 5s ease-in-out infinite; }
+  .wx-lightning-flash { position:absolute; inset:0; opacity:0; }
+  .wx-fog-band { position:absolute; left:-50%; width:200%; opacity:0.15;
+    background:linear-gradient(90deg, transparent 0%, rgba(119,136,153,0.4) 30%, rgba(119,136,153,0.5) 50%, rgba(119,136,153,0.4) 70%, transparent 100%);
+    animation:wx-fog-drift linear infinite; }
+  @keyframes wx-rain-fall { from{transform:translateY(-20px)} to{transform:translateY(200px)} }
+  @keyframes wx-snow-fall { from{transform:translateY(-10px)} to{transform:translateY(200px)} }
+  @keyframes wx-snow-drift { 0%,100%{margin-left:0} 50%{margin-left:15px} }
+  @keyframes wx-sun-pulse { 0%,100%{opacity:0.7;transform:scale(1)} 50%{opacity:1;transform:scale(1.06)} }
+  @keyframes wx-fog-drift { from{transform:translateX(-25%)} to{transform:translateX(0%)} }
 
   /* Stats */
   .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
@@ -309,10 +354,25 @@
   </div>
 
   <!-- WEATHER.SYS -->
-  <div class="widget" id="w-weather" style="left:218px;top:8px;width:320px;height:110px">
+  <div class="widget" id="w-weather" style="left:218px;top:8px;width:480px;height:165px">
     <div class="widget-header">WEATHER.SYS <span class="zone">live</span></div>
-    <div class="widget-body" id="weatherBody">
-      <div class="wx-row"><span class="wx-desc dim">loading...</span></div>
+    <div class="widget-body" id="weatherBody" style="padding:0;position:relative">
+      <div class="wx-timeline">
+        <div class="wx-arc" id="wxArc">
+          <div class="wx-arc-path"></div>
+          <div class="wx-horizon"></div>
+          <div class="wx-celestial" id="wxCelestial"></div>
+          <div class="wx-current-info" id="wxCurrentInfo">
+            <span class="wx-current-temp" id="wxTemp">--°</span>
+            <span class="wx-current-desc" id="wxDesc">loading</span>
+            <span class="wx-current-hilo" id="wxHiLo"></span>
+          </div>
+        </div>
+        <div class="wx-hours" id="wxHours">
+          <span class="wx-rise-set rise" id="wxRise"></span>
+          <span class="wx-rise-set set" id="wxSet"></span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -416,7 +476,7 @@
   <div class="status-item" style="gap:6px"><div class="status-dot" id="sd-presence"></div><span style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">NEARBY</span></div>
   <div class="spacer"></div>
   <span class="mode-indicator" id="modeIndicator">WORK</span>
-  <span style="font-size:10px;color:var(--text-secondary);opacity:0.5;margin-right:6px">v0.47.0</span>
+  <span style="font-size:10px;color:var(--text-secondary);opacity:0.5;margin-right:6px">v0.48.0</span>
   <button class="hbg-btn" id="hbgToggle">☰</button>
 </div>
 
@@ -760,40 +820,222 @@ function renderCalendar(events){
   updateHotlist();
 }
 
-// ── Weather (Open-Meteo, no API key) ────────────────────────
+// ── Weather Timeline (Open-Meteo, no API key) ──────────────
 const WX_LAT=47.61,WX_LON=-122.33; // Seattle area
 const WX_CODES={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌦',61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌦',82:'⛈',95:'⛈',96:'⛈',99:'⛈'};
 const WX_DESC={0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
+
+// Moon phase via synodic month (reference: Jan 6, 2000 18:14 UTC new moon)
+function getMoonPhase(){
+  const REF=Date.UTC(2000,0,6,18,14,0);
+  const SYNODIC=29.53059;
+  const daysSince=(Date.now()-REF)/86400000;
+  const age=((daysSince%SYNODIC)+SYNODIC)%SYNODIC;
+  const illum=(1-Math.cos(2*Math.PI*age/SYNODIC))/2;
+  const isWaxing=age<SYNODIC/2;
+  let emoji='🌑';
+  if(age<1.85) emoji='🌑'; else if(age<5.53) emoji='🌒';
+  else if(age<9.22) emoji='🌓'; else if(age<12.91) emoji='🌔';
+  else if(age<16.61) emoji='🌕'; else if(age<20.30) emoji='🌖';
+  else if(age<23.99) emoji='🌗'; else if(age<27.68) emoji='🌘';
+  return {age,illumination:illum,isWaxing,emoji};
+}
+
+let _wxData=null;
 function fetchWeather(){
-  const url='https://api.open-meteo.com/v1/forecast?latitude='+WX_LAT+'&longitude='+WX_LON+'&current=temperature_2m,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FLos_Angeles&forecast_days=1';
+  const url='https://api.open-meteo.com/v1/forecast?latitude='+WX_LAT+'&longitude='+WX_LON
+    +'&current=temperature_2m,weather_code,wind_speed_10m'
+    +'&hourly=temperature_2m,weather_code'
+    +'&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,weather_code'
+    +'&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FLos_Angeles&forecast_days=2';
   fetch(url).then(r=>r.json()).then(d=>{
-    const c=d.current||{};
-    const temp=Math.round(c.temperature_2m||0);
-    const code=c.weather_code||0;
-    const wind=Math.round(c.wind_speed_10m||0);
-    const icon=WX_CODES[code]||'🌡';
-    const desc=WX_DESC[code]||'';
-    const hi=Math.round((d.daily||{}).temperature_2m_max?.[0]||0);
-    const lo=Math.round((d.daily||{}).temperature_2m_min?.[0]||0);
-    // Hourly forecast — next 6 hours
-    const nowHr=new Date().getHours();
-    const hrs=(d.hourly||{}).temperature_2m||[];
-    const hrCodes=(d.hourly||{}).weather_code||[];
-    let forecast='';
-    for(let i=nowHr+1;i<nowHr+7&&i<hrs.length;i++){
-      const h=i%24;
-      const hLabel=h===0?'12a':h<12?h+'a':h===12?'12p':(h-12)+'p';
-      forecast+='<div class="wx-hour"><div>'+(WX_CODES[hrCodes[i]]||'')+'</div><div class="wx-h-temp">'+Math.round(hrs[i])+'°</div><div>'+hLabel+'</div></div>';
-    }
-    document.getElementById('weatherBody').innerHTML=
-      '<div class="wx-row"><span class="wx-icon">'+icon+'</span><span class="wx-temp">'+temp+'°</span><span class="wx-desc">'+desc+' · '+wind+'mph · H:'+hi+'° L:'+lo+'°</span></div>'+
-      '<div class="wx-forecast">'+forecast+'</div>';
+    _wxData=d;
+    renderWeatherTimeline(d);
   }).catch(()=>{
-    document.getElementById('weatherBody').innerHTML='<div class="wx-row"><span class="wx-desc dim">weather unavailable</span></div>';
+    document.getElementById('wxTemp').textContent='--°';
+    document.getElementById('wxDesc').textContent='unavailable';
   });
 }
+
+function renderWeatherTimeline(d){
+  const c=d.current||{};
+  const temp=Math.round(c.temperature_2m||0);
+  const code=c.weather_code||0;
+  const desc=WX_DESC[code]||'';
+  const hi=Math.round((d.daily||{}).temperature_2m_max?.[0]||0);
+  const lo=Math.round((d.daily||{}).temperature_2m_min?.[0]||0);
+  const daily=d.daily||{};
+  const sunrise0=new Date(daily.sunrise?.[0]||'');
+  const sunset0=new Date(daily.sunset?.[0]||'');
+  const sunrise1=new Date(daily.sunrise?.[1]||daily.sunrise?.[0]||'');
+  const now=new Date();
+
+  // Update current info
+  document.getElementById('wxTemp').textContent=temp+'°';
+  document.getElementById('wxDesc').textContent=desc;
+  document.getElementById('wxHiLo').textContent='H:'+hi+'° L:'+lo+'°';
+
+  // Sunrise/sunset labels
+  const fmtTime=dt=>{const h=dt.getHours(),m=dt.getMinutes();return (h%12||12)+':'+(m<10?'0':'')+m+(h<12?'a':'p');};
+  document.getElementById('wxRise').textContent='↑'+fmtTime(sunrise0);
+  document.getElementById('wxSet').textContent=fmtTime(sunset0)+'↓';
+
+  // Determine day/night and celestial body position
+  const isDay=now>=sunrise0&&now<sunset0;
+  const arcEl=document.getElementById('wxArc');
+  const arcW=arcEl.offsetWidth||400;
+  const arcH=arcEl.offsetHeight||80;
+  const pad=arcW*0.05; // 5% padding each side
+  const usableW=arcW-2*pad;
+
+  let progress;
+  if(isDay){
+    progress=(now-sunrise0)/(sunset0-sunrise0);
+  } else if(now>=sunset0){
+    progress=(now-sunset0)/(sunrise1-sunset0);
+  } else {
+    // Before sunrise — use yesterday's sunset to today's sunrise
+    const prevSunset=new Date(sunset0); prevSunset.setDate(prevSunset.getDate()-1);
+    progress=(now-prevSunset)/(sunrise0-prevSunset);
+  }
+  progress=Math.max(0,Math.min(1,progress));
+
+  // Semicircular arc: x goes left to right, y = sqrt(r²-(x-cx)²) scaled
+  const cx=usableW/2;
+  const r=usableW/2;
+  const xPos=progress*usableW;
+  const dx=xPos-cx;
+  const yNorm=Math.sqrt(Math.max(0, r*r - dx*dx))/r; // 0 at edges, 1 at zenith
+  const bodySize=isDay?20:18;
+
+  const celEl=document.getElementById('wxCelestial');
+  celEl.style.left=(pad+xPos-bodySize/2)+'px';
+  celEl.style.bottom=(4+yNorm*(arcH-bodySize-8))+'px';
+
+  // Render sun or moon
+  if(isDay){
+    const glowClass=yNorm>0.9?'zenith':yNorm<0.2?'horizon-glow':'';
+    celEl.innerHTML='<div class="wx-sun '+glowClass+'"></div>';
+  } else {
+    const moon=getMoonPhase();
+    const illum=moon.illumination;
+    let bodyClass='';
+    if(illum>0.95) bodyClass='full';
+    else if(illum<0.05) bodyClass='new';
+    // Shadow offset: 0 at full, ±9px at new. Waxing = shadow on right, waning = shadow on left
+    const shadowOffset=moon.isWaxing ? (1-illum)*9 : -(1-illum)*9;
+    celEl.innerHTML='<div class="wx-moon-body '+bodyClass+'"><div class="wx-moon-shadow" style="left:'+shadowOffset+'px"></div></div>';
+  }
+
+  // Position current info label above celestial body
+  const infoEl=document.getElementById('wxCurrentInfo');
+  infoEl.style.left=(pad+xPos)+'px';
+  infoEl.style.bottom=(10+yNorm*(arcH-bodySize-8)+bodySize)+'px';
+  infoEl.style.transform='translateX(-50%)';
+
+  // Build hourly strip
+  const nowHr=now.getHours();
+  const hrs=(d.hourly||{}).temperature_2m||[];
+  const hrCodes=(d.hourly||{}).weather_code||[];
+  // Show 2 hours back + current + 8 hours forward
+  const startHr=Math.max(0,nowHr-2);
+  const endHr=Math.min(hrs.length,nowHr+9);
+  let hoursHTML='';
+  for(let i=startHr;i<endHr;i++){
+    const h=i%24;
+    const hLabel=h===0?'12a':h<12?h+'a':h===12?'12p':(h-12)+'p';
+    const cls=i===nowHr?'now':i<nowHr?'past':'';
+    const icon=WX_CODES[hrCodes[i]]||'';
+    hoursHTML+='<div class="wx-hour '+cls+'"><div class="wx-h-icon">'+icon+'</div><div class="wx-h-temp">'+Math.round(hrs[i])+'°</div><div class="wx-h-time">'+hLabel+'</div></div>';
+  }
+  // Keep rise/set labels, replace hour blocks
+  const wxHoursEl=document.getElementById('wxHours');
+  wxHoursEl.querySelectorAll('.wx-hour').forEach(e=>e.remove());
+  // Insert before the rise/set spans
+  const riseSpan=document.getElementById('wxRise');
+  const frag=document.createElement('div');
+  frag.innerHTML=hoursHTML;
+  while(frag.firstChild) wxHoursEl.insertBefore(frag.firstChild, riseSpan);
+
+  applyWeatherFx(code);
+}
+
+// Update celestial position every 60s without full re-fetch
+setInterval(()=>{ if(_wxData) renderWeatherTimeline(_wxData); },60000);
 fetchWeather();
-setInterval(fetchWeather,600000); // every 10 min
+setInterval(fetchWeather,600000); // re-fetch every 10 min
+
+// ── Weather animations ─────────────────────────────────────
+let _wxFxTimer=null;
+function applyWeatherFx(code){
+  const body=document.getElementById('weatherBody');
+  if(!body) return;
+  body.style.position='relative';
+  body.querySelectorAll('.wx-fx').forEach(e=>e.remove());
+  if(_wxFxTimer){clearInterval(_wxFxTimer);_wxFxTimer=null;}
+  const fx=document.createElement('div');
+  fx.className='wx-fx';
+  body.prepend(fx);
+  if(code>=95){ spawnRain(fx,20); spawnLightning(fx); }
+  else if(code>=80){ spawnRain(fx,12); }
+  else if(code>=71){ spawnSnow(fx,14); }
+  else if(code>=61){ spawnRain(fx,18); }
+  else if(code>=51){ spawnRain(fx,6); }
+  else if(code>=45){ spawnFog(fx); }
+  else if(code<=1){ spawnSunGlow(fx); }
+  // 2-3 (cloudy) = no animation, just the emoji
+}
+function spawnRain(fx,count){
+  function addDrop(){
+    const d=document.createElement('div');d.className='wx-drop';
+    d.style.left=Math.random()*100+'%';
+    d.style.height=(8+Math.random()*10)+'px';
+    const dur=0.5+Math.random()*0.7;
+    d.style.animationDuration=dur+'s';
+    d.style.animationDelay=Math.random()*dur+'s';
+    fx.appendChild(d);
+    d.addEventListener('animationiteration',()=>{d.style.left=Math.random()*100+'%';});
+  }
+  for(let i=0;i<count;i++) addDrop();
+}
+function spawnSnow(fx,count){
+  for(let i=0;i<count;i++){
+    const f=document.createElement('div');f.className='wx-flake';
+    const sz=2+Math.random()*3;
+    f.style.width=sz+'px'; f.style.height=sz+'px';
+    f.style.left=Math.random()*100+'%';
+    const fallDur=3+Math.random()*4;
+    const driftDur=2+Math.random()*3;
+    f.style.animationDuration=fallDur+'s,'+driftDur+'s';
+    f.style.animationDelay=Math.random()*fallDur+'s,'+Math.random()*driftDur+'s';
+    fx.appendChild(f);
+  }
+}
+function spawnLightning(fx){
+  const flash=document.createElement('div');flash.className='wx-lightning-flash';
+  fx.appendChild(flash);
+  function strike(){
+    flash.style.background='rgba(255,224,102,0.25)';flash.style.opacity='0.8';
+    setTimeout(()=>{flash.style.opacity='0';},80);
+    setTimeout(()=>{flash.style.background='rgba(255,255,255,0.15)';flash.style.opacity='0.6';},150);
+    setTimeout(()=>{flash.style.opacity='0';},200);
+    setTimeout(strike,4000+Math.random()*6000);
+  }
+  setTimeout(strike,2000+Math.random()*3000);
+}
+function spawnSunGlow(fx){
+  const g=document.createElement('div');g.className='wx-sun-glow';fx.appendChild(g);
+}
+function spawnFog(fx){
+  for(let i=0;i<3;i++){
+    const b=document.createElement('div');b.className='wx-fog-band';
+    b.style.height=(4+Math.random()*6)+'px';
+    b.style.top=(20+i*30+Math.random()*10)+'%';
+    b.style.animationDuration=(18+Math.random()*12)+'s';
+    b.style.animationDelay=(-Math.random()*10)+'s';
+    fx.appendChild(b);
+  }
+}
 
 // ── Scratchpad ──────────────────────────────────────────────
 function renderScratch(){
@@ -1206,9 +1448,9 @@ function populateMeetingWidget() {
 const modeLayouts = {
   // Work mode: full dashboard (default weekday view)
   work: {
-    'w-clock':   {left:'16px',  top:'8px',   width:'230px', height:'140px',show:true},
-    'w-hotlist': {left:'258px', top:'8px',   width:'396px', height:'165px',show:true},
-    'w-weather': {right:'16px', top:'8px',   width:'340px', height:'165px',show:true},
+    'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'140px',show:true},
+    'w-hotlist': {left:'218px', top:'8px',   width:'300px', height:'165px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'480px', height:'165px',show:true},
     'w-work':    {left:'16px',  top:'185px', width:'494px', height:'165px',show:true},
     'w-life':    {left:'522px', top:'185px', width:'486px', height:'165px',show:true},
     'w-cal':     {left:'16px',  top:'362px', width:'494px', height:'195px',show:true},
@@ -1221,13 +1463,13 @@ const modeLayouts = {
   // Meeting mode: immersive meeting view
   meeting: {
     'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'110px',show:true},
-    'w-weather': {right:'16px', top:'8px',   width:'200px', height:'60px',show:true},
+    'w-weather': {left:'808px', top:'8px',   width:'200px', height:'60px',show:true},
     'w-today':   {left:'218px', top:'8px',   width:'580px', height:'60px',show:true},
     'w-meeting': {left:'16px',  top:'130px', width:'992px', height:'410px',show:true},
+    'w-hotlist': {show:false},
     'w-work':    {show:false},
     'w-life':    {show:false},
     'w-cal':     {show:false},
-    'w-hotlist': {show:false},
     'w-tty':     {show:false},
     'w-stats':   {show:false},
     'w-scratch': {show:false},
@@ -1235,7 +1477,7 @@ const modeLayouts = {
   // Night mode: dimmed, minimal (10pm-6am)
   night: {
     'w-clock':   {left:'256px', top:'80px',  width:'512px', height:'200px',show:true},
-    'w-weather': {left:'356px', top:'290px', width:'312px', height:'80px',show:true},
+    'w-weather': {left:'262px', top:'290px', width:'500px', height:'120px',show:true},
     'w-work':    {left:'16px',  top:'390px', width:'494px', height:'150px',show:true},
     'w-life':    {left:'522px', top:'390px', width:'486px', height:'150px',show:true},
     'w-cal':     {show:false},
@@ -1249,7 +1491,7 @@ const modeLayouts = {
   // Weekend mode: personal focus, no work (Sat/Sun 6am-10pm)
   weekend: {
     'w-clock':   {left:'16px',  top:'8px',   width:'230px', height:'140px',show:true},
-    'w-weather': {right:'16px', top:'8px',   width:'340px', height:'140px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'480px', height:'165px',show:true},
     'w-life':    {left:'16px',  top:'160px', width:'494px', height:'220px',show:true},
     'w-scratch': {left:'522px', top:'160px', width:'486px', height:'220px',show:true},
     'w-cal':     {left:'16px',  top:'392px', width:'494px', height:'165px',show:true},
@@ -1279,9 +1521,9 @@ const modeLayouts = {
 // Font-size variants for work mode
 const workVariants = {
   'work-md': {
-    'w-clock':   {left:'16px',  top:'8px',   width:'230px', height:'134px',show:true},
-    'w-hotlist': {left:'258px', top:'8px',   width:'396px', height:'158px',show:true},
-    'w-weather': {right:'16px', top:'8px',   width:'340px', height:'158px',show:true},
+    'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'134px',show:true},
+    'w-hotlist': {left:'218px', top:'8px',   width:'300px', height:'158px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'480px', height:'158px',show:true},
     'w-work':    {left:'16px',  top:'178px', width:'494px', height:'180px',show:true},
     'w-life':    {left:'522px', top:'178px', width:'486px', height:'180px',show:true},
     'w-cal':     {left:'16px',  top:'370px', width:'494px', height:'190px',show:true},
@@ -1292,9 +1534,9 @@ const workVariants = {
     'w-meeting': {show:false},
   },
   'work-lg': {
-    'w-clock':   {left:'16px',  top:'8px',   width:'230px', height:'126px',show:true},
-    'w-hotlist': {left:'258px', top:'8px',   width:'396px', height:'150px',show:true},
-    'w-weather': {right:'16px', top:'8px',   width:'340px', height:'150px',show:true},
+    'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'126px',show:true},
+    'w-hotlist': {left:'218px', top:'8px',   width:'300px', height:'150px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'480px', height:'150px',show:true},
     'w-work':    {left:'16px',  top:'170px', width:'494px', height:'190px',show:true},
     'w-life':    {left:'522px', top:'170px', width:'486px', height:'190px',show:true},
     'w-cal':     {left:'16px',  top:'372px', width:'494px', height:'188px',show:true},

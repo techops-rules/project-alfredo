@@ -151,8 +151,8 @@
   </div>
 
   <div class="sidebar-footer">
-    <button class="btn primary" onclick="exportLayout()">EXPORT LAYOUT</button>
-    <button class="btn deploy" onclick="copyAndDeploy()">COPY & DEPLOY</button>
+    <button class="btn danger" onclick="revertLayout()">REVERT</button>
+    <button class="btn deploy" onclick="saveAndDeploy()">SAVE & DEPLOY</button>
   </div>
 </div>
 
@@ -217,10 +217,10 @@ const layouts = {
     'w-weather': {left:808, top:8,   width:200, height:60,  show:true},
     'w-today':   {left:218, top:8,   width:580, height:60,  show:true},
     'w-meeting': {left:16,  top:130, width:992, height:410, show:true},
+    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
     'w-work':    {left:16,  top:185, width:494, height:165, show:false},
     'w-life':    {left:522, top:185, width:486, height:165, show:false},
-    'w-cal':     {left:16,  top:362, width:494, height:195, show:false},
-    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
+    'w-cal':     {left:223, top:8,   width:189, height:107, show:false},
     'w-tty':     {left:340, top:352, width:310, height:185, show:false},
     'w-stats':   {left:522, top:130, width:336, height:155, show:false},
     'w-scratch': {left:668, top:297, width:336, height:240, show:false},
@@ -556,9 +556,19 @@ function clearSnapLines() {
   document.querySelectorAll('.snap-line').forEach(el => el.remove());
 }
 
-// ── Export ───────────────────────────────────────────────────
-function exportLayout() {
-  let code = `  '${currentPreset}': {\n`;
+// ── Revert ──────────────────────────────────────────────────
+function revertLayout() {
+  state = JSON.parse(JSON.stringify(layouts[currentPreset]));
+  selectedWidget = null;
+  hideProps();
+  renderCanvas();
+  renderWidgetList();
+  toast('Reverted to saved ' + currentPreset.toUpperCase());
+}
+
+// ── Save & Deploy ───────────────────────────────────────────
+function generateLayoutCode() {
+  let code = `  ${currentPreset}: {\n`;
   WIDGETS.forEach(w => {
     const s = state[w.id];
     if (!s) return;
@@ -570,9 +580,16 @@ function exportLayout() {
     }
   });
   code += `  },`;
+  return code;
+}
 
+function saveAndDeploy() {
+  const code = generateLayoutCode();
   document.getElementById('exportCode').textContent = code;
   document.getElementById('exportModal').classList.add('open');
+  // Also update the in-memory saved state so revert goes to this
+  layouts[currentPreset] = JSON.parse(JSON.stringify(state));
+  toast('Layout saved — copy into index.html, then run: bash pi-kiosk/deploy.sh');
 }
 
 function closeExport() {
@@ -582,11 +599,6 @@ function closeExport() {
 function copyExport() {
   const code = document.getElementById('exportCode').textContent;
   navigator.clipboard.writeText(code).then(() => toast('Copied to clipboard'));
-}
-
-function copyAndDeploy() {
-  exportLayout();
-  toast('Export the layout, paste into index.html, then run: bash pi-kiosk/deploy.sh');
 }
 
 function toast(msg) {
