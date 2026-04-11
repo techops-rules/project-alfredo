@@ -4,23 +4,26 @@ struct GoalsWidget: View {
     let goals: [Goal]
 
     @Environment(\.theme) private var theme
+    @Environment(\.widgetMetrics) private var metrics
 
     var body: some View {
         WidgetShell(title: "GOALS.SYS", badge: "\(goals.count)", zone: "right") {
-            VStack(spacing: 12) {
-                ForEach(goals) { goal in
+            VStack(spacing: metrics.sectionSpacing) {
+                ForEach(goals.prefix(metrics.secondaryListLimit)) { goal in
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack {
+                        HStack(alignment: .firstTextBaseline) {
                             Text(goal.name)
-                                .font(.system(size: theme.fontSize, weight: .medium, design: .monospaced))
+                                .font(.system(size: metrics.bodyFontSize, weight: .medium, design: .monospaced))
                                 .foregroundColor(ThemeManager.textPrimary)
-                            Spacer()
-                            Text(goal.targetDate)
-                                .font(.system(size: theme.fontSize - 2, design: .monospaced))
-                                .foregroundColor(ThemeManager.textSecondary)
+                                .lineLimit(1)
+                            Spacer(minLength: 8)
+                            if !metrics.isCompact {
+                                Text(goal.targetDate)
+                                    .font(.system(size: metrics.captionFontSize, design: .monospaced))
+                                    .foregroundColor(ThemeManager.textSecondary)
+                            }
                         }
 
-                        // Progress bar
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
                                 RoundedRectangle(cornerRadius: 3)
@@ -34,9 +37,16 @@ struct GoalsWidget: View {
                         .frame(height: 6)
 
                         Text("\(goal.progressPercent)%")
-                            .font(.system(size: theme.fontSize - 2, design: .monospaced))
+                            .font(.system(size: metrics.captionFontSize, design: .monospaced))
                             .foregroundColor(ThemeManager.textSecondary)
                     }
+                }
+
+                if goals.count > metrics.secondaryListLimit {
+                    Text("+ \(goals.count - metrics.secondaryListLimit) more goals")
+                        .font(.system(size: metrics.captionFontSize, design: .monospaced))
+                        .foregroundColor(ThemeManager.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }

@@ -4,6 +4,7 @@ struct HabitWidget: View {
     @Binding var habits: [Habit]
 
     @Environment(\.theme) private var theme
+    @Environment(\.widgetMetrics) private var metrics
 
     private var doneCount: Int { habits.filter(\.isDoneToday).count }
 
@@ -15,8 +16,8 @@ struct HabitWidget: View {
             ),
             zone: "primary"
         ) {
-            VStack(spacing: 10) {
-                ForEach($habits) { $habit in
+            VStack(spacing: metrics.rowSpacing) {
+                ForEach($habits.prefix(metrics.primaryListLimit)) { $habit in
                     Button {
                         habit.isDoneToday.toggle()
                     } label: {
@@ -32,16 +33,24 @@ struct HabitWidget: View {
                                 .frame(width: 14, height: 14)
 
                             Text(habit.name)
-                                .font(.system(size: theme.fontSize, design: .monospaced))
+                                .font(.system(size: metrics.bodyFontSize, design: .monospaced))
                                 .foregroundColor(habit.isDoneToday ? ThemeManager.textSecondary : ThemeManager.textPrimary)
                                 .strikethrough(habit.isDoneToday, color: ThemeManager.textSecondary)
                                 .opacity(habit.isDoneToday ? 0.5 : 1)
+                                .lineLimit(metrics.isCompact ? 1 : 2)
 
-                            Spacer()
+                            Spacer(minLength: 0)
                         }
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                }
+
+                if habits.count > metrics.primaryListLimit {
+                    Text("+ \(habits.count - metrics.primaryListLimit) more habits")
+                        .font(.system(size: metrics.captionFontSize, design: .monospaced))
+                        .foregroundColor(ThemeManager.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }

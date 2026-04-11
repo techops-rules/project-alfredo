@@ -1,23 +1,19 @@
 import SwiftUI
 
-/// Unified urgent list: mixes urgent tasks + today's upcoming calendar events,
-/// sorted by urgency then time.
 struct HotlistWidget: View {
     let tasks: [AppTask]
     let events: [CalendarEvent]
     let onToggle: (AppTask) -> Void
 
     @Environment(\.theme) private var theme
+    @Environment(\.widgetMetrics) private var metrics
 
     private var items: [HotlistItem] {
         let now = Date()
-
-        // Urgent tasks
         let taskItems = tasks
             .filter { $0.isUrgent && $0.section == .today }
             .map { HotlistItem.task($0) }
 
-        // Today's upcoming non-all-day events
         let cal = Calendar.current
         let today = cal.startOfDay(for: now)
         guard let tomorrow = cal.date(byAdding: .day, value: 1, to: today) else {
@@ -27,7 +23,6 @@ struct HotlistWidget: View {
             .filter { !$0.isAllDay && $0.startTime >= today && $0.startTime < tomorrow }
             .map { HotlistItem.event($0) }
 
-        // Sort: urgent tasks first, then events by time
         return (taskItems + eventItems).sorted { a, b in
             let aTier = a.sortTier
             let bTier = b.sortTier
@@ -46,7 +41,7 @@ struct HotlistWidget: View {
             if allItems.isEmpty {
                 VStack {
                     Text("nothing urgent right now")
-                        .font(.system(size: theme.fontSize, design: .monospaced))
+                        .font(.system(size: metrics.bodyFontSize, design: .monospaced))
                         .foregroundColor(ThemeManager.textSecondary)
                         .opacity(0.5)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -54,9 +49,14 @@ struct HotlistWidget: View {
                 }
                 .frame(maxHeight: .infinity)
             } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(allItems) { item in
+                VStack(alignment: .leading, spacing: metrics.rowSpacing) {
+                    ForEach(Array(allItems.prefix(metrics.primaryListLimit))) { item in
                         HotlistRow(item: item, onToggle: onToggle)
+                    }
+                    if allItems.count > metrics.primaryListLimit {
+                        Text("+ \(allItems.count - metrics.primaryListLimit) more urgent items")
+                            .font(.system(size: metrics.captionFontSize, design: .monospaced))
+                            .foregroundColor(ThemeManager.textSecondary)
                     }
                     Spacer()
                 }
@@ -65,8 +65,6 @@ struct HotlistWidget: View {
         }
     }
 }
-
-// MARK: - Item Type
 
 enum HotlistItem: Identifiable {
     case task(AppTask)
@@ -81,7 +79,7 @@ enum HotlistItem: Identifiable {
 
     var sortTier: Int {
         switch self {
-        case .task: return 0  // urgent tasks first
+        case .task: return 0
         case .event: return 1
         }
     }
@@ -94,23 +92,20 @@ enum HotlistItem: Identifiable {
     }
 }
 
-// MARK: - Row
-
 struct HotlistRow: View {
     let item: HotlistItem
     let onToggle: (AppTask) -> Void
     @Environment(\.theme) private var theme
+    @Environment(\.widgetMetrics) private var metrics
 
     var body: some View {
         HStack(spacing: 8) {
-            // Urgency dot
             urgencyDot
 
-            // Text
             switch item {
             case .task(let task):
                 Text(task.displayText)
-                    .font(.system(size: theme.fontSize, design: .monospaced))
+                    .font(.system(size: metrics.bodyFontSize, design: .monospaced))
                     .foregroundColor(task.isDone ? ThemeManager.textSecondary : ThemeManager.textPrimary)
                     .strikethrough(task.isDone)
                     .opacity(task.isDone ? 0.28 : 1)
@@ -119,24 +114,24 @@ struct HotlistRow: View {
 
             case .event(let event):
                 Text(event.title)
-                    .font(.system(size: theme.fontSize, design: .monospaced))
+                    .font(.system(size: metrics.bodyFontSize, design: .monospaced))
                     .foregroundColor(ThemeManager.textPrimary)
                     .lineLimit(1)
                     .opacity(event.isPast ? 0.38 : 1)
             }
 
-            Spacer()
+            Spacer(minLength: 0)
 
-            // Due / time
             switch item {
             case .task:
-                Text("Today")
-                    .font(.system(size: theme.fontSize - 2, design: .monospaced))
-                    .foregroundColor(ThemeManager.textSecondary)
-
+                if !metrics.isCompact {
+                    Text("Today")
+                        .font(.system(size: metrics.captionFontSize, design: .monospaced))
+                        .foregroundColor(ThemeManager.textSecondary)
+                }
             case .event(let event):
                 Text(event.timeString)
-                    .font(.system(size: theme.fontSize - 2, design: .monospaced))
+                    .font(.system(size: metrics.captionFontSize, design: .monospaced))
                     .foregroundColor(ThemeManager.textSecondary)
             }
         }
@@ -150,7 +145,6 @@ struct HotlistRow: View {
                 .fill(theme.accentFull)
                 .frame(width: 8, height: 8)
                 .shadow(color: task.isDone ? .clear : theme.accentFull.opacity(0.5), radius: 3)
-
         case .event:
             Circle()
                 .strokeBorder(theme.accentFull, lineWidth: 1.5)

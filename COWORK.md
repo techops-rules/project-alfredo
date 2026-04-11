@@ -49,24 +49,33 @@ Personal productivity dashboard built by Todd. Two surfaces, one purpose: give a
 
 ---
 
-## Current build state (as of 2026-04-09)
+## Current build state (as of 2026-04-11)
 
-**iOS + macOS app — done:**
-- Infinite canvas on both platforms — single-finger pan + momentum, pinch-to-zoom 0.5x–2.0x
+**iOS + macOS app -- done:**
+- Infinite canvas on both platforms -- single-finger pan + momentum, pinch-to-zoom 0.5x-2.0x
 - Long-press enters edit mode + haptic feedback
 - All widgets on `DashboardView` (tab layout removed)
 - Bottom sheets for settings/widgets on iOS
-- Terminal widget (`CLAUDE.TTY`) — HTTP bridge to Claude Code on Pi
+- Terminal widget (`CLAUDE.TTY`) -- HTTP bridge to Claude Code on Pi
 - Hamburger menu top-left, minimap auto-hides after 2s
 - Terminal-style app icon
+- Context-aware layout with weather timeline, ALFREDO.TTY, and flow layout (v0.48.0)
+- Weekend calendar handling and weather cleanup (v0.49.0)
+- Crash risk and stability fixes (v0.47.1)
 
-**Pi kiosk — done:**
+**Pi kiosk -- done:**
 - Fullscreen Chromium kiosk on ROADOM 7" (1024x600)
 - Widgets: CLOCK.SYS, TODAY.EXE, WORK.TODO, LIFE.TODO, CALENDAR.DAT, CLAUDE.TTY, STATS.DAT, SCRATCH.PAD
 - Status bar: BRIDGE · WS · NET · ICLOUD · TAILSCALE · SYNC · NEARBY
 - Settings page with drag-and-drop layout editor, task/scratch editing, presence detection, live preview
 - Triple-tap clock to exit kiosk; A-/A+ font size; layout presets: DEFAULT / FOCUS / TERMINAL
 - Presence detection: pings `todds-MacBook-Pro.local` every 15s, screen dims after 10 min away
+- Weather timeline with sun/moon dome arc (v0.48.0)
+- Context-aware mode system (v0.47.0)
+
+**Agent infrastructure -- done:**
+- Codex agent system prompt for Alfredo Chief of Staff
+- HANDOFF.md for peer agent coordination
 
 ---
 

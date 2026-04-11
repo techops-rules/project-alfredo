@@ -4,9 +4,9 @@ struct CalendarWidget: View {
     let events: [CalendarEvent]
     var weekendMode: Bool = false
     @Environment(\.theme) private var theme
+    @Environment(\.widgetMetrics) private var metrics
     @State private var selectedEvent: CalendarEvent?
 
-    /// Active + upcoming events for today
     private func activeEvents(at now: Date) -> [CalendarEvent] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: now)
@@ -14,21 +14,20 @@ struct CalendarWidget: View {
         return events.filter { $0.startTime >= today && $0.startTime < tomorrow && $0.endTime > now }
     }
 
-    /// Weekend events (Sat+Sun of the coming weekend), T&S calendar first
     private func weekendEvents(at now: Date) -> [CalendarEvent] {
         let cal = Calendar.current
-        let weekday = cal.component(.weekday, from: now) // 1=Sun,2=Mon,...,6=Fri,7=Sat
+        let weekday = cal.component(.weekday, from: now)
 
         let daysUntilSat: Int
         switch weekday {
-        case 7: daysUntilSat = 0   // Saturday already
-        case 1: daysUntilSat = 6   // Sunday — show next weekend
-        case 6: daysUntilSat = 1   // Friday night — tomorrow
+        case 7: daysUntilSat = 0
+        case 1: daysUntilSat = 6
+        case 6: daysUntilSat = 1
         default: daysUntilSat = 7 - weekday + 1
         }
 
         guard let saturday = cal.date(byAdding: .day, value: daysUntilSat, to: cal.startOfDay(for: now)),
-              let monday   = cal.date(byAdding: .day, value: 2, to: saturday) else { return [] }
+              let monday = cal.date(byAdding: .day, value: 2, to: saturday) else { return [] }
 
         return events
             .filter { !$0.isAllDay && $0.startTime >= saturday && $0.startTime < monday }
@@ -62,10 +61,11 @@ struct CalendarWidget: View {
     }
 
     var body: some View {
-        // TimelineView refreshes every 60s so events auto-clear and live states update
         TimelineView(.periodic(from: .now, by: 60)) { timeline in
             let now = timeline.date
             let visible = weekendMode ? weekendEvents(at: now) : activeEvents(at: now)
+            let displayed = Array(visible.prefix(metrics.primaryListLimit))
+            let hiddenCount = max(0, visible.count - displayed.count)
             let emptyMsg = weekendMode ? "no weekend events" : "no more events today"
 
             WidgetShell(
@@ -73,30 +73,30 @@ struct CalendarWidget: View {
                 badge: weekendMode ? "WKD" : "\(visible.count) today",
                 zone: "primary"
             ) {
-                VStack(spacing: 12) {
-                    // Date header
+                VStack(spacing: metrics.sectionSpacing) {
                     HStack(spacing: 8) {
                         Text(headerString(at: now))
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .font(.system(size: metrics.captionFontSize, weight: .medium, design: .monospaced))
                             .foregroundColor(theme.accentFull)
                         Spacer()
-                        Text("\(visible.count) event\(visible.count == 1 ? "" : "s")")
-                            .font(.system(size: 9, weight: .regular, design: .monospaced))
-                            .foregroundColor(ThemeManager.textSecondary)
+                        if !metrics.isCompact {
+                            Text("\(visible.count) event\(visible.count == 1 ? "" : "s")")
+                                .font(.system(size: metrics.captionFontSize, weight: .regular, design: .monospaced))
+                                .foregroundColor(ThemeManager.textSecondary)
+                        }
                     }
 
                     Divider().background(ThemeManager.textSecondary.opacity(0.2))
 
-                    // Event list
-                    if visible.isEmpty {
+                    if displayed.isEmpty {
                         Text(emptyMsg)
-                            .font(.system(size: theme.fontSize, design: .monospaced))
+                            .font(.system(size: metrics.bodyFontSize, design: .monospaced))
                             .foregroundColor(ThemeManager.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 8)
                     } else {
-                        VStack(spacing: 8) {
-                            ForEach(visible) { event in
+                        VStack(spacing: metrics.rowSpacing) {
+                            ForEach(displayed) { event in
                                 CalendarEventRow(event: event, now: now, showDay: weekendMode)
                                     .contentShape(Rectangle())
                                     .onLongPressGesture(minimumDuration: 0.5) {
@@ -104,6 +104,13 @@ struct CalendarWidget: View {
                                     }
                             }
                         }
+                    }
+
+                    if hiddenCount > 0 {
+                        Text("+ \(hiddenCount) more events hidden at this size")
+                            .font(.system(size: metrics.captionFontSize, design: .monospaced))
+                            .foregroundColor(ThemeManager.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
@@ -118,13 +125,12 @@ struct CalendarWidget: View {
     }
 }
 
-// MARK: - Event Row
-
 struct CalendarEventRow: View {
     let event: CalendarEvent
     let now: Date
     var showDay: Bool = false
     @Environment(\.theme) private var theme
+    @Environment(\.widgetMetrics) private var metrics
     @State private var displayState: MeetingDisplayState = .collapsed
 
     enum MeetingDisplayState: CaseIterable {
@@ -168,79 +174,73 @@ struct CalendarEventRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 10) {
-                // Live indicator bar
+            HStack(spacing: metrics.isCompact ? 8 : 10) {
                 if event.isLive {
                     RoundedRectangle(cornerRadius: 1.5)
                         .fill(theme.accentFull)
-                        .frame(width: 3, height: 20)
+                        .frame(width: 3, height: metrics.isCompact ? 16 : 20)
                         .shadow(color: theme.accentFull.opacity(0.5), radius: 4)
                 } else if event.isStartingSoon {
                     PulsingBar(color: theme.accentFull)
-                        .frame(width: 3, height: 20)
+                        .frame(width: 3, height: metrics.isCompact ? 16 : 20)
                 }
 
-                // Time
                 VStack(alignment: .leading, spacing: 2) {
                     if showDay {
                         let f: DateFormatter = {
                             let df = DateFormatter(); df.dateFormat = "EEE h:mm a"; return df
                         }()
                         Text(f.string(from: event.startTime).uppercased())
-                            .font(.system(size: theme.fontSize - 1, weight: .medium, design: .monospaced))
+                            .font(.system(size: metrics.captionFontSize, weight: .medium, design: .monospaced))
                             .foregroundColor(dimmed ? ThemeManager.textSecondary.opacity(0.4) : theme.accentFull)
-                            .frame(width: 100, alignment: .leading)
+                            .frame(width: metrics.isCompact ? 84 : 100, alignment: .leading)
                     } else {
                         Text(event.timeString)
-                            .font(.system(size: theme.fontSize - 1, weight: event.isLive ? .bold : .medium, design: .monospaced))
+                            .font(.system(size: metrics.bodyFontSize - 1, weight: event.isLive ? .bold : .medium, design: .monospaced))
                             .foregroundColor(dimmed ? ThemeManager.textSecondary.opacity(0.4) : theme.accentFull)
-                            .frame(width: 70, alignment: .leading)
+                            .frame(width: metrics.isCompact ? 58 : 70, alignment: .leading)
 
-                        if event.isLive || event.isStartingSoon {
+                        if (event.isLive || event.isStartingSoon) && !metrics.isCompact {
                             Text(event.isLive ? "NOW" : "in \(event.minutesUntilStart)m")
-                                .font(.system(size: theme.fontSize - 3, weight: .bold, design: .monospaced))
+                                .font(.system(size: metrics.captionFontSize, weight: .bold, design: .monospaced))
                                 .foregroundColor(event.isLive ? ThemeManager.success : ThemeManager.warning)
                         }
                     }
                 }
 
-                // Title
                 Text(event.title)
-                    .font(.system(size: theme.fontSize, weight: event.isLive ? .bold : .regular, design: .monospaced))
+                    .font(.system(size: metrics.bodyFontSize, weight: event.isLive ? .bold : .regular, design: .monospaced))
                     .foregroundColor(dimmed ? ThemeManager.textSecondary.opacity(0.5) : ThemeManager.textPrimary)
-                    .lineLimit(1)
+                    .lineLimit(metrics.isCompact ? 1 : 2)
 
-                Spacer()
+                Spacer(minLength: 0)
 
-                // Hint / status
-                if displayState == .collapsed {
+                if displayState == .collapsed && !metrics.isCompact {
                     Text("tap for brief")
-                        .font(.system(size: theme.fontSize - 4, design: .monospaced))
+                        .font(.system(size: metrics.captionFontSize, design: .monospaced))
                         .foregroundColor(ThemeManager.textSecondary.opacity(0.4))
-                } else if dimmed {
+                } else if dimmed && !metrics.isCompact {
                     Text(event.attendance == .declined ? "declined" : "pending")
-                        .font(.system(size: theme.fontSize - 2, design: .monospaced))
+                        .font(.system(size: metrics.captionFontSize, design: .monospaced))
                         .foregroundColor(ThemeManager.textSecondary.opacity(0.35))
-                } else {
+                } else if !metrics.isCompact {
                     Text("\(event.durationMinutes) min")
-                        .font(.system(size: theme.fontSize - 2, design: .monospaced))
+                        .font(.system(size: metrics.captionFontSize, design: .monospaced))
                         .foregroundColor(ThemeManager.textSecondary)
                 }
             }
 
-            // Brief detail
-            if displayState == .brief || displayState == .full {
+            if (displayState == .brief || displayState == .full) && !metrics.isCompact {
                 Text(briefText)
-                    .font(.system(size: theme.fontSize - 2, design: .monospaced))
+                    .font(.system(size: metrics.captionFontSize, design: .monospaced))
                     .foregroundColor(ThemeManager.textPrimary)
                     .padding(.leading, 16)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            // Full context
-            if displayState == .full {
+            if displayState == .full && metrics.isExpanded {
                 Text(fullText)
-                    .font(.system(size: theme.fontSize - 2, design: .monospaced))
+                    .font(.system(size: metrics.captionFontSize, design: .monospaced))
                     .foregroundColor(ThemeManager.textSecondary)
                     .lineSpacing(4)
                     .padding(.leading, 16)
@@ -250,13 +250,11 @@ struct CalendarEventRow: View {
         .opacity(isPast ? 0.38 : 1.0)
         .onTapGesture {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                displayState = displayState.next
+                displayState = metrics.isCompact ? .collapsed : displayState.next
             }
         }
     }
 }
-
-// MARK: - Pulsing Bar (pre-meeting warning)
 
 struct PulsingBar: View {
     let color: Color

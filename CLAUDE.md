@@ -31,7 +31,7 @@ xcodebuild -project alfredo.xcodeproj -scheme alfredo-macOS build
 open ~/Library/Developer/Xcode/DerivedData/alfredo-bsnsupimkylzxhfsgrhgetcenjaf/Build/Products/Debug/alfredo.app
 ```
 
-## Current state (as of 2026-04-10)
+## Current state (as of 2026-04-11)
 
 - [x] iOS infinite canvas — tab layout removed, `DashboardView` on all platforms
 - [x] Single-finger pan + momentum (spring-based, no Timer)
@@ -52,6 +52,12 @@ open ~/Library/Developer/Xcode/DerivedData/alfredo-bsnsupimkylzxhfsgrhgetcenjaf/
 - [x] macOS scroll wheel panning fixed (moved before .drawingGroup())
 - [x] Terminal/scratchpad keyboard input fixed (NSTextField replaces RawInputView)
 - [x] Pi kiosk security: auth on system control endpoints, XSS fixed, command injection fixed
+- [x] Crash risk and stability fixes across iOS app (v0.47.1)
+- [x] Context-aware mode system on Pi kiosk (v0.47.0)
+- [x] Weather timeline with sun/moon dome arc on Pi kiosk (v0.48.0)
+- [x] iOS canvas redesign with weather timeline, ALFREDO.TTY, and flow layout (v0.48.0)
+- [x] iOS context-aware layout, weather cleanup, weekend calendar (v0.49.0)
+- [x] Codex agent system prompt + HANDOFF.md for peer agent coordination
 - [ ] Apple Mail integration for email context in briefings
 - [ ] Responsive widget sizing (Phase 0)
 - [ ] Pi kiosk live calendar data (Phase 4)
