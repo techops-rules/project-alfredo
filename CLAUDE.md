@@ -8,9 +8,12 @@ This is the root of the alfredo project. The Xcode app and the Claude Code opera
 |------|------|
 | **Xcode project** (iOS + macOS) | `alfredo.xcodeproj` (schemes: alfredo-iOS, alfredo-macOS) |
 | **Swift source** | `Shared/`, `iOS/`, `macOS/` |
-| **Design brief** | `DESIGN-BRIEF.md` |
 | **App icon assets** | `Resources/Assets.xcassets/AppIcon.appiconset/` |
 | **Claude Code OS** (task board, slash commands, memory) | `alfredo/` |
+| **Pi kiosk web files** | `pi-kiosk/` |
+| **Pi setup / systemd services** | `pi-setup/` |
+| **Project docs** (design brief, context, Replit briefing) | `docs/` |
+| **Design / icon source files** | `assets/` |
 
 ## Build & deploy
 
@@ -28,7 +31,7 @@ xcodebuild -project alfredo.xcodeproj -scheme alfredo-macOS build
 open ~/Library/Developer/Xcode/DerivedData/alfredo-bsnsupimkylzxhfsgrhgetcenjaf/Build/Products/Debug/alfredo.app
 ```
 
-## Current state (as of 2026-04-09)
+## Current state (as of 2026-04-10)
 
 - [x] iOS infinite canvas — tab layout removed, `DashboardView` on all platforms
 - [x] Single-finger pan + momentum (spring-based, no Timer)
@@ -40,6 +43,19 @@ open ~/Library/Developer/Xcode/DerivedData/alfredo-bsnsupimkylzxhfsgrhgetcenjaf/
 - [x] Terminal-style app icon
 - [x] Pi kiosk dashboard — 7" ROADOM screen (1024×600), Chromium kiosk mode
 - [x] Pi settings page — drag-and-drop layout editor, task/scratch editing, presence detection
+- [x] Calendar time-awareness — past events auto-clear, live events bold+glow, 25min pre-meeting pulse
+- [x] Tappable calendar events → MeetingBriefingSheet with confidence-scored context sources
+- [x] Tappable task text → TaskBriefingSheet (circle still toggles done, long-press = focus mode)
+- [x] MeetingPrepService — gathers context from calendar notes, recurrence history, task board, memory files
+- [x] BriefingScheduler — 8am daily brief compilation + 25min pre-meeting notifications
+- [x] Briefings pre-load in background on app launch
+- [x] macOS scroll wheel panning fixed (moved before .drawingGroup())
+- [x] Terminal/scratchpad keyboard input fixed (NSTextField replaces RawInputView)
+- [x] Pi kiosk security: auth on system control endpoints, XSS fixed, command injection fixed
+- [ ] Apple Mail integration for email context in briefings
+- [ ] Responsive widget sizing (Phase 0)
+- [ ] Pi kiosk live calendar data (Phase 4)
+- [ ] Back-to-back meeting brief bundling UI
 
 ## Terminal widget Pi setup
 

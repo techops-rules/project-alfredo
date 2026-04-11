@@ -1,0 +1,50 @@
+name: ProjectAlfredo
+options:
+  bundleIdPrefix: com.projectalfredo
+  deploymentTarget:
+    macOS: "14.0"
+    iOS: "17.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_TEAM: "" # Set your Apple team ID here, or sign in Xcode
+
+targets:
+  ProjectAlfredo-macOS:
+    type: application
+    platform: macOS
+    sources:
+      - path: Shared
+      - path: macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.projectalfredo.app
+        PRODUCT_NAME: ProjectAlfredo
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        INFOPLIST_FILE: macOS/Info.plist
+    resources:
+      - path: Resources
+
+  ProjectAlfredo-iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Shared
+      - path: iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.projectalfredo.app
+        PRODUCT_NAME: ProjectAlfredo
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "Project Alfredo"
+        INFOPLIST_KEY_CFBundleVersion: 1
+        INFOPLIST_KEY_CFBundleShortVersionString: "0.1.0"
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_NSCalendarsUsageDescription: "Project Alfredo needs access to your calendar to sync events."
+    resources:
+      - path: Resources

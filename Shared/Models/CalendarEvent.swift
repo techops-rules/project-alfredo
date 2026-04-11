@@ -17,6 +17,14 @@ struct CalendarEvent: Identifiable, Codable {
     var isAllDay: Bool
     var attendance: AttendanceStatus = .none
 
+    // Context fields (populated by CalendarService / MeetingPrepService)
+    var notes: String?
+    var url: URL?
+    var organizerName: String?
+    var attendeeNames: [String]?
+    var isRecurring: Bool = false
+    var calendarName: String?
+
     var durationMinutes: Int {
         Int(endTime.timeIntervalSince(startTime) / 60)
     }
@@ -34,6 +42,42 @@ struct CalendarEvent: Identifiable, Codable {
         if mins < 60 { return "in \(mins) min" }
         let hrs = mins / 60
         return "in \(hrs) hr"
+    }
+
+    // MARK: - Time awareness
+
+    var isLive: Bool {
+        let now = Date()
+        return startTime <= now && endTime > now
+    }
+
+    var isStartingSoon: Bool {
+        let now = Date()
+        let warningWindow = startTime.addingTimeInterval(-25 * 60) // 25 min before
+        return now >= warningWindow && now < startTime
+    }
+
+    var minutesUntilStart: Int {
+        max(0, Int(startTime.timeIntervalSinceNow / 60))
+    }
+
+    var isPast: Bool {
+        endTime <= Date()
+    }
+
+    /// Extract meeting URL from url field or notes
+    var meetingURL: URL? {
+        if let url = url { return url }
+        guard let notes = notes else { return nil }
+        let patterns = ["https://[^\\s]*zoom\\.us/[^\\s]+",
+                        "https://meet\\.google\\.com/[^\\s]+",
+                        "https://teams\\.microsoft\\.com/[^\\s]+"]
+        for pattern in patterns {
+            if let range = notes.range(of: pattern, options: .regularExpression) {
+                return URL(string: String(notes[range]))
+            }
+        }
+        return nil
     }
 
     // Phase 1: static sample events

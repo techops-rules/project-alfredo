@@ -22,7 +22,7 @@ struct UpdateBanner: View {
                         .tracking(2)
 
                     Text("v\(version)")
-                        .font(.system(size: 10, design: .monospaced))
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundColor(ThemeManager.textPrimary)
 
                     if let notes = updateService.releaseNotes {

@@ -4,9 +4,12 @@ struct TaskListWidget: View {
     let title: String
     let tasks: [AppTask]
     let onToggle: (AppTask) -> Void
-    let onTapTask: (AppTask) -> Void
+    let onToggleSubtask: (Subtask) -> Void
+    let onTapTask: (AppTask) -> Void  // focus mode (long-press)
+    let onNavigate: (AppTask) -> Void // triple-tap deep link
 
     @Environment(\.theme) private var theme
+    @State private var selectedTask: AppTask?
 
     private var undoneCount: Int {
         tasks.filter { !$0.isDone }.count
@@ -15,7 +18,9 @@ struct TaskListWidget: View {
     var body: some View {
         WidgetShell(
             title: title,
-            badge: undoneCount > 0 ? "\(undoneCount) open" : nil,
+            badgeView: tasks.isEmpty ? nil : AnyView(
+                ProgressDots(percent: tasks.isEmpty ? 0 : (tasks.count - undoneCount) * 100 / tasks.count)
+            ),
             zone: "primary"
         ) {
             if tasks.isEmpty {
@@ -26,8 +31,14 @@ struct TaskListWidget: View {
             } else {
                 VStack(spacing: 8) {
                     ForEach(tasks) { task in
-                        TodoItemView(task: task, onToggle: { onToggle(task) })
-                            .onTapGesture { onTapTask(task) }
+                        TodoItemView(
+                            task: task,
+                            onToggle: { onToggle(task) },
+                            onToggleSubtask: { onToggleSubtask($0) },
+                            onTapText: { selectedTask = task },
+                            onLongPress: { onTapTask(task) },
+                            onNavigate: { onNavigate($0) }
+                        )
                     }
 
                     // 5-item soft cap warning (ADHD principle)
@@ -39,6 +50,13 @@ struct TaskListWidget: View {
                     }
                 }
             }
+        }
+        .sheet(item: $selectedTask) { task in
+            TaskBriefingSheet(task: task)
+                #if os(iOS)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                #endif
         }
     }
 }

@@ -14,6 +14,7 @@ struct DashboardView: View {
     @StateObject private var layoutManager = WidgetLayoutManager()
     private let calendarService = CalendarService.shared
     private let updateService = UpdateService.shared
+    private let prepService = MeetingPrepService.shared
 
     // Zoom
     @State private var canvasScale: CGFloat = 1.0
@@ -25,6 +26,9 @@ struct DashboardView: View {
     // iOS bottom sheets
     @State private var showSettingsSheet = false
     @State private var showWidgetSheet = false
+
+    // Email reply deep link
+    @State private var emailReplyTask: AppTask?
 
     // Minimap auto-hide
     @State private var minimapVisible = false
@@ -135,19 +139,16 @@ struct DashboardView: View {
             }
         }
         .sheet(isPresented: $showSettingsSheet) {
-            HamburgerMenu(onOpenTerminal: {
-                showSettingsSheet = false
-                showTerminal()
-            })
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showWidgetSheet) {
-            WidgetSidebar(
-                visibility: widgetVisibility,
-                isExpanded: .constant(true)
+            SettingsSheet(
+                onOpenTerminal: {
+                    showSettingsSheet = false
+                    showTerminal()
+                },
+                onToggleWidget: { widgetVisibility.toggle($0) },
+                widgetVisibility: widgetVisibility
             )
-            .presentationDetents([.medium])
+            .environment(\.theme, ThemeManager.shared)
+            .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
         #else
@@ -160,6 +161,48 @@ struct DashboardView: View {
             }
         }
         #endif
+        #if os(macOS)
+        .sheet(isPresented: $showSettingsSheet) {
+            SettingsSheet(
+                onOpenTerminal: {
+                    showSettingsSheet = false
+                    showTerminal()
+                },
+                onToggleWidget: { widgetVisibility.toggle($0) },
+                widgetVisibility: widgetVisibility
+            )
+            .environment(\.theme, ThemeManager.shared)
+            .frame(minWidth: 360, minHeight: 600)
+        }
+        #endif
+        .sheet(item: $emailReplyTask) { task in
+            if case .email(let messageId, let subject) = task.source {
+                EmailReplySheet(task: task, messageId: messageId, subject: subject)
+                    #if os(iOS)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    #endif
+            }
+        }
+    }
+
+    // MARK: - Task Navigation
+
+    private func handleTaskNavigation(_ task: AppTask) {
+        switch task.source {
+        case .email:
+            emailReplyTask = task
+        case .calendarEvent(let eventId, _):
+            // Find the matching CalendarEvent and show its briefing sheet
+            // CalendarWidget handles its own sheet; post a notification the widget can pick up
+            NotificationCenter.default.post(
+                name: .showEventBriefing,
+                object: nil,
+                userInfo: ["eventId": eventId]
+            )
+        case .manual, .unresolvable:
+            break // flash handled in TodoItemView
+        }
     }
 
     // MARK: - Canvas Widgets
@@ -213,7 +256,9 @@ struct DashboardView: View {
                     title: "WORK.TODO",
                     tasks: taskBoard.workTasks,
                     onToggle: { taskBoard.toggleTask($0) },
-                    onTapTask: { whatNext.startTask($0) }
+                    onToggleSubtask: { taskBoard.toggleSubtask($0) },
+                    onTapTask: { whatNext.startTask($0) },
+                    onNavigate: { handleTaskNavigation($0) }
                 )
             }
             .transition(.opacity)
@@ -230,7 +275,9 @@ struct DashboardView: View {
                     title: "LIFE.TODO",
                     tasks: taskBoard.personalTasks,
                     onToggle: { taskBoard.toggleTask($0) },
-                    onTapTask: { whatNext.startTask($0) }
+                    onToggleSubtask: { taskBoard.toggleSubtask($0) },
+                    onTapTask: { whatNext.startTask($0) },
+                    onNavigate: { handleTaskNavigation($0) }
                 )
             }
             .transition(.opacity)
@@ -256,6 +303,22 @@ struct DashboardView: View {
                 isEditMode: widgetsEditable
             ) {
                 CalendarWidget(events: calendarService.events.isEmpty ? CalendarEvent.sampleEvents : calendarService.events)
+            }
+            .transition(.opacity)
+        }
+
+        if widgetVisibility.isVisible(.hotlist) {
+            DraggableWidgetContainer(
+                widgetId: "hotlist",
+                layoutManager: layoutManager,
+                defaultLayout: defaultLayout("hotlist"),
+                isEditMode: widgetsEditable
+            ) {
+                HotlistWidget(
+                    tasks: taskBoard.todayTasks,
+                    events: calendarService.events.isEmpty ? CalendarEvent.sampleEvents : calendarService.events,
+                    onToggle: { taskBoard.toggleTask($0) }
+                )
             }
             .transition(.opacity)
         }
@@ -335,31 +398,16 @@ struct DashboardView: View {
     @ViewBuilder
     private func overlays(geo: GeometryProxy) -> some View {
         #if os(iOS)
-        // iOS: menu top-left + toolbar at bottom
+        // iOS: bottom toolbar only
         VStack {
-            // Menu (top-left) + connection status (top-right)
-            HStack {
-                HamburgerMenu(onOpenTerminal: {
-                    showTerminal()
-                })
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 4)
-
             Spacer()
 
-            HStack {
-                // Widget visibility toggle
+            HStack(spacing: 12) {
+                // Settings / hamburger — opens SettingsSheet
                 Button {
-                    showWidgetSheet = true
+                    showSettingsSheet = true
                 } label: {
-                    Image(systemName: "square.grid.2x2")
-                        .font(.system(size: 14, design: .monospaced))
-                        .foregroundColor(ThemeManager.textSecondary)
-                        .frame(width: 36, height: 36)
-                        .background(.ultraThinMaterial.opacity(0.7))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    toolbarIcon("line.3.horizontal")
                 }
 
                 Spacer()
@@ -377,19 +425,12 @@ struct DashboardView: View {
                 Spacer()
 
                 // Terminal quick-launch
-                Button {
-                    showTerminal()
-                } label: {
-                    Image(systemName: "terminal")
-                        .font(.system(size: 14, design: .monospaced))
-                        .foregroundColor(ThemeManager.textSecondary)
-                        .frame(width: 36, height: 36)
-                        .background(.ultraThinMaterial.opacity(0.7))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                Button { showTerminal() } label: {
+                    toolbarIcon("terminal")
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 12)
         }
         #else
         // macOS: inline overlays
@@ -411,12 +452,22 @@ struct DashboardView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
 
-            // Hamburger menu (top-left) + connection status (top-right)
+            // Settings button top-left
             HStack {
                 VStack {
-                    HamburgerMenu(onOpenTerminal: {
-                        showTerminal()
-                    })
+                    Button { showSettingsSheet = true } label: {
+                        VStack(spacing: 3) {
+                            ForEach(0..<3, id: \.self) { _ in
+                                RoundedRectangle(cornerRadius: 1)
+                                    .fill(ThemeManager.textSecondary)
+                                    .frame(width: 14, height: 1.5)
+                            }
+                        }
+                        .frame(width: 32, height: 28)
+                        .background(.ultraThinMaterial.opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                    .buttonStyle(.plain)
                     Spacer()
                 }
                 Spacer()
@@ -500,6 +551,7 @@ struct DashboardView: View {
         case "lifeTasks":  return WidgetLayoutState(position: CGPoint(x: 420, y: 150), size: CGSize(width: 360, height: 340))
         case "habits":     return WidgetLayoutState(position: CGPoint(x: 800, y: 150), size: CGSize(width: 440, height: 340))
         case "calendar":   return WidgetLayoutState(position: CGPoint(x: 40, y: 510), size: CGSize(width: 560, height: 270))
+        case "hotlist":    return WidgetLayoutState(position: CGPoint(x: 620, y: 510), size: CGSize(width: 620, height: 270))
         case "projects":   return WidgetLayoutState(position: CGPoint(x: 1320, y: 150), size: CGSize(width: 500, height: 320))
         case "goals":      return WidgetLayoutState(position: CGPoint(x: 1320, y: 490), size: CGSize(width: 500, height: 260))
         case "scratchpad":return WidgetLayoutState(position: CGPoint(x: 1840, y: 150), size: CGSize(width: 420, height: 600))
@@ -517,6 +569,7 @@ struct DashboardView: View {
         case "workTasks":  return WidgetLayoutState(position: CGPoint(x: 0, y: 120), size: CGSize(width: 300, height: 260))
         case "lifeTasks":  return WidgetLayoutState(position: CGPoint(x: 320, y: 120), size: CGSize(width: 300, height: 200))
         case "calendar":   return WidgetLayoutState(position: CGPoint(x: 0, y: 400), size: CGSize(width: 300, height: 260))
+        case "hotlist":    return WidgetLayoutState(position: CGPoint(x: 320, y: 680), size: CGSize(width: 300, height: 260))
         case "habits":     return WidgetLayoutState(position: CGPoint(x: 0, y: 680), size: CGSize(width: 300, height: 260))
         case "scratchpad":return WidgetLayoutState(position: CGPoint(x: 320, y: 340), size: CGSize(width: 300, height: 320))
         case "goals":      return WidgetLayoutState(position: CGPoint(x: 640, y: 0), size: CGSize(width: 300, height: 260))
@@ -580,12 +633,27 @@ struct DashboardView: View {
         if let goalsContent = icloud.readFile(at: icloud.goalsURL) {
             goals = MarkdownParser.parseGoals(goalsContent)
         }
+
+        // Pre-load meeting briefings for today's events
+        prepService.preloadTodaysBriefings(events: calendarService.events)
+
+        // Background-enrich work tasks with subtasks + source tags
+        TaskEnrichmentService.shared.enrichIfNeeded(taskBoard.workTasks, taskBoard: taskBoard)
     }
 
     private func syncAll() {
         loadData()
         calendarService.refresh()
         ConnectionMonitor.shared.checkAll()
+    }
+
+    private func toolbarIcon(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 16))
+            .foregroundColor(ThemeManager.textSecondary)
+            .frame(width: 44, height: 44)
+            .background(.ultraThinMaterial.opacity(0.7))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private func edgeHint(_ text: String, x: CGFloat, y: CGFloat, vertical: Bool) -> some View {

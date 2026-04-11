@@ -258,7 +258,8 @@ final class TerminalSession: ObservableObject {
         switch message {
         case .output(let text):
             // Stream output line by line
-            let outputLines = text.components(separatedBy: "\n")
+            let cleaned = ANSIParser.strip(text)
+            let outputLines = cleaned.components(separatedBy: "\n")
             for line in outputLines {
                 if !line.isEmpty {
                     lines.append(.response(line))
@@ -457,7 +458,8 @@ final class TerminalSession: ObservableObject {
                 if let http = response as? HTTPURLResponse, http.statusCode == 200 {
                     if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                        let reply = json["response"] as? String {
-                        for line in reply.components(separatedBy: "\n") {
+                        let cleaned = ANSIParser.strip(reply)
+                        for line in cleaned.components(separatedBy: "\n") {
                             lines.append(.response(line))
                         }
                     } else if let raw = String(data: data, encoding: .utf8) {

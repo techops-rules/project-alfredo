@@ -209,7 +209,9 @@ struct HamburgerMenu: View {
                 HStack(spacing: 6) {
                     ForEach([CGFloat(11), 13, 15], id: \.self) { s in
                         Button {
-                            theme.fontSize = s
+                            var t = Transaction()
+                            t.disablesAnimations = true
+                            withTransaction(t) { theme.fontSize = s }
                         } label: {
                             Text("\(Int(s))pt")
                                 .font(.system(size: 9, design: .monospaced))

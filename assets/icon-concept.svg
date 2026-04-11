@@ -1,0 +1,31 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark background -->
+  <rect width="1024" height="1024" fill="#0a0e27"/>
+
+  <!-- Terminal frame with cool blue border -->
+  <rect x="80" y="80" width="864" height="864" fill="none" stroke="#00d9ff" stroke-width="12" rx="20"/>
+  <rect x="80" y="80" width="864" height="120" fill="#00d9ff" opacity="0.1"/>
+
+  <!-- Title bar text -->
+  <text x="120" y="140" font-size="48" fill="#00d9ff" font-weight="bold">█ TODO.EXE</text>
+
+  <!-- Terminal content area -->
+  <g transform="translate(150, 280)">
+    <!-- Prompt line 1 -->
+    <text x="0" y="0" font-size="56" fill="#00d9ff" font-weight="bold">$ </text>
+    <text x="70" y="0" font-size="56" fill="#00ff99">todo --today</text>
+
+    <!-- Output lines -->
+    <text x="0" y="100" font-size="48" fill="#b0b0b0">[✓] Morning standup</text>
+    <text x="0" y="160" font-size="48" fill="#b0b0b0">[◐] Code review</text>
+    <text x="0" y="220" font-size="48" fill="#b0b0b0">[  ] Ship v1.0</text>
+
+    <!-- Progress bar -->
+    <text x="0" y="320" font-size="44" fill="#00d9ff">Progress:</text>
+    <text x="0" y="380" font-size="40" fill="#00d9ff">[████████░░] 80%</text>
+
+    <!-- Prompt line 2 -->
+    <text x="0" y="460" font-size="56" fill="#00d9ff" font-weight="bold">$ </text>
+    <text x="70" y="460" font-size="56" fill="#00ff99">_</text>
+  </g>
+</svg>

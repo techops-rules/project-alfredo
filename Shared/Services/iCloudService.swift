@@ -13,7 +13,8 @@ final class iCloudService {
             self.isUsingiCloud = true
         } else {
             // Local fallback
-            let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+                ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents")
             self.baseURL = docs.appendingPathComponent("alfredo")
             self.isUsingiCloud = false
         }

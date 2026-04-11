@@ -1,0 +1,38 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark background -->
+  <rect width="1024" height="1024" fill="#0a0e27"/>
+
+  <!-- Rounded square border (terminal frame) -->
+  <rect x="100" y="100" width="824" height="824" fill="none" stroke="#00d9ff" stroke-width="16" rx="40"/>
+
+  <!-- Header bar -->
+  <rect x="100" y="100" width="824" height="140" fill="#00d9ff" opacity="0.08"/>
+
+  <!-- Three dots (window controls) -->
+  <circle cx="180" cy="170" r="14" fill="#00d9ff" opacity="0.6"/>
+  <circle cx="260" cy="170" r="14" fill="#00d9ff" opacity="0.6"/>
+  <circle cx="340" cy="170" r="14" fill="#00d9ff" opacity="0.6"/>
+
+  <!-- Content area: checkboxes and progress -->
+  <g transform="translate(200, 300)">
+    <!-- Checkbox 1 (checked) -->
+    <rect x="0" y="0" width="60" height="60" fill="none" stroke="#00d9ff" stroke-width="6" rx="6"/>
+    <line x1="15" y1="30" x2="30" y2="45" stroke="#00ff99" stroke-width="8"/>
+    <line x1="30" y1="45" x2="50" y2="15" stroke="#00ff99" stroke-width="8"/>
+
+    <!-- Checkbox 2 (unchecked) -->
+    <rect x="0" y="100" width="60" height="60" fill="none" stroke="#00d9ff" stroke-width="6" rx="6"/>
+
+    <!-- Checkbox 3 (checked) -->
+    <rect x="0" y="200" width="60" height="60" fill="none" stroke="#00d9ff" stroke-width="6" rx="6"/>
+    <line x1="15" y1="230" x2="30" y2="245" stroke="#00ff99" stroke-width="8"/>
+    <line x1="30" y1="245" x2="50" y2="215" stroke="#00ff99" stroke-width="8"/>
+
+    <!-- Progress bar -->
+    <rect x="0" y="330" width="480" height="50" fill="none" stroke="#00d9ff" stroke-width="4" rx="8"/>
+    <rect x="8" y="338" width="384" height="34" fill="#00d9ff" opacity="0.7" rx="4"/>
+
+    <!-- Cursor blink -->
+    <rect x="100" y="420" width="8" height="60" fill="#00d9ff" opacity="0.8"/>
+  </g>
+</svg>

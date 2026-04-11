@@ -8,6 +8,7 @@ final class CalendarService {
     private let eventStore = EKEventStore()
     @ObservationIgnored private var calendars: [EKCalendar] = []
     @ObservationIgnored private var refreshTimer: Timer?
+    @ObservationIgnored private var storeObserver: Any?
 
     var events: [CalendarEvent] = []
     var isAuthorized = false
@@ -21,10 +22,17 @@ final class CalendarService {
         }
 
         // Refresh when calendar store changes (events added/deleted externally)
-        NotificationCenter.default.addObserver(
+        storeObserver = NotificationCenter.default.addObserver(
             forName: .EKEventStoreChanged, object: eventStore, queue: .main
         ) { [weak self] _ in
             self?.loadEvents()
+        }
+    }
+
+    deinit {
+        refreshTimer?.invalidate()
+        if let observer = storeObserver {
+            NotificationCenter.default.removeObserver(observer)
         }
     }
 
@@ -87,23 +95,64 @@ final class CalendarService {
         guard isAuthorized else { return }
 
         let today = Calendar.current.startOfDay(for: Date())
-        let oneWeekLater = Calendar.current.date(byAdding: .day, value: 7, to: today)!
+        guard let oneWeekLater = Calendar.current.date(byAdding: .day, value: 7, to: today) else { return }
         let predicate = eventStore.predicateForEvents(withStart: today, end: oneWeekLater, calendars: nil)
 
         let ekEvents = eventStore.events(matching: predicate)
 
         let mapped: [CalendarEvent] = ekEvents.map { ekEvent in
-            CalendarEvent(
+            let attendees = ekEvent.attendees?.compactMap { $0.name ?? $0.url.absoluteString } ?? []
+            let organizer = ekEvent.organizer?.name
+
+            return CalendarEvent(
                 id: ekEvent.eventIdentifier,
                 title: ekEvent.title ?? "",
                 startTime: ekEvent.startDate,
                 endTime: ekEvent.endDate ?? ekEvent.startDate,
                 location: ekEvent.location,
                 isAllDay: ekEvent.isAllDay,
-                attendance: attendanceStatus(for: ekEvent)
+                attendance: attendanceStatus(for: ekEvent),
+                notes: ekEvent.notes,
+                url: ekEvent.url,
+                organizerName: organizer,
+                attendeeNames: attendees.isEmpty ? nil : attendees,
+                isRecurring: ekEvent.hasRecurrenceRules,
+                calendarName: ekEvent.calendar.title
             )
         }
         events = mapped.sorted { $0.startTime < $1.startTime }
+        pushToPi()
+    }
+
+    // Push events to Pi kiosk for hybrid calendar display
+    private func pushToPi() {
+        let host = UserDefaults.standard.string(forKey: "terminal.piHost") ?? "pihub.local"
+        let port = UserDefaults.standard.integer(forKey: "terminal.piPort")
+        let kioskPort = port > 0 ? port + 10 : 8430  // bridge=8420, kiosk=8430
+        guard let url = URL(string: "http://\(host):\(kioskPort)/proxy/calendar") else { return }
+
+        let iso = ISO8601DateFormatter()
+        let payload: [[String: Any]] = events.map { e in
+            var d: [String: Any] = [
+                "title": e.title,
+                "startTime": iso.string(from: e.startTime),
+                "endTime": iso.string(from: e.endTime),
+                "isAllDay": e.isAllDay,
+            ]
+            if let loc = e.location { d["location"] = loc }
+            if let org = e.organizerName { d["organizer"] = org }
+            if let att = e.attendeeNames { d["attendees"] = att }
+            if let notes = e.notes { d["notes"] = String(notes.prefix(200)) }
+            if let cal = e.calendarName { d["calendar"] = cal }
+            return d
+        }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.timeoutInterval = 5
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["events": payload])
+        URLSession.shared.dataTask(with: req) { _, _, _ in }.resume()
     }
 
     // Refresh events

@@ -17,7 +17,23 @@ struct MarkdownParser {
         let lines = content.components(separatedBy: "\n")
 
         for (index, line) in lines.enumerated() {
+            // Indented subtask (2+ spaces or tab prefix) — attach to last task
+            let isIndented = line.hasPrefix("  ") || line.hasPrefix("\t")
             let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if isIndented, trimmed.hasPrefix("- ["), !tasks.isEmpty {
+                let isDone = trimmed.hasPrefix("- [x]") || trimmed.hasPrefix("- [X]")
+                guard trimmed.count > 6 else { continue }
+                let textStart = trimmed.index(trimmed.startIndex, offsetBy: 6)
+                let text = String(trimmed[textStart...]).trimmingCharacters(in: .whitespaces)
+                guard !text.isEmpty else { continue }
+                if tasks[tasks.count - 1].subtasks.count < 5 {
+                    tasks[tasks.count - 1].subtasks.append(
+                        Subtask(text: text, isDone: isDone, fileLineIndex: index)
+                    )
+                }
+                continue
+            }
 
             // Detect section headers
             if trimmed.hasPrefix("## ") {
@@ -35,9 +51,11 @@ struct MarkdownParser {
                 let isDone = trimmed.hasPrefix("- [x]") || trimmed.hasPrefix("- [X]")
                 guard trimmed.count > 6 else { continue }
                 let textStart = trimmed.index(trimmed.startIndex, offsetBy: 6)
-                let text = String(trimmed[textStart...]).trimmingCharacters(in: .whitespaces)
-                if text.isEmpty || text == "-" { continue }
+                let rawText = String(trimmed[textStart...]).trimmingCharacters(in: .whitespaces)
+                if rawText.isEmpty || rawText == "-" { continue }
 
+                let source = parseSource(from: rawText)
+                let text = stripSourceTag(from: rawText)
                 let isUrgent = text.hasSuffix("!")
                 let scope = parseScope(from: text)
                 let tags = parseTags(from: text)
@@ -53,13 +71,17 @@ struct MarkdownParser {
                     tags: tags,
                     deferDate: deferDate,
                     followUpDate: followUp,
-                    fileLineIndex: index
+                    fileLineIndex: index,
+                    source: source
                 ))
             }
             // Parse plain list items (non-Today sections)
             else if trimmed.hasPrefix("- ") && !trimmed.hasPrefix("- [") {
-                let text = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
-                if text.isEmpty || text == "-" { continue }
+                let rawText = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+                if rawText.isEmpty || rawText == "-" { continue }
+
+                let source = parseSource(from: rawText)
+                let text = stripSourceTag(from: rawText)
 
                 var waitingPerson: String?
                 if section == .waiting, let match = text.range(of: #"^\[(.+?)\]"#, options: .regularExpression) {
@@ -77,7 +99,8 @@ struct MarkdownParser {
                     scope: scope,
                     tags: tags,
                     waitingPerson: waitingPerson,
-                    fileLineIndex: index
+                    fileLineIndex: index,
+                    source: source
                 ))
             }
         }
@@ -98,6 +121,36 @@ struct MarkdownParser {
             lines[lineIndex] = line.replacingOccurrences(of: "- [x]", with: "- [ ]")
             lines[lineIndex] = lines[lineIndex].replacingOccurrences(of: "- [X]", with: "- [ ]")
         }
+
+        return lines.joined(separator: "\n")
+    }
+
+    /// Toggle a subtask — same mechanism, works for indented lines too
+    static func toggleSubtask(in content: String, at lineIndex: Int) -> String {
+        toggleTask(in: content, at: lineIndex)
+    }
+
+    /// Append subtasks to a task line in the file (inserts after the task's fileLineIndex)
+    static func writeSubtasks(_ subtasks: [Subtask], in content: String, afterLine lineIndex: Int) -> String {
+        var lines = content.components(separatedBy: "\n")
+        guard lineIndex < lines.count else { return content }
+
+        // Remove any existing indented subtask lines right after the parent
+        var insertAt = lineIndex + 1
+        while insertAt < lines.count {
+            let l = lines[insertAt]
+            if l.hasPrefix("  ") || l.hasPrefix("\t") {
+                lines.remove(at: insertAt)
+            } else {
+                break
+            }
+        }
+
+        // Insert new subtasks
+        let subtaskLines = subtasks.map { sub in
+            "  - [\(sub.isDone ? "x" : " ")] \(sub.text)"
+        }
+        lines.insert(contentsOf: subtaskLines, at: insertAt)
 
         return lines.joined(separator: "\n")
     }
@@ -199,6 +252,52 @@ struct MarkdownParser {
         return regex.matches(in: text, range: range).compactMap { match in
             guard let r = Range(match.range, in: text) else { return nil }
             return String(text[r])
+        }
+    }
+
+    /// Parses [src:email:ID:Subject] or [src:event:ID:Title] tags
+    static func parseSource(from text: String) -> TaskSource {
+        let emailPattern = #"\[src:email:([^:]+):([^\]]+)\]"#
+        let eventPattern = #"\[src:event:([^:]+):([^\]]+)\]"#
+
+        if let regex = try? NSRegularExpression(pattern: emailPattern),
+           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+           let idRange = Range(match.range(at: 1), in: text),
+           let subjectRange = Range(match.range(at: 2), in: text) {
+            return .email(messageId: String(text[idRange]), subject: String(text[subjectRange]))
+        }
+
+        if let regex = try? NSRegularExpression(pattern: eventPattern),
+           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+           let idRange = Range(match.range(at: 1), in: text),
+           let titleRange = Range(match.range(at: 2), in: text) {
+            return .calendarEvent(eventId: String(text[idRange]), title: String(text[titleRange]))
+        }
+
+        return .manual
+    }
+
+    static func stripSourceTag(from text: String) -> String {
+        var result = text
+        let patterns = [#"\[src:email:[^\]]+\]"#, #"\[src:event:[^\]]+\]"#]
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern) {
+                let range = NSRange(result.startIndex..., in: result)
+                result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
+            }
+        }
+        return result.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Encode a TaskSource back to its markdown tag
+    static func sourceTag(for source: TaskSource) -> String {
+        switch source {
+        case .email(let id, let subject):
+            return " [src:email:\(id):\(subject)]"
+        case .calendarEvent(let id, let title):
+            return " [src:event:\(id):\(title)]"
+        case .manual, .unresolvable:
+            return ""
         }
     }
 

@@ -1,5 +1,39 @@
 import Foundation
 
+// MARK: - Subtask
+
+struct Subtask: Identifiable, Codable, Equatable {
+    let id: UUID
+    var text: String
+    var isDone: Bool
+    var fileLineIndex: Int?
+
+    init(id: UUID = UUID(), text: String, isDone: Bool = false, fileLineIndex: Int? = nil) {
+        self.id = id
+        self.text = text
+        self.isDone = isDone
+        self.fileLineIndex = fileLineIndex
+    }
+}
+
+// MARK: - TaskSource
+
+enum TaskSource: Codable, Equatable {
+    case email(messageId: String, subject: String)
+    case calendarEvent(eventId: String, title: String)
+    case manual
+    case unresolvable
+
+    var isNavigable: Bool {
+        switch self {
+        case .email, .calendarEvent: return true
+        case .manual, .unresolvable: return false
+        }
+    }
+}
+
+// MARK: - TaskSection / Scope
+
 enum TaskSection: String, CaseIterable, Codable {
     case today, soon, later, waiting, deferred, agenda, inbox, done, reference
 
@@ -28,6 +62,8 @@ struct AppTask: Identifiable, Codable, Equatable {
     var followUpDate: Date?
     var waitingPerson: String?
     var fileLineIndex: Int?
+    var subtasks: [Subtask]
+    var source: TaskSource
 
     init(
         id: UUID = UUID(),
@@ -40,7 +76,9 @@ struct AppTask: Identifiable, Codable, Equatable {
         deferDate: Date? = nil,
         followUpDate: Date? = nil,
         waitingPerson: String? = nil,
-        fileLineIndex: Int? = nil
+        fileLineIndex: Int? = nil,
+        subtasks: [Subtask] = [],
+        source: TaskSource = .manual
     ) {
         self.id = id
         self.text = text
@@ -53,7 +91,12 @@ struct AppTask: Identifiable, Codable, Equatable {
         self.followUpDate = followUpDate
         self.waitingPerson = waitingPerson
         self.fileLineIndex = fileLineIndex
+        self.subtasks = subtasks
+        self.source = source
     }
+
+    var subtasksDoneCount: Int { subtasks.filter(\.isDone).count }
+    var hasSubtasks: Bool { !subtasks.isEmpty }
 
     var displayText: String {
         var t = text

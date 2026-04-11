@@ -1,0 +1,7 @@
+[Unit]
+Description=Alfredo Watchdog — network and bridge health check
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/home/todd/alfredo-bridge/alfredo-watchdog.sh

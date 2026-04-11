@@ -1,0 +1,26 @@
+[Unit]
+Description=Alfredo Kiosk Web Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/todd/alfredo-kiosk
+ExecStart=/usr/bin/python3 /home/todd/alfredo-kiosk/serve.py
+Restart=always
+RestartSec=5
+Environment=HOME=/home/todd
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=alfredo-kiosk-web
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/todd
+
+[Install]
+WantedBy=default.target

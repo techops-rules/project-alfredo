@@ -1,0 +1,21 @@
+#!/bin/sh
+# Alfredo kiosk autostart — launched by labwc on login
+# Installed to: ~/.config/labwc/autostart
+
+# Wait for kiosk web server to be ready
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    curl -sf --max-time 2 http://localhost:8430/ >/dev/null 2>&1 && break
+    sleep 2
+done
+
+# Launch Chromium in kiosk mode
+chromium \
+    --kiosk \
+    --ozone-platform=wayland \
+    --noerrdialogs \
+    --no-first-run \
+    --disable-infobars \
+    --disable-session-crashed-bubble \
+    --start-fullscreen \
+    --autoplay-policy=no-user-gesture-required \
+    http://localhost:8430/ &

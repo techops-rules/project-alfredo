@@ -12,6 +12,7 @@ enum WidgetID: String, CaseIterable, Identifiable {
     case projects = "PROJECTS.DIR"
     case goals = "GOALS.CFG"
     case scratchpad = "SCRATCH.TXT"
+    case hotlist = "HOTLIST.EXE"
     case stats = "STATS.BIN"
     case terminal = "CLAUDE.TTY"
 
@@ -28,6 +29,7 @@ enum WidgetID: String, CaseIterable, Identifiable {
         case .projects:   return "folder"
         case .goals:      return "flag"
         case .scratchpad: return "note.text"
+        case .hotlist:    return "exclamationmark.triangle"
         case .stats:      return "chart.line.uptrend.xyaxis"
         case .terminal:   return "terminal"
         }

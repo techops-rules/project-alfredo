@@ -1,0 +1,26 @@
+[Unit]
+Description=Alfredo Bridge — HTTP→Claude Code proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/todd
+ExecStart=/home/todd/alfredo-venv/bin/python3 /home/todd/alfredo-bridge.py
+Restart=always
+RestartSec=5
+Environment=HOME=/home/todd
+Environment=PATH=/home/todd/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=alfredo-bridge
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/todd
+
+[Install]
+WantedBy=default.target

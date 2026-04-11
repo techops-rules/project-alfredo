@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kiosk",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8430", "--directory", "pi-kiosk"],
+      "port": 8430
+    }
+  ]
+}

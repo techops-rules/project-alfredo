@@ -3,6 +3,7 @@ import SwiftUI
 struct WidgetShell<Content: View>: View {
     let title: String
     var badge: String? = nil
+    var badgeView: AnyView? = nil
     var zone: String? = nil
     @ViewBuilder let content: () -> Content
 
@@ -24,7 +25,11 @@ struct WidgetShell<Content: View>: View {
                         .foregroundColor(theme.accentFull)
                         .tracking(2)
 
-                    if let badge {
+                    if let badgeView {
+                        badgeView
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                    } else if let badge {
                         Text(badge)
                             .font(.system(size: theme.fontSize - 2, design: .monospaced))
                             .foregroundColor(theme.accentFull)

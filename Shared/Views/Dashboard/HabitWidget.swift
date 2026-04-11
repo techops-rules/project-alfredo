@@ -10,7 +10,9 @@ struct HabitWidget: View {
     var body: some View {
         WidgetShell(
             title: "HABITS.SYS",
-            badge: "\(doneCount)/\(habits.count)",
+            badgeView: habits.isEmpty ? nil : AnyView(
+                ProgressDots(percent: habits.isEmpty ? 0 : doneCount * 100 / habits.count)
+            ),
             zone: "primary"
         ) {
             VStack(spacing: 10) {

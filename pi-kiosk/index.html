@@ -14,7 +14,7 @@
     --accent-grid: rgba(97,175,239,0.035);
     --success: #98C379; --warning: #E5C07B; --danger: #E06C75;
     --font: "JetBrains Mono", monospace;
-    --fs: 11px;
+    --fs: 13px;
   }
   body { background: var(--bg); color: var(--text-primary); font-family: var(--font); font-size: var(--fs); height: 100vh; width: 100vw; overflow: hidden; display: flex; flex-direction: column; }
   body::before { content:''; position:fixed; inset:0; background-image: linear-gradient(var(--accent-grid) 1px,transparent 1px), linear-gradient(90deg,var(--accent-grid) 1px,transparent 1px); background-size:80px 80px; pointer-events:none; z-index:0; }
@@ -42,23 +42,54 @@
   @keyframes statpulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
 
   .statusbar .spacer { flex: 1; }
-  .statusbar .presets { display: flex; gap: 4px; align-items: center; }
-  .preset-btn {
-    font-family: var(--font); font-size: 8px; font-weight: 700; letter-spacing: 1px;
-    padding: 3px 8px; border-radius: 3px; border: 1px solid var(--accent-border);
+
+  /* Hamburger button */
+  .hbg-btn {
+    font-family: var(--font); font-size: 11px; color: var(--text-secondary);
+    width: 28px; height: 22px; border-radius: 4px;
+    border: 1px solid var(--accent-border); background: transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0; margin-left: 8px;
+    -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+  }
+  .hbg-btn:active { background: rgba(97,175,239,0.1); }
+
+  /* Hamburger panel */
+  .hbg-panel {
+    display: none; position: fixed; bottom: 28px; right: 8px;
+    background: #0a0f1a; border: 1px solid rgba(97,175,239,0.28);
+    border-radius: 8px; padding: 14px 16px; z-index: 50;
+    min-width: 200px; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  .hbg-panel.open { display: block; }
+  .hbg-section { margin-bottom: 14px; }
+  .hbg-section:last-child { margin-bottom: 0; }
+  .hbg-label {
+    font-size: 8px; font-weight: 700; letter-spacing: 2px;
+    color: var(--text-secondary); margin-bottom: 7px;
+  }
+  .hbg-row { display: flex; gap: 5px; flex-wrap: wrap; }
+  .hbg-chip {
+    font-family: var(--font); font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    padding: 5px 10px; border-radius: 4px; border: 1px solid var(--accent-border);
     cursor: pointer; background: transparent; color: var(--text-secondary);
     -webkit-tap-highlight-color: transparent;
   }
-  .preset-btn.active { background: rgba(97,175,239,0.15); color: var(--accent); border-color: var(--accent); }
-  .preset-btn:active { opacity: 0.7; }
-
-  .fs-controls { display: flex; gap: 4px; align-items: center; margin-left: 12px; }
-  .fs-btn {
-    font-family: var(--font); font-size: 9px; color: var(--text-secondary);
-    width: 22px; height: 18px; border-radius: 3px;
+  .hbg-chip.active { background: rgba(97,175,239,0.15); color: var(--accent); border-color: var(--accent); }
+  .hbg-chip:active { opacity: 0.7; }
+  .hbg-divider { height: 1px; background: rgba(97,175,239,0.1); margin: 12px 0; }
+  .fs-stepper { display: flex; align-items: center; gap: 10px; }
+  .fs-step-btn {
+    font-family: var(--font); font-size: 14px; font-weight: 700; color: var(--accent);
+    width: 28px; height: 28px; border-radius: 4px;
     border: 1px solid var(--accent-border); background: transparent;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     -webkit-tap-highlight-color: transparent;
+  }
+  .fs-step-btn:active { background: rgba(97,175,239,0.1); }
+  .fs-display {
+    font-size: 11px; font-weight: 700; color: var(--text-primary);
+    min-width: 36px; text-align: center; letter-spacing: 1px;
   }
 
   /* Canvas */
@@ -67,10 +98,10 @@
   /* Widget */
   .widget { position: absolute; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.2s, transform 0.2s; }
   .widget.hidden { opacity: 0; pointer-events: none; transform: scale(0.97); }
-  .widget-header { display:flex; align-items:center; gap:8px; padding:6px 10px; background:rgba(97,175,239,0.05); border-bottom:1px solid var(--accent-border); font-size:10px; font-weight:700; color:var(--accent); letter-spacing:2px; flex-shrink:0; }
+  .widget-header { display:flex; align-items:center; gap:8px; padding:6px 10px; background:rgba(97,175,239,0.05); border-bottom:1px solid var(--accent-border); font-size:10px; font-weight:700; color:var(--accent); letter-spacing:2px; flex-shrink:0; zoom:var(--content-zoom,1); }
   .badge { font-size:9px; font-weight:500; color:var(--text-secondary); letter-spacing:1px; }
   .zone { margin-left:auto; font-size:8px; color:var(--text-secondary); opacity:0.5; }
-  .widget-body { padding:10px; flex:1; overflow:hidden; }
+  .widget-body { padding:10px; flex:1; overflow:hidden; zoom:var(--content-zoom,1); }
 
   /* Clock */
   .clock-time { display:flex; align-items:baseline; gap:2px; cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; }
@@ -97,6 +128,20 @@
   .task-blank { display:flex; align-items:center; gap:8px; padding:4px 0; opacity:0.3; cursor:pointer; }
   .task-blank .task-dot { border-style:dashed; }
   .task-blank .task-text { color:var(--text-secondary); font-style:italic; }
+  .widget-stale .zone::after { content:' · STALE'; color:var(--warning); font-size:9px; letter-spacing:1px; }
+  .widget-stale { opacity:0.6; }
+
+  /* Time-aware widget states */
+  .widget.time-hidden { display:none !important; }
+  .widget.compact .widget-body { max-height:0 !important; overflow:hidden; padding:0 !important; }
+  .widget.compact { cursor:pointer; }
+  .widget.compact .widget-header .zone::before { content:'▸ '; opacity:0.5; }
+
+  /* Task detail sheet */
+  .td-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .td-status-btn { font-family:var(--font); font-size:9px; font-weight:700; letter-spacing:1px; padding:6px 12px; border-radius:4px; border:1px solid var(--accent-border); cursor:pointer; background:transparent; color:var(--text-secondary); -webkit-tap-highlight-color:transparent; }
+  .td-status-btn.active { background:rgba(97,175,239,0.15); color:var(--accent); border-color:var(--accent); }
+  .td-status-btn.done-btn.active { background:rgba(152,195,121,0.15); color:var(--success); border-color:var(--success); }
 
   /* Terminal */
   .term-status { display:flex; align-items:center; gap:6px; padding:4px 10px; background:rgba(8,14,24,0.4); flex-shrink:0; }
@@ -109,19 +154,60 @@
   .term-line.sys { color:var(--text-secondary); }
   .term-input { display:flex; align-items:center; gap:6px; padding:6px 10px; border-top:1px solid var(--accent-border); background:rgba(8,14,24,0.5); flex-shrink:0; }
   .term-prompt { font-size:12px; font-weight:700; color:var(--accent); }
-  .term-cursor-blink { animation:slowblink 2s step-end infinite; color:var(--accent); }
-  @keyframes slowblink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+  .term-cursor-blink { animation:slowblink 2.5s ease-in-out infinite; color:var(--accent); opacity:0.5; }
+  @keyframes slowblink { 0%,40%{opacity:0.5} 50%{opacity:0.1} 60%,100%{opacity:0.5} }
 
   /* Calendar */
   .cal-event { display:flex; gap:8px; padding:4px 0; align-items:center; }
   .cal-time { font-size:10px; color:var(--text-secondary); width:50px; flex-shrink:0; }
   .cal-bar { width:2px; height:16px; background:var(--accent); border-radius:1px; flex-shrink:0; }
   .cal-title { font-size:10px; color:var(--text-primary); }
+  .cal-event.past .cal-time, .cal-event.past .cal-title { opacity:0.4; }
+  .cal-event.past .cal-bar { opacity:0.3; }
+  .cal-event.live .cal-bar { background:var(--accent); box-shadow:0 0 6px var(--accent); }
+  .cal-event.live .cal-title { font-weight:bold; }
+  .cal-title.dim { opacity:0.4; font-style:italic; }
+  .cal-event.personal .cal-bar { background:#7c6eff; }
+  .cal-event.personal.live .cal-bar { background:#7c6eff; box-shadow:0 0 6px #7c6eff; }
+  .cal-section-label { font-size:8px; color:var(--text-secondary); letter-spacing:1px; margin:6px 0 2px; opacity:0.6; }
+  .cal-section-label:first-child { margin-top:0; }
+
+  /* TODAY.EXE dots */
+  .today-rows { display:flex; flex-direction:column; gap:6px; }
+  .today-row { display:flex; align-items:center; gap:8px; }
+  .today-label { font-size:9px; letter-spacing:1px; color:var(--text-secondary); width:65px; flex-shrink:0; }
+  .today-dots { display:flex; gap:4px; flex:1; }
+  .today-dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); transition:all 0.3s; }
+  .today-dot.lit { background:var(--success,#4ade80); border-color:var(--success,#4ade80); box-shadow:0 0 4px var(--success,#4ade80); }
+
+  /* Weather */
+  .wx-row { display:flex; align-items:center; gap:8px; padding:2px 0; }
+  .wx-temp { font-size:20px; font-weight:700; color:var(--text-emphasis); white-space:nowrap; }
+  .wx-desc { font-size:10px; color:var(--text-secondary); white-space:nowrap; }
+  .wx-icon { font-size:16px; }
+  .wx-forecast { display:flex; gap:10px; margin-top:2px; }
+  .wx-hour { text-align:center; font-size:9px; color:var(--text-secondary); }
+  .wx-hour .wx-h-temp { color:var(--text-primary); font-weight:600; }
 
   /* Stats */
   .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   .stat-block .stat-val { font-size:22px; font-weight:700; color:var(--text-emphasis); }
   .stat-block .stat-lbl { font-size:8px; color:var(--text-secondary); letter-spacing:1px; margin-top:2px; }
+
+  /* Dot progress (inline badge) */
+  .dot-prog { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:3px; transition:background 0.2s ease; vertical-align:middle; }
+
+  /* Hotlist */
+  .hotlist-body { display:flex; flex-direction:column; gap:3px; height:100%; overflow-y:auto; }
+  .hl-item { display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; }
+  .hl-urgency { width:8px; height:8px; border-radius:50%; flex-shrink:0; transition:transform 0.1s; }
+  .hl-urgency.high { background:var(--accent); box-shadow:0 0 4px var(--accent); }
+  .hl-urgency.med { background:var(--accent); opacity:0.45; }
+  .hl-urgency.event { background:transparent; border:1.5px solid var(--accent); opacity:0.6; }
+  .hl-text { font-size:11px; color:var(--text-primary); flex:1; }
+  .hl-text.done { text-decoration:line-through; color:var(--text-secondary); opacity:0.28; }
+  .hl-due { font-size:9px; color:var(--text-secondary); white-space:nowrap; flex-shrink:0; }
+  .hl-badge { font-size:8px; font-weight:700; letter-spacing:1px; padding:1px 5px; border-radius:3px; border:1px solid rgba(124,110,255,0.4); color:#7c6eff; flex-shrink:0; }
 
   /* Scratchpad */
   .scratch-body { display:flex; flex-direction:column; gap:2px; height:100%; overflow-y:auto; }
@@ -129,6 +215,41 @@
   .scratch-add { display:flex; align-items:center; gap:6px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--accent-border); cursor:pointer; opacity:0.4; }
   .scratch-add:active { opacity:0.8; }
   .scratch-add span { font-size:10px; color:var(--text-secondary); font-style:italic; }
+
+  /* Meeting 3-state */
+  .cal-event-wrap { cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .cal-event-wrap[data-state="collapsed"] .meeting-brief,
+  .cal-event-wrap[data-state="collapsed"] .meeting-full { max-height:0; padding:0; }
+  .cal-event-wrap[data-state="brief"] .meeting-full { max-height:0; padding:0; }
+  .cal-event-wrap[data-state="collapsed"] .meeting-hint { display:block; }
+  .cal-event-wrap:not([data-state="collapsed"]) .meeting-hint { display:none; }
+  .meeting-hint { font-size:8px; color:var(--text-secondary); opacity:0.4; margin-left:60px; padding:1px 0; }
+  .meeting-brief { font-size:9px; color:var(--text-primary); margin-left:60px; padding:2px 0; max-height:0; overflow:hidden; transition:max-height 0.25s ease; }
+  .cal-event-wrap[data-state="brief"] .meeting-brief,
+  .cal-event-wrap[data-state="full"] .meeting-brief { max-height:80px; padding:2px 0; }
+  .meeting-full { font-size:9px; color:var(--text-secondary); margin-left:60px; line-height:1.5; max-height:0; overflow:hidden; transition:max-height 0.25s ease; }
+  .cal-event-wrap[data-state="full"] .meeting-full { max-height:200px; padding:2px 0; }
+  .meeting-full hr { border:none; border-top:1px dashed var(--accent-border); margin:6px 0; }
+  .cal-rec { font-size:7px; font-weight:700; color:var(--accent); letter-spacing:1px; margin-left:6px; opacity:0.6; }
+
+  /* Funfact */
+  .funfact { font-size:9px; color:var(--text-secondary); margin-top:8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.4; opacity:0.6; }
+  .funfact::before { content:'✦ '; color:var(--accent); }
+
+  /* Waiting/Deferred counts */
+  .today-count { font-size:18px; font-weight:700; color:var(--text-emphasis); }
+  .today-count-row { cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .today-count-row:active { opacity:0.7; }
+
+  /* Waiting/Deferred modal sheet */
+  .wd-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:90; }
+  .wd-backdrop.open { display:block; }
+  .wd-sheet { position:fixed; bottom:0; left:0; right:0; background:#0a0f1a; border-top:1px solid var(--accent-border); border-radius:12px 12px 0 0; transform:translateY(100%); transition:transform 0.3s ease; z-index:100; padding:16px; max-height:60vh; overflow-y:auto; }
+  .wd-sheet.open { transform:translateY(0); }
+  .wd-handle { width:32px; height:4px; background:var(--text-secondary); opacity:0.3; border-radius:2px; margin:0 auto 12px; }
+  .wd-title { font-size:10px; font-weight:700; color:var(--accent); letter-spacing:2px; margin-bottom:10px; }
+  .wd-item { font-size:11px; color:var(--text-primary); padding:6px 0; border-bottom:1px solid rgba(97,175,239,0.08); }
+  .wd-item:last-child { border-bottom:none; }
 
   /* Voice btn */
   .voice-btn { position:absolute; bottom:40px; right:16px; width:40px; height:40px; border-radius:50%; background:rgba(97,175,239,0.07); border:1px solid var(--accent-border); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; font-size:16px; opacity:0.4; }
@@ -154,52 +275,45 @@
 
 <div class="canvas" id="canvas">
   <!-- CLOCK.SYS -->
-  <div class="widget" id="w-clock" style="left:16px;top:8px;width:280px;height:90px">
+  <div class="widget" id="w-clock" style="left:16px;top:8px;width:190px;height:110px">
     <div class="widget-header">CLOCK.SYS <span class="zone">primary</span></div>
     <div class="widget-body">
       <div class="clock-time" id="clock">
         <span class="hm" id="clockHM"></span><span class="sec" id="clockSec"></span><span class="ampm" id="clockAMPM"></span>
       </div>
       <div class="clock-date" id="clockDate"></div>
+      <div class="funfact" id="funfact"></div>
     </div>
   </div>
 
-  <!-- TODAY.EXE -->
-  <div class="widget" id="w-today" style="left:310px;top:8px;right:16px;height:90px">
-    <div class="widget-header">TODAY.EXE <span class="zone">primary</span></div>
-    <div class="widget-body">
-      <div class="today-bar">
-        <div class="today-stat"><div class="val" id="taskCount">0/0</div><div class="lbl">TASKS</div></div>
-        <div class="today-divider"></div>
-        <div class="today-stat"><div class="val" id="habitCount">—</div><div class="lbl">HABITS</div></div>
-        <div class="today-divider"></div>
-        <div class="today-stat"><div class="val" id="focusHrs">0.0</div><div class="lbl">FOCUS HRS</div></div>
-        <div class="today-divider"></div>
-        <div class="today-stat"><div class="val" id="eventsLeft">4</div><div class="lbl">EVENTS LEFT</div></div>
-      </div>
+  <!-- WEATHER.SYS -->
+  <div class="widget" id="w-weather" style="left:218px;top:8px;width:320px;height:110px">
+    <div class="widget-header">WEATHER.SYS <span class="zone">live</span></div>
+    <div class="widget-body" id="weatherBody">
+      <div class="wx-row"><span class="wx-desc dim">loading...</span></div>
     </div>
   </div>
 
   <!-- WORK.TODO -->
-  <div class="widget" id="w-work" style="left:16px;top:110px;width:310px;height:230px">
+  <div class="widget" id="w-work" style="left:16px;top:130px;width:310px;height:210px">
     <div class="widget-header">WORK.TODO <span class="badge" id="workBadge"></span><span class="zone">primary</span></div>
     <div class="widget-body"><div class="task-list" id="workTasks"></div></div>
   </div>
 
   <!-- LIFE.TODO -->
-  <div class="widget" id="w-life" style="left:340px;top:110px;width:310px;height:230px">
+  <div class="widget" id="w-life" style="left:340px;top:130px;width:310px;height:210px">
     <div class="widget-header">LIFE.TODO <span class="badge" id="lifeBadge"></span><span class="zone">primary</span></div>
     <div class="widget-body"><div class="task-list" id="lifeTasks"></div></div>
   </div>
 
   <!-- CALENDAR.DAT -->
-  <div class="widget" id="w-cal" style="left:16px;top:352px;width:310px;height:195px">
+  <div class="widget" id="w-cal" style="left:16px;top:352px;width:310px;height:185px">
     <div class="widget-header">CALENDAR.DAT <span class="zone">primary</span></div>
     <div class="widget-body" id="calendarBody"></div>
   </div>
 
   <!-- CLAUDE.TTY -->
-  <div class="widget" id="w-tty" style="left:340px;top:352px;width:310px;height:195px">
+  <div class="widget" id="w-tty" style="left:340px;top:352px;width:310px;height:185px">
     <div class="widget-header">CLAUDE.TTY <span class="badge" id="termBadge">OFF</span><span class="zone">system</span></div>
     <div class="term-status"><div class="term-dot off" id="termDot"></div><span class="term-label" id="termLabel">checking...</span></div>
     <div class="term-output" id="termOutput">
@@ -212,8 +326,22 @@
     </div>
   </div>
 
-  <!-- STATS.DAT -->
-  <div class="widget" id="w-stats" style="right:16px;top:110px;width:336px;height:165px">
+  <!-- TODAY.EXE -->
+  <div class="widget" id="w-today" style="right:16px;top:8px;width:336px;height:110px">
+    <div class="widget-header">TODAY.EXE <span class="zone">primary</span></div>
+    <div class="widget-body">
+      <div class="today-rows">
+        <div class="today-row"><span class="today-label">TASKS</span><span class="today-dots" id="dotsWork"></span></div>
+        <div class="today-row"><span class="today-label">TODO</span><span class="today-dots" id="dotsTodo"></span></div>
+        <div class="today-row"><span class="today-label">MEETINGS</span><span class="today-dots" id="dotsMeetings"></span></div>
+        <div class="today-row today-count-row" onclick="openWdModal('waiting')"><span class="today-label">WAITING</span><span class="today-count" id="waitingCount">0</span></div>
+        <div class="today-row today-count-row" onclick="openWdModal('deferred')"><span class="today-label">DEFERRED</span><span class="today-count" id="deferredCount">0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS.DAT (hidden) -->
+  <div class="widget hidden" id="w-stats" style="right:16px;top:130px;width:336px;height:155px">
     <div class="widget-header">STATS.DAT <span class="zone">primary</span></div>
     <div class="widget-body">
       <div class="stat-grid">
@@ -225,8 +353,14 @@
     </div>
   </div>
 
+  <!-- HOTLIST.EXE -->
+  <div class="widget hidden" id="w-hotlist" style="left:258px;top:8px;width:396px;height:165px">
+    <div class="widget-header">HOTLIST.EXE <span class="badge" id="hotlistBadge"></span><span class="zone">urgent</span></div>
+    <div class="widget-body"><div class="hotlist-body" id="hotlistBody"></div></div>
+  </div>
+
   <!-- SCRATCH.PAD -->
-  <div class="widget" id="w-scratch" style="right:16px;top:287px;width:336px;height:260px">
+  <div class="widget" id="w-scratch" style="right:16px;top:297px;width:336px;height:240px">
     <div class="widget-header">SCRATCH.PAD <span class="zone">primary</span></div>
     <div class="widget-body"><div class="scratch-body" id="scratchBody"></div></div>
   </div>
@@ -245,15 +379,36 @@
   <div class="status-item" style="gap:6px"><div class="status-dot" id="sd-sync"></div><span id="sync-lbl" style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">SYNC</span></div>
   <div class="status-item" style="gap:6px"><div class="status-dot" id="sd-presence"></div><span style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">NEARBY</span></div>
   <div class="spacer"></div>
-  <div class="presets">
-    <span style="font-size:8px;color:var(--text-secondary);letter-spacing:1px;margin-right:4px">LAYOUT</span>
-    <button class="preset-btn active" data-preset="default">DEFAULT</button>
-    <button class="preset-btn" data-preset="focus">FOCUS</button>
-    <button class="preset-btn" data-preset="terminal">TERMINAL</button>
+  <span style="font-size:10px;color:var(--text-secondary);opacity:0.5;margin-right:6px">v0.46.0</span>
+  <button class="hbg-btn" id="hbgToggle">☰</button>
+</div>
+
+<!-- Hamburger panel -->
+<div class="hbg-panel" id="hbgPanel">
+  <div class="hbg-section">
+    <div class="hbg-label">LAYOUT</div>
+    <div class="hbg-row">
+      <button class="hbg-chip active" data-preset="default">DEFAULT</button>
+      <button class="hbg-chip" data-preset="focus">FOCUS</button>
+      <button class="hbg-chip" data-preset="terminal">TERMINAL</button>
+    </div>
   </div>
-  <div class="fs-controls">
-    <button class="fs-btn" id="fsDown">A−</button>
-    <button class="fs-btn" id="fsUp">A+</button>
+  <div class="hbg-divider"></div>
+  <div class="hbg-section">
+    <div class="hbg-label">FONT SIZE</div>
+    <div class="fs-stepper">
+      <button class="fs-step-btn" id="fsDown">−</button>
+      <span class="fs-display" id="fsDisplay">13px</span>
+      <button class="fs-step-btn" id="fsUp">+</button>
+    </div>
+  </div>
+  <div class="hbg-divider"></div>
+  <div class="hbg-section">
+    <div class="hbg-label">SYSTEM</div>
+    <div class="hbg-row">
+      <button class="hbg-chip" id="btnRefresh">REFRESH</button>
+      <button class="hbg-chip" id="btnReboot" style="border-color:var(--danger);color:var(--danger)">REBOOT</button>
+    </div>
   </div>
 </div>
 
@@ -271,6 +426,28 @@
 </div>
 
 <div class="exit-overlay" id="exitOverlay"><span>closing alfredo...</span></div>
+
+<!-- Task detail sheet -->
+<div class="wd-backdrop" id="tdBackdrop" onclick="closeTd()"></div>
+<div class="wd-sheet" id="tdSheet">
+  <div class="wd-handle"></div>
+  <div class="wd-title">TASK</div>
+  <div style="font-size:12px;color:var(--text-emphasis);padding:8px 0 4px;line-height:1.5" id="tdText"></div>
+  <div class="td-actions">
+    <button class="td-status-btn" id="tdBtnTodo" onclick="setTaskStatus('todo')">TODO</button>
+    <button class="td-status-btn" id="tdBtnWaiting" onclick="setTaskStatus('waiting')">WAITING</button>
+    <button class="td-status-btn" id="tdBtnDeferred" onclick="setTaskStatus('deferred')">DEFER</button>
+    <button class="td-status-btn done-btn" id="tdBtnDone" onclick="setTaskStatus('done')">DONE ✓</button>
+  </div>
+</div>
+
+<!-- Waiting/Deferred sheet -->
+<div class="wd-backdrop" id="wdBackdrop" onclick="closeWdModal()"></div>
+<div class="wd-sheet" id="wdSheet">
+  <div class="wd-handle"></div>
+  <div class="wd-title" id="wdTitle">WAITING</div>
+  <div id="wdList"></div>
+</div>
 
 <script>
 // ── Clock ───────────────────────────────────────────────────
@@ -299,21 +476,54 @@ document.getElementById('clock').addEventListener('click',()=>{
 function loadData(key,def){try{return JSON.parse(localStorage.getItem(key))||def;}catch{return def;}}
 function saveData(key,val){localStorage.setItem(key,JSON.stringify(val));}
 
-let workTasks=loadData('workTasks',[{text:'Check bridge status',done:true},{text:'Review kiosk layout',done:false},{text:'Deploy dashboard v2',done:false}]);
+let workTasks=loadData('workTasks',[]);
 let lifeTasks=loadData('lifeTasks',[{text:'Set up Pi screen',done:true},{text:'Organize desk cables',done:false}]);
 let scratchLines=loadData('scratch',['// jot things here']);
 
+// ── Claude-suggested work tasks ─────────────────────────────
+// Fetch if bridge is up; fall back to localStorage. Retries on reconnect.
+let taskFetchFailed = false; // track if last attempt failed so we retry on reconnect
+
+function fetchSuggestedTasks(force){
+  const today = new Date().toDateString();
+  const lastFetch = localStorage.getItem('workTasksDate');
+  if (!force && lastFetch === today && workTasks.length > 0) return; // already fresh
+  fetch('/proxy/suggest-tasks', {signal: AbortSignal.timeout(15000)})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok && d.tasks && d.tasks.length > 0) {
+        workTasks = d.tasks;
+        saveData('workTasks', workTasks);
+        localStorage.setItem('workTasksDate', today);
+        renderTasks('workTasks','workBadge', workTasks,'workTasks');
+        updateTodayBar();
+        taskFetchFailed = false;
+        setTaskStale(false);
+      } else { taskFetchFailed = true; }
+    })
+    .catch(() => { taskFetchFailed = true; });
+}
+fetchSuggestedTasks();
+
 function renderTasks(cid,bid,tasks,key){
   const el=document.getElementById(cid);
-  const open=tasks.filter(t=>!t.done).length;
-  document.getElementById(bid).textContent=open>0?open+' open':'';
+  // Only show tasks not moved to waiting/deferred; undone first, done after; cap at 5
+  const active=tasks.filter(t=>t.status!=='waiting'&&t.status!=='deferred');
+  const undone=active.filter(t=>!t.done);
+  const done=active.filter(t=>t.done);
+  const toShow=[...undone,...done].slice(0,5);
+  const badge=document.getElementById(bid);
+  badge.innerHTML=toShow.length>0?renderDotProgress(toShow.length,toShow.filter(t=>t.done).length):'';
   el.innerHTML='';
-  tasks.forEach((t,i)=>{
+  toShow.forEach(t=>{
     const row=document.createElement('div'); row.className='task-item';
-    row.innerHTML='<div class="task-dot'+(t.done?' done':'')+'"></div><span class="task-text'+(t.done?' done':'')+'">'+t.text+'</span>';
-    row.addEventListener('click',()=>{tasks[i].done=!tasks[i].done;saveData(key,tasks);renderTasks(cid,bid,tasks,key);updateTodayBar();});
+    const dot=document.createElement('div'); dot.className='task-dot'+(t.done?' done':'');
+    const span=document.createElement('span'); span.className='task-text'+(t.done?' done':''); span.textContent=t.text;
+    row.appendChild(dot); row.appendChild(span);
+    row.addEventListener('click',()=>openTaskDetail(t,tasks,key));
     el.appendChild(row);
   });
+  // Blank dot always at bottom for adding new items
   const blank=document.createElement('div'); blank.className='task-blank';
   blank.innerHTML='<div class="task-dot"></div><span class="task-text">add item...</span>';
   blank.addEventListener('click',()=>openModal('ADD TO '+(key==='workTasks'?'WORK.TODO':'LIFE.TODO'),val=>{if(val){tasks.push({text:val,done:false});saveData(key,tasks);renderTasks(cid,bid,tasks,key);updateTodayBar();}}));
@@ -322,18 +532,228 @@ function renderTasks(cid,bid,tasks,key){
 renderTasks('workTasks','workBadge',workTasks,'workTasks');
 renderTasks('lifeTasks','lifeBadge',lifeTasks,'lifeTasks');
 
+// Visual staleness indicator — dims widget + appends "STALE" to header
+function setTaskStale(stale) {
+  const w = document.getElementById('w-work');
+  if (w) w.classList.toggle('widget-stale', stale);
+}
+
+// Hoisted here so updateHotlist() can access it before the HOTLIST section
+var hotlistCalEvents = [];
+
 function updateTodayBar(){
   const all=[...workTasks,...lifeTasks], done=all.filter(t=>t.done).length;
-  document.getElementById('taskCount').textContent=done+'/'+all.length;
+  const wDone=workTasks.filter(t=>t.done).length, lDone=lifeTasks.filter(t=>t.done).length;
   document.getElementById('statCompleted').textContent=done;
+  renderDots('dotsWork',workTasks.length,wDone);
+  renderDots('dotsTodo',lifeTasks.length,lDone);
+  if(typeof updateHotlist==='function') updateHotlist();
 }
 updateTodayBar();
 
-// ── Calendar ────────────────────────────────────────────────
-document.getElementById('calendarBody').innerHTML=[
-  {time:'9:00 AM',title:'Standup'},{time:'10:30',title:'Design review'},
-  {time:'1:00 PM',title:'Lunch break'},{time:'3:00 PM',title:'Sprint planning'}
-].map(e=>'<div class="cal-event"><span class="cal-time">'+e.time+'</span><div class="cal-bar"></div><span class="cal-title">'+e.title+'</span></div>').join('');
+// ── Inline dot-progress (for badges) ───────────────────────
+function renderDotProgress(total,done){
+  return Array.from({length:total}).map((_,i)=>
+    `<span class="dot-prog" style="background:${i<done?'var(--accent)':'rgba(97,175,239,0.18)'}"></span>`
+  ).join('');
+}
+
+// ── TODAY.EXE dot renderer ─────────────────────────────────
+function renderDots(elId,total,done){
+  const el=document.getElementById(elId);
+  if(!el)return;
+  let html='';
+  for(let i=0;i<total;i++){
+    html+='<div class="today-dot'+(i<done?' lit':'')+'"></div>';
+  }
+  el.innerHTML=html;
+}
+
+// ── Calendar (live from iCal feeds + Mac push) ─────────────
+// Personal calendars identified by name (T&S, personal, etc.)
+const PERSONAL_CALS=['T&S','t&s','Todd Schedule','todd schedule','Personal','personal','Family','family','Home','home'];
+function isPersonal(e){
+  const cal=(e.calendar||'').toLowerCase();
+  return PERSONAL_CALS.some(p=>cal.includes(p.toLowerCase()));
+}
+function cycleMeetingState(el){
+  const states=['collapsed','brief','full'];
+  const cur=el.dataset.state||'collapsed';
+  el.dataset.state=states[(states.indexOf(cur)+1)%states.length];
+}
+function renderCalEvent(e,now){
+  const d=new Date(e.startTime);
+  const end=new Date(e.endTime);
+  const time=e.isAllDay?'ALL DAY':d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  const endTime=e.isAllDay?'':' – '+end.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  const past=d<now?' past':'';
+  const live=(d<=now&&end>now)?' live':'';
+  const personal=isPersonal(e)?' personal':'';
+  const rec=e.recurring?'<span class="cal-rec">REC</span>':'';
+  const briefText=e.brief||(time+endTime+' · '+(e.calendar||'Calendar'));
+  const fullText=e.longContext||(e.location?'📍 '+escHtml(e.location):'No additional context available');
+  const prev=e.prevBrief?'<hr><div style="font-size:8px;letter-spacing:1px;color:var(--text-secondary);margin-bottom:2px">PREV SESSION</div>'+escHtml(e.prevBrief):'';
+  return '<div class="cal-event-wrap" data-state="collapsed" onclick="cycleMeetingState(this)">'
+    +'<div class="cal-event'+past+live+personal+'"><span class="cal-time">'+time+'</span><div class="cal-bar"></div><span class="cal-title">'+escHtml(e.title)+rec+'</span></div>'
+    +'<div class="meeting-hint">tap for brief</div>'
+    +'<div class="meeting-brief">'+briefText+'</div>'
+    +'<div class="meeting-full">'+fullText+prev+'</div>'
+    +'</div>';
+}
+function renderCalendar(events){
+  const el=document.getElementById('calendarBody');
+  if(!events||!events.length){
+    el.innerHTML='<div class="cal-event"><span class="cal-time">--</span><div class="cal-bar"></div><span class="cal-title dim">no events today</span></div>';
+    return;
+  }
+  const now=new Date(), todayStr=now.toLocaleDateString('sv'); // YYYY-MM-DD in local timezone
+  const today=events.filter(e=>(e.startTime||'').slice(0,10)===todayStr);
+  if(!today.length){
+    el.innerHTML='<div class="cal-event"><span class="cal-time">--</span><div class="cal-bar"></div><span class="cal-title dim">no events today</span></div>';
+    return;
+  }
+  const work=today.filter(e=>!isPersonal(e));
+  const personal=today.filter(e=>isPersonal(e));
+  let html='';
+  if(work.length){
+    html+='<div class="cal-section-label">WORK</div>';
+    html+=work.map(e=>renderCalEvent(e,now)).join('');
+  }
+  if(personal.length){
+    html+='<div class="cal-section-label">PERSONAL</div>';
+    html+=personal.map(e=>renderCalEvent(e,now)).join('');
+  }
+  el.innerHTML=html;
+  // Update meetings dots
+  const meetings=today.filter(e=>!e.isAllDay);
+  const pastMeetings=meetings.filter(e=>new Date(e.endTime)<=now).length;
+  renderDots('dotsMeetings',meetings.length,pastMeetings);
+}
+function escHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function fetchCalendar(){
+  fetch('/proxy/calendar').then(r=>r.json()).then(d=>{
+    renderCalendar(d.events||[]);
+    const hdr=document.querySelector('#w-cal .zone');
+    if(hdr) hdr.textContent=d.mac_fresh?'live·mac':'live·ical';
+  }).catch(()=>{
+    document.getElementById('calendarBody').innerHTML='<div class="cal-event"><span class="cal-time">!</span><div class="cal-bar"></div><span class="cal-title dim">fetch failed</span></div>';
+  });
+}
+fetchCalendar();
+setInterval(fetchCalendar,60000);
+
+// ── HOTLIST.EXE ─────────────────────────────────────────────
+// Static sample data; urgency: 'high'|'med'|null on tasks
+// Live calendar events merge in from renderCalendar via updateHotlist()
+// (hotlistCalEvents declared above updateTodayBar to avoid TDZ)
+
+function updateHotlist(){
+  const now = new Date();
+  // Pull urgent tasks from both lists
+  const taskItems = [...workTasks, ...lifeTasks]
+    .filter(t => t.urgency === 'high' || t.urgency === 'med')
+    .map(t => ({ type:'task', text:t.text, due:'Today', urgency:t.urgency||'med', done:t.done||false }));
+
+  // Today's upcoming calendar events (not all-day)
+  const calItems = hotlistCalEvents
+    .filter(e => !e.isAllDay)
+    .map(e => {
+      const d = new Date(e.startTime);
+      const time = d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+      const past = new Date(e.endTime) <= now;
+      return { type:'event', text:e.title, due:time, urgency:'high', past, source: isPersonal(e)?'personal':'work' };
+    });
+
+  // Sort: high before med, events by time within tier
+  const all = [...taskItems, ...calItems].sort((a,b)=>{
+    const tier = v => v.urgency==='high'?0:1;
+    if(tier(a)!==tier(b)) return tier(a)-tier(b);
+    return 0;
+  });
+
+  const el = document.getElementById('hotlistBody');
+  const badge = document.getElementById('hotlistBadge');
+  if(!el) return;
+
+  if(!all.length){
+    el.innerHTML='<div style="font-size:10px;color:var(--text-secondary);opacity:0.5;padding:6px 0">nothing urgent right now</div>';
+    badge.textContent='';
+    return;
+  }
+
+  const open = all.filter(i=>i.type==='task'&&!i.done).length + all.filter(i=>i.type==='event').length;
+  badge.textContent = open > 0 ? open+' items' : '';
+
+  el.innerHTML = all.map((item,idx) => {
+    const urgCls = item.type==='event' ? 'event' : (item.urgency||'med');
+    const doneCls = (item.type==='task' && item.done) ? ' done' : '';
+    const pastStyle = (item.type==='event' && item.past) ? 'opacity:0.38;' : '';
+    const badge2 = item.source==='personal' ? '<span class="hl-badge">personal</span>' : '';
+    return `<div class="hl-item" style="${pastStyle}" data-hl-idx="${idx}" data-hl-type="${item.type}">
+      <div class="hl-urgency ${urgCls}"></div>
+      <span class="hl-text${doneCls}">${escHtml(item.text)}</span>
+      ${badge2}
+      <span class="hl-due">${item.due}</span>
+    </div>`;
+  }).join('');
+
+  // Checkbox toggle for tasks
+  el.querySelectorAll('.hl-item[data-hl-type="task"]').forEach(row => {
+    row.addEventListener('click', () => {
+      const idx = parseInt(row.dataset.hlIdx);
+      const item = all[idx];
+      // Find and toggle in source array
+      const src = [...workTasks, ...lifeTasks].find(t => t.text === item.text);
+      if(src){ src.done = !src.done; saveData('workTasks',workTasks); saveData('lifeTasks',lifeTasks); }
+      updateHotlist();
+    });
+  });
+}
+updateHotlist();
+
+// Hook hotlist into calendar updates
+const _origRenderCal = renderCalendar;
+function renderCalendar(events){
+  _origRenderCal(events);
+  const now = new Date(), todayStr = now.toISOString().slice(0,10);
+  hotlistCalEvents = (events||[]).filter(e=>(e.startTime||'').slice(0,10)===todayStr);
+  updateHotlist();
+}
+
+// ── Weather (Open-Meteo, no API key) ────────────────────────
+const WX_LAT=47.61,WX_LON=-122.33; // Seattle area
+const WX_CODES={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌦',61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌦',82:'⛈',95:'⛈',96:'⛈',99:'⛈'};
+const WX_DESC={0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
+function fetchWeather(){
+  const url='https://api.open-meteo.com/v1/forecast?latitude='+WX_LAT+'&longitude='+WX_LON+'&current=temperature_2m,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FLos_Angeles&forecast_days=1';
+  fetch(url).then(r=>r.json()).then(d=>{
+    const c=d.current||{};
+    const temp=Math.round(c.temperature_2m||0);
+    const code=c.weather_code||0;
+    const wind=Math.round(c.wind_speed_10m||0);
+    const icon=WX_CODES[code]||'🌡';
+    const desc=WX_DESC[code]||'';
+    const hi=Math.round((d.daily||{}).temperature_2m_max?.[0]||0);
+    const lo=Math.round((d.daily||{}).temperature_2m_min?.[0]||0);
+    // Hourly forecast — next 6 hours
+    const nowHr=new Date().getHours();
+    const hrs=(d.hourly||{}).temperature_2m||[];
+    const hrCodes=(d.hourly||{}).weather_code||[];
+    let forecast='';
+    for(let i=nowHr+1;i<nowHr+7&&i<hrs.length;i++){
+      const h=i%24;
+      const hLabel=h===0?'12a':h<12?h+'a':h===12?'12p':(h-12)+'p';
+      forecast+='<div class="wx-hour"><div>'+(WX_CODES[hrCodes[i]]||'')+'</div><div class="wx-h-temp">'+Math.round(hrs[i])+'°</div><div>'+hLabel+'</div></div>';
+    }
+    document.getElementById('weatherBody').innerHTML=
+      '<div class="wx-row"><span class="wx-icon">'+icon+'</span><span class="wx-temp">'+temp+'°</span><span class="wx-desc">'+desc+' · '+wind+'mph · H:'+hi+'° L:'+lo+'°</span></div>'+
+      '<div class="wx-forecast">'+forecast+'</div>';
+  }).catch(()=>{
+    document.getElementById('weatherBody').innerHTML='<div class="wx-row"><span class="wx-desc dim">weather unavailable</span></div>';
+  });
+}
+fetchWeather();
+setInterval(fetchWeather,600000); // every 10 min
 
 // ── Scratchpad ──────────────────────────────────────────────
 function renderScratch(){
@@ -345,6 +765,122 @@ function renderScratch(){
   el.appendChild(add);
 }
 renderScratch();
+
+// ── Funfact ────────────────────────────────────────────────
+const FUNFACTS=[
+  "Octopuses have three hearts and blue blood.",
+  "A day on Venus is longer than a year on Venus.",
+  "Honey never spoils — 3000-year-old jars are still edible.",
+  "The inventor of the Pringles can is buried in one.",
+  "A group of flamingos is called a flamboyance.",
+  "Bananas are naturally radioactive.",
+  "The shortest war lasted 38 minutes (Britain vs Zanzibar).",
+  "Wombat poop is cube-shaped.",
+  "A jiffy is an actual unit of time: 1/100th of a second.",
+  "The heart of a shrimp is located in its head.",
+  "Scotland's national animal is the unicorn.",
+  "A cloud can weigh more than a million pounds.",
+  "Cows have best friends and get stressed when separated.",
+  "The total weight of ants on Earth roughly equals that of humans.",
+  "There are more possible chess games than atoms in the universe."
+];
+document.getElementById('funfact').textContent=FUNFACTS[Math.floor(Math.random()*FUNFACTS.length)];
+
+// ── Waiting / Deferred ─────────────────────────────────────
+let waitingItems=loadData('waitingItems',[]);
+let deferredItems=loadData('deferredItems',[]);
+
+function renderWdCounts(){
+  function setWdCount(elId,count){
+    const el=document.getElementById(elId); if(!el) return;
+    if(count===0){
+      el.innerHTML='<span class="today-dot" style="opacity:0.22;display:inline-block;margin-left:4px;vertical-align:middle"></span>';
+    } else {
+      el.className='today-count'; el.textContent=count;
+    }
+  }
+  setWdCount('waitingCount',waitingItems.length);
+  setWdCount('deferredCount',deferredItems.length);
+}
+renderWdCounts();
+
+// Try loading from bridge
+fetch('/proxy/suggest-tasks').then(r=>r.json()).then(d=>{
+  if(d.ok&&d.waiting){waitingItems=d.waiting;saveData('waitingItems',waitingItems);}
+  if(d.ok&&d.deferred){deferredItems=d.deferred;saveData('deferredItems',deferredItems);}
+  renderWdCounts();
+}).catch(()=>{});
+
+function openWdModal(type){
+  const items=type==='waiting'?waitingItems:deferredItems;
+  document.getElementById('wdTitle').textContent=type.toUpperCase();
+  const list=document.getElementById('wdList');
+  list.innerHTML=items.length?items.map(it=>{
+    const meta=it.person?' — waiting on '+escHtml(it.person):it.deferDate?' — deferred to '+it.deferDate:'';
+    return '<div class="wd-item">'+escHtml(it.text)+'<span style="color:var(--text-secondary);font-size:9px">'+meta+'</span></div>';
+  }).join(''):'<div class="wd-item" style="opacity:0.5">nothing here</div>';
+  document.getElementById('wdSheet').classList.add('open');
+  document.getElementById('wdBackdrop').classList.add('open');
+}
+function closeWdModal(){
+  document.getElementById('wdSheet').classList.remove('open');
+  document.getElementById('wdBackdrop').classList.remove('open');
+  document.getElementById('wdSheet').style.transform='';
+}
+// Drag-to-dismiss
+(function(){
+  const sh=document.getElementById('wdSheet');
+  let startY=0,curY=0;
+  sh.addEventListener('touchstart',e=>{startY=e.touches[0].clientY;curY=startY;});
+  sh.addEventListener('touchmove',e=>{curY=e.touches[0].clientY;const dy=curY-startY;if(dy>0)sh.style.transform='translateY('+dy+'px)';});
+  sh.addEventListener('touchend',()=>{if(curY-startY>80)closeWdModal();else sh.style.transform='';});
+})();
+
+// ── Task detail sheet ───────────────────────────────────────
+let _tdTask=null, _tdArr=null, _tdKey=null;
+function openTaskDetail(t,arr,key){
+  _tdTask=t; _tdArr=arr; _tdKey=key;
+  document.getElementById('tdText').textContent=t.text;
+  const cur=t.done?'done':(t.status||'todo');
+  ['tdBtnTodo','tdBtnWaiting','tdBtnDeferred','tdBtnDone'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  const btnMap={todo:'tdBtnTodo',waiting:'tdBtnWaiting',deferred:'tdBtnDeferred',done:'tdBtnDone'};
+  if(btnMap[cur]) document.getElementById(btnMap[cur]).classList.add('active');
+  document.getElementById('tdSheet').classList.add('open');
+  document.getElementById('tdBackdrop').classList.add('open');
+}
+function closeTd(){
+  document.getElementById('tdSheet').classList.remove('open');
+  document.getElementById('tdBackdrop').classList.remove('open');
+  document.getElementById('tdSheet').style.transform='';
+}
+function setTaskStatus(status){
+  if(!_tdTask||!_tdArr) return;
+  if(status==='done'){
+    _tdTask.done=true; _tdTask.status='todo';
+  } else if(status==='waiting'){
+    _tdTask.done=false; _tdTask.status='waiting';
+    if(!waitingItems.find(w=>w.text===_tdTask.text)){ waitingItems.push({text:_tdTask.text}); saveData('waitingItems',waitingItems); }
+  } else if(status==='deferred'){
+    _tdTask.done=false; _tdTask.status='deferred';
+    if(!deferredItems.find(d=>d.text===_tdTask.text)){ deferredItems.push({text:_tdTask.text}); saveData('deferredItems',deferredItems); }
+  } else { // back to todo
+    _tdTask.done=false; _tdTask.status='todo';
+    waitingItems=waitingItems.filter(w=>w.text!==_tdTask.text);
+    deferredItems=deferredItems.filter(d=>d.text!==_tdTask.text);
+    saveData('waitingItems',waitingItems); saveData('deferredItems',deferredItems);
+  }
+  saveData(_tdKey,_tdArr);
+  const isWork=_tdKey==='workTasks';
+  renderTasks(isWork?'workTasks':'lifeTasks',isWork?'workBadge':'lifeBadge',_tdArr,_tdKey);
+  updateTodayBar(); renderWdCounts(); closeTd();
+}
+(function(){
+  const sh=document.getElementById('tdSheet');
+  let startY=0,curY=0;
+  sh.addEventListener('touchstart',e=>{startY=e.touches[0].clientY;curY=startY;});
+  sh.addEventListener('touchmove',e=>{curY=e.touches[0].clientY;const dy=curY-startY;if(dy>0)sh.style.transform='translateY('+dy+'px)';});
+  sh.addEventListener('touchend',()=>{if(curY-startY>80)closeTd();else sh.style.transform='';});
+})();
 
 // ── Uptime ──────────────────────────────────────────────────
 const bootTime=Date.now();
@@ -438,37 +974,144 @@ async function checkStatus() {
 }
 setInterval(checkStatus, 15000); checkStatus();
 
+// ── Self-healing: day rollover + reconnect retry + auto-reload ──
+let lastCheckedDay = new Date().toDateString();
+let bridgeWasDown = false;
+let staleSince = 0; // timestamp when SYNC first went red, 0 = healthy
+const AUTO_RELOAD_AFTER = 5 * 60 * 1000; // 5 min of red SYNC → reload page
+
+setInterval(() => {
+  const today = new Date().toDateString();
+
+  // Day rollover — new day means fresh tasks + calendar
+  if (today !== lastCheckedDay) {
+    lastCheckedDay = today;
+    fetchSuggestedTasks(true); // force refresh
+    fetchCalendar();
+    setTaskStale(false);
+  }
+
+  // Bridge reconnect — retry tasks if bridge just came back
+  const bridgeDot = document.getElementById('sd-bridge');
+  const bridgeUp = bridgeDot && bridgeDot.classList.contains('on');
+  if (bridgeUp && bridgeWasDown && taskFetchFailed) {
+    fetchSuggestedTasks(true); // bridge recovered, retry
+  }
+  bridgeWasDown = !bridgeUp;
+
+  // Task staleness indicator
+  const lastFetch = localStorage.getItem('workTasksDate');
+  if (lastFetch !== today) setTaskStale(true);
+
+  // Auto-reload: if SYNC dot is red for too long, hard refresh
+  const syncDot = document.getElementById('sd-sync');
+  const syncBad = syncDot && syncDot.classList.contains('off');
+  if (syncBad) {
+    if (!staleSince) staleSince = Date.now();
+    else if (Date.now() - staleSince > AUTO_RELOAD_AFTER) {
+      staleSince = 0;
+      location.reload(); // nuclear option — full page reload
+    }
+  } else {
+    staleSince = 0;
+  }
+}, 30000); // check every 30s
+
+// ── Time-aware widget visibility ────────────────────────────
+// Work hours 9am-6pm: both todos visible
+// Evening 6pm-10pm: work todo hidden, personal visible
+// Night 10pm-6am: both compacted to tap-to-expand bar
+let _lastTimeMode=null;
+function checkTimeMode(){
+  const h=new Date().getHours();
+  const mode=(h>=22||h<6)?'night':(h>=18?'evening':'work');
+  if(mode===_lastTimeMode) return; // only apply on mode change so user expansions persist
+  _lastTimeMode=mode;
+  const wWork=document.getElementById('w-work');
+  const wLife=document.getElementById('w-life');
+  if(mode==='night'){
+    if(wWork){wWork.classList.remove('time-hidden');wWork.classList.add('compact');}
+    if(wLife){wLife.classList.remove('time-hidden');wLife.classList.add('compact');}
+  } else if(mode==='evening'){
+    if(wWork){wWork.classList.add('time-hidden');wWork.classList.remove('compact');}
+    if(wLife){wLife.classList.remove('time-hidden');wLife.classList.remove('compact');}
+  } else {
+    if(wWork){wWork.classList.remove('time-hidden','compact');}
+    if(wLife){wLife.classList.remove('time-hidden','compact');}
+  }
+}
+checkTimeMode();
+setInterval(checkTimeMode,60000);
+
 // ── Layout presets ──────────────────────────────────────────
+// Layout geometry (1024×572 usable canvas)
+// Row 1: clock (left) + weather (far right, wide)
+// Row 2: work + life tasks
+// Row 3: calendar + today.exe [+ scratch at sm]
 const layouts = {
+  // ── Compact: ≤13px ─────────────────────────────────────────
+  // Clock left · weather far right · middle open · tasks mid · cal+today bottom
   default: {
-    'w-clock':  {left:'16px',top:'8px',width:'280px',height:'90px',show:true},
-    'w-today':  {left:'310px',top:'8px',right:'16px',height:'90px',show:true},
-    'w-work':   {left:'16px',top:'110px',width:'310px',height:'230px',show:true},
-    'w-life':   {left:'340px',top:'110px',width:'310px',height:'230px',show:true},
-    'w-cal':    {left:'16px',top:'352px',width:'310px',height:'195px',show:true},
-    'w-tty':    {left:'340px',top:'352px',width:'310px',height:'195px',show:true},
-    'w-stats':  {right:'16px',top:'110px',width:'336px',height:'165px',show:true},
-    'w-scratch':{right:'16px',top:'287px',width:'336px',height:'260px',show:true},
+    'w-clock':   {left:'16px',  top:'8px',   width:'230px', height:'140px',show:true},
+    'w-hotlist': {left:'258px', top:'8px',   width:'396px', height:'165px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'340px', height:'165px',show:true},
+    'w-work':    {left:'16px',  top:'185px', width:'494px', height:'165px',show:true},
+    'w-life':    {left:'522px', top:'185px', width:'486px', height:'165px',show:true},
+    'w-cal':     {left:'16px',  top:'362px', width:'494px', height:'195px',show:true},
+    'w-today':   {left:'522px', top:'362px', width:'486px', height:'195px',show:true},
+    'w-stats':   {show:false},
+    'w-scratch': {show:false},
+    'w-tty':     {show:false},
+  },
+  // ── Readable: 14–15px ──────────────────────────────────────
+  'default-md': {
+    'w-clock':   {left:'16px',  top:'8px',   width:'230px', height:'134px',show:true},
+    'w-hotlist': {left:'258px', top:'8px',   width:'396px', height:'158px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'340px', height:'158px',show:true},
+    'w-work':    {left:'16px',  top:'178px', width:'494px', height:'180px',show:true},
+    'w-life':    {left:'522px', top:'178px', width:'486px', height:'180px',show:true},
+    'w-cal':     {left:'16px',  top:'370px', width:'494px', height:'190px',show:true},
+    'w-today':   {left:'522px', top:'370px', width:'486px', height:'190px',show:true},
+    'w-stats':   {show:false},
+    'w-scratch': {show:false},
+    'w-tty':     {show:false},
+  },
+  // ── Large: 16px+ ───────────────────────────────────────────
+  'default-lg': {
+    'w-clock':   {left:'16px',  top:'8px',   width:'230px', height:'126px',show:true},
+    'w-hotlist': {left:'258px', top:'8px',   width:'396px', height:'150px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'340px', height:'150px',show:true},
+    'w-work':    {left:'16px',  top:'170px', width:'494px', height:'190px',show:true},
+    'w-life':    {left:'522px', top:'170px', width:'486px', height:'190px',show:true},
+    'w-cal':     {left:'16px',  top:'372px', width:'494px', height:'188px',show:true},
+    'w-today':   {left:'522px', top:'372px', width:'486px', height:'188px',show:true},
+    'w-stats':   {show:false},
+    'w-scratch': {show:false},
+    'w-tty':     {show:false},
   },
   focus: {
-    'w-clock':  {left:'16px',top:'8px',width:'340px',height:'90px',show:true},
-    'w-today':  {left:'370px',top:'8px',right:'16px',height:'90px',show:true},
-    'w-work':   {left:'16px',top:'110px',width:'480px',height:'430px',show:true},
-    'w-life':   {left:'510px',top:'110px',width:'480px',height:'430px',show:true},
-    'w-cal':    {show:false},
-    'w-tty':    {show:false},
-    'w-stats':  {show:false},
-    'w-scratch':{show:false},
+    'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'110px',show:true},
+    'w-weather': {left:'218px', top:'8px',   width:'320px', height:'110px',show:true},
+    'w-today':   {right:'16px', top:'8px',   width:'336px', height:'110px',show:true},
+    'w-work':    {left:'16px',  top:'130px', width:'480px', height:'410px',show:true},
+    'w-life':    {left:'510px', top:'130px', width:'480px', height:'410px',show:true},
+    'w-hotlist': {show:false},
+    'w-cal':     {show:false},
+    'w-tty':     {show:false},
+    'w-stats':   {show:false},
+    'w-scratch': {show:false},
   },
   terminal: {
-    'w-clock':  {left:'16px',top:'8px',width:'280px',height:'90px',show:true},
-    'w-today':  {left:'310px',top:'8px',right:'16px',height:'90px',show:true},
-    'w-work':   {left:'16px',top:'110px',width:'300px',height:'430px',show:true},
-    'w-life':   {show:false},
-    'w-cal':    {show:false},
-    'w-tty':    {left:'330px',top:'110px',right:'16px',height:'430px',show:true},
-    'w-stats':  {show:false},
-    'w-scratch':{show:false},
+    'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'110px',show:true},
+    'w-weather': {left:'218px', top:'8px',   width:'320px', height:'110px',show:true},
+    'w-today':   {right:'16px', top:'8px',   width:'336px', height:'110px',show:true},
+    'w-work':    {left:'16px',  top:'130px', width:'300px', height:'410px',show:true},
+    'w-hotlist': {show:false},
+    'w-life':    {show:false},
+    'w-cal':     {show:false},
+    'w-tty':     {left:'330px', top:'130px', right:'16px',  height:'410px',show:true},
+    'w-stats':   {show:false},
+    'w-scratch': {show:false},
   },
 };
 
@@ -484,27 +1127,68 @@ function applyLayout(name){
       el.style[p]=cfg[p]||'';
     });
   });
-  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',b.dataset.preset===name));
+  document.querySelectorAll('.hbg-chip[data-preset]').forEach(b=>b.classList.toggle('active',b.dataset.preset===name));
   saveData('activeLayout',name);
 }
 
-document.querySelectorAll('.preset-btn').forEach(btn=>{
-  btn.addEventListener('click',()=>applyLayout(btn.dataset.preset));
+document.querySelectorAll('.hbg-chip[data-preset]').forEach(btn=>{
+  btn.addEventListener('click',()=>{ applyLayout(btn.dataset.preset); closeHbg(); });
 });
 
 // Apply saved layout on load
 const savedLayout=loadData('activeLayout','default');
 applyLayout(savedLayout);
 
+// Tap compact widget header to expand/collapse
+['w-work','w-life'].forEach(id=>{
+  const w=document.getElementById(id); if(!w) return;
+  w.querySelector('.widget-header').addEventListener('click',()=>{ w.classList.toggle('compact'); });
+});
+
 // ── Font size ───────────────────────────────────────────────
-function applyFontSize(px){
-  document.documentElement.style.setProperty('--fs',px+'px');
-  saveData('fontSize',px);
+function layoutVariantForSize(px){
+  const base = loadData('activeLayout','default');
+  if(base==='focus'||base==='terminal') return base; // never override manual presets
+  if(px>=16) return 'default-lg';
+  if(px>=14) return 'default-md';
+  return 'default';
 }
-let currentFs=loadData('fontSize',11);
+function applyFontSize(px){
+  const scale = px / 13;
+  document.documentElement.style.setProperty('--content-zoom', scale);
+  document.documentElement.style.setProperty('--fs', px+'px');
+  document.body.style.zoom = '';
+  applyLayout(layoutVariantForSize(px));
+  saveData('fontSize', px);
+}
+let currentFs = parseInt(loadData('fontSize', 13)) || 13;
 applyFontSize(currentFs);
-document.getElementById('fsUp').addEventListener('click',()=>applyFontSize(Math.min(16,currentFs=currentFs+1)));
-document.getElementById('fsDown').addEventListener('click',()=>applyFontSize(Math.max(9,currentFs=currentFs-1)));
+function updateFsDisplay(){ const el=document.getElementById('fsDisplay'); if(el) el.textContent=currentFs+'px'; }
+document.getElementById('fsUp').addEventListener('click', ()=>{
+  currentFs = Math.min(18, currentFs + 1);
+  applyFontSize(currentFs);
+  updateFsDisplay();
+});
+document.getElementById('fsDown').addEventListener('click', ()=>{
+  currentFs = Math.max(9, currentFs - 1);
+  applyFontSize(currentFs);
+  updateFsDisplay();
+});
+updateFsDisplay();
+
+// Hamburger open/close
+function closeHbg(){ document.getElementById('hbgPanel').classList.remove('open'); }
+document.getElementById('hbgToggle').addEventListener('click',e=>{ e.stopPropagation(); document.getElementById('hbgPanel').classList.toggle('open'); });
+document.addEventListener('click',e=>{ if(!document.getElementById('hbgPanel').contains(e.target)) closeHbg(); });
+
+// System buttons
+document.getElementById('btnRefresh').addEventListener('click',()=>{ closeHbg(); location.reload(); });
+document.getElementById('btnReboot').addEventListener('click',()=>{
+  if(!confirm('Reboot Pi?')) return;
+  closeHbg();
+  fetch('/proxy/reboot',{method:'POST'}).catch(()=>{});
+  document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:var(--font);color:var(--warning);font-size:14px;letter-spacing:2px">REBOOTING...</div>';
+});
 
 // ── Settings sync from settings page ───────────────────────
 let lastSettingsTs=localStorage.getItem('kioskSettingsUpdate')||0;

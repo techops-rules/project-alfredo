@@ -28,9 +28,29 @@ struct InfiniteCanvas<Content: View>: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .clipped()
             .contentShape(Rectangle())
-            // Rasterize widget tree → Metal texture. Panning just moves the bitmap
-            // instead of re-laying-out every widget each frame.
-            .drawingGroup()
+            #if os(macOS)
+            // Scroll wheel must be captured BEFORE .drawingGroup() rasterizes
+            // the content into a Metal texture (which absorbs scroll events).
+            .onScrollWheel { deltaX, deltaY, phase in
+                if phase == .ended || phase == .cancelled {
+                    bounceBack(viewportSize: viewportSize)
+                    return
+                }
+
+                if phase == .began {
+                    isBouncing = false
+                }
+
+                let rawX = offset.x + deltaX
+                let rawY = offset.y + deltaY
+
+                offset.x = rubberBand(rawX, min: edges.minX, max: edges.maxX)
+                offset.y = rubberBand(rawY, min: edges.minY, max: edges.maxY)
+            }
+            #endif
+            // NOTE: .drawingGroup() removed — it rasterizes NSViewRepresentable
+            // text fields (TerminalTextField) into a Metal texture, which captures
+            // the macOS Secure Input overlay (yellow 🚫) on unsigned debug builds.
             #if os(iOS)
             .gesture(
                 DragGesture(minimumDistance: 5)
@@ -51,24 +71,6 @@ struct InfiniteCanvas<Content: View>: View {
                         handleDragEnded(value, viewportSize: viewportSize)
                     }
             )
-            #endif
-            #if os(macOS)
-            .onScrollWheel { deltaX, deltaY, phase in
-                if phase == .ended || phase == .cancelled {
-                    bounceBack(viewportSize: viewportSize)
-                    return
-                }
-
-                if phase == .began {
-                    isBouncing = false
-                }
-
-                let rawX = offset.x + deltaX
-                let rawY = offset.y + deltaY
-
-                offset.x = rubberBand(rawX, min: edges.minX, max: edges.maxX)
-                offset.y = rubberBand(rawY, min: edges.minY, max: edges.maxY)
-            }
             #endif
         }
     }
@@ -195,6 +197,12 @@ class ScrollWheelNSView: NSView {
         }
         onScroll?(event.scrollingDeltaX, event.scrollingDeltaY, phase)
     }
+
+    // Pass through all non-scroll events so clicks/drags reach SwiftUI
+    override func mouseDown(with event: NSEvent) { super.mouseDown(with: event) }
+    override func mouseUp(with event: NSEvent) { super.mouseUp(with: event) }
+    override func mouseDragged(with event: NSEvent) { super.mouseDragged(with: event) }
+    override var acceptsFirstResponder: Bool { false }
 }
 
 extension View {
