@@ -124,12 +124,14 @@
   }
   .ew-body { flex:1; padding:6px 8px; overflow:hidden; font-size:9px; color:var(--text-secondary); display:flex; align-items:center; justify-content:center; }
 
-  /* Resize handles — all 4 corners */
+  /* Resize handles — all 4 corners + edges, visible on hover */
   .ew .resize-handle {
-    position:absolute; width:10px; height:10px; background:var(--accent); border-radius:2px; opacity:0; z-index:20;
+    position:absolute; width:12px; height:12px; background:var(--accent); border-radius:2px; opacity:0; z-index:20;
+    transition: opacity 0.15s;
   }
+  .ew:hover .resize-handle { opacity:0.3; }
   .ew.selected .resize-handle { opacity:0.6; }
-  .ew .resize-handle:hover { opacity:1; }
+  .ew .resize-handle:hover { opacity:1; background:var(--text-emphasis); }
   .resize-br { bottom:-5px; right:-5px; cursor:nwse-resize; }
   .resize-bl { bottom:-5px; left:-5px; cursor:nesw-resize; }
   .resize-tr { top:-5px; right:-5px; cursor:nesw-resize; }
@@ -141,6 +143,19 @@
   .snap-line { position:absolute; z-index:50; pointer-events:none; }
   .snap-line.h { left:0; right:0; height:1px; background:rgba(225,80,100,0.6); }
   .snap-line.v { top:0; bottom:0; width:1px; background:rgba(225,80,100,0.6); }
+
+  /* Gap indicators between widgets */
+  .gap-label {
+    position:absolute; z-index:8; pointer-events:none;
+    font-size:7px; color:rgba(97,175,239,0.3); font-family:var(--font);
+    text-align:center; letter-spacing:0.5px;
+  }
+  .gap-line {
+    position:absolute; z-index:7; pointer-events:none;
+    background:rgba(97,175,239,0.08);
+  }
+  .gap-line.h { height:1px; left:0; right:0; }
+  .gap-line.v { width:1px; top:0; bottom:0; }
 
   /* Status bar mock */
   .kiosk-statusbar {
@@ -190,14 +205,13 @@
     <div class="prop-row"><span class="prop-label">HEIGHT</span><input class="prop-input" id="propHeight" type="number"></div>
   </div>
 
-  <div class="section-label">VARIANT</div>
-  <div style="padding:0 8px 8px;">
-    <div class="mode-tabs" id="variantTabs"></div>
-  </div>
-
   <div class="sidebar-footer">
-    <button class="btn danger" onclick="revertLayout()">REVERT CHANGES</button>
-    <button class="btn primary" onclick="saveAsNewMode()">SAVE AS NEW MODE</button>
+    <div style="font-size:8px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:6px;">PRESETS</div>
+    <div style="display:flex;gap:4px;margin-bottom:8px;" id="presetBar"></div>
+    <div style="display:flex;gap:4px;">
+      <button class="btn danger" style="flex:1" onclick="revertLayout()">REVERT</button>
+      <button class="btn primary" style="flex:1" onclick="saveAsNewMode()">SAVE NEW</button>
+    </div>
     <button class="btn deploy" onclick="applyToKiosk()">APPLY TO KIOSK</button>
   </div>
 </div>
@@ -261,7 +275,8 @@ const WIDGETS = [
 
 // ── Layout variants: 3 options per mode ─────────────────────
 // Variant A = current/default, B & C = suggested alternatives
-const VARIANT_LABELS = { a: 'DEFAULT', b: 'BALANCED', c: 'COMPACT' };
+const PRESET_LABELS = ['PRESET 1', 'PRESET 2', 'PRESET 3', 'CUSTOM'];
+const PRESET_KEYS = ['a', 'b', 'c', 'custom'];
 
 // ── Mode layouts (synced from index.html modeLayouts) ───────
 const layouts = {
@@ -482,7 +497,7 @@ let state = JSON.parse(JSON.stringify(layouts[currentMode]));
 // ── Init ────────────────────────────────────────────────────
 function init() {
   renderModeTabs();
-  renderVariantTabs();
+  renderPresetBar();
   renderCanvas();
   renderWidgetList();
   updateLabel();
@@ -509,17 +524,17 @@ function switchMode(mode) {
   state = JSON.parse(JSON.stringify(layouts[mode]));
   selectedWidget = null;
   renderModeTabs();
-  renderVariantTabs();
+  renderPresetBar();
   renderCanvas();
   renderWidgetList();
   hideProps();
   updateLabel();
 }
 
-function switchVariant(v) {
+function switchPreset(v) {
   layouts[currentMode] = JSON.parse(JSON.stringify(state));
   currentVariant = v;
-  if (v === 'a') {
+  if (v === 'a' || v === 'custom') {
     state = JSON.parse(JSON.stringify(layouts[currentMode]));
   } else {
     const key = currentMode + '-' + v;
@@ -528,34 +543,89 @@ function switchVariant(v) {
     }
   }
   selectedWidget = null;
-  renderVariantTabs();
+  renderPresetBar();
   renderCanvas();
   renderWidgetList();
   hideProps();
   updateLabel();
 }
 
-function renderVariantTabs() {
-  const tabs = document.getElementById('variantTabs');
-  tabs.innerHTML = '';
-  ['a', 'b', 'c'].forEach(v => {
-    const tab = document.createElement('button');
-    tab.className = 'mode-tab' + (v === currentVariant ? ' active' : '');
-    tab.textContent = VARIANT_LABELS[v];
-    tab.onclick = () => switchVariant(v);
-    tabs.appendChild(tab);
+function renderPresetBar() {
+  const bar = document.getElementById('presetBar');
+  bar.innerHTML = '';
+  PRESET_KEYS.forEach((v, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'mode-tab' + (v === currentVariant ? ' active' : '');
+    btn.style.flex = '1';
+    btn.style.fontSize = '7px';
+    btn.textContent = PRESET_LABELS[i];
+    btn.onclick = () => switchPreset(v);
+    bar.appendChild(btn);
   });
 }
 
 function updateLabel() {
-  const vLabel = currentVariant === 'a' ? '' : ` · ${VARIANT_LABELS[currentVariant]}`;
-  document.getElementById('canvasLabel').textContent = `${currentMode.toUpperCase()}${vLabel} · 1024 x 600 · ROADOM 7"`;
+  const pi = PRESET_KEYS.indexOf(currentVariant);
+  const pLabel = pi >= 0 && pi < 3 ? ` · ${PRESET_LABELS[pi]}` : currentVariant === 'custom' ? ' · CUSTOM' : '';
+  document.getElementById('canvasLabel').textContent = `${currentMode.toUpperCase()}${pLabel} · 1024 x 600`;
 }
 
 // ── Canvas ──────────────────────────────────────────────────
+function renderGapGuides() {
+  const canvas = document.getElementById('canvas');
+  canvas.querySelectorAll('.gap-label, .gap-line').forEach(el => el.remove());
+
+  // Get visible widget rects
+  const rects = [];
+  WIDGETS.forEach(w => {
+    const s = state[w.id];
+    if (!s || s.show === false) return;
+    rects.push({ id: w.id, l: s.left, t: s.top, r: s.left + s.width, b: s.top + s.height });
+  });
+
+  // Find horizontal gaps (widgets side by side)
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = i + 1; j < rects.length; j++) {
+      const a = rects[i], b = rects[j];
+      // Horizontal gap: widgets overlap vertically
+      const vOverlap = Math.min(a.b, b.b) - Math.max(a.t, b.t);
+      if (vOverlap > 20) {
+        const gapL = Math.min(a.r, b.r);
+        const gapR = Math.max(a.l, b.l);
+        const gap = gapR - gapL;
+        if (gap > 2 && gap < 80) {
+          const midY = Math.max(a.t, b.t) + vOverlap / 2;
+          const label = document.createElement('div');
+          label.className = 'gap-label';
+          label.textContent = gap + 'px';
+          label.style.left = (gapL + gap / 2 - 12) + 'px';
+          label.style.top = (midY - 5) + 'px';
+          canvas.appendChild(label);
+        }
+      }
+      // Vertical gap: widgets overlap horizontally
+      const hOverlap = Math.min(a.r, b.r) - Math.max(a.l, b.l);
+      if (hOverlap > 20) {
+        const gapT = Math.min(a.b, b.b);
+        const gapB = Math.max(a.t, b.t);
+        const gap = gapB - gapT;
+        if (gap > 2 && gap < 80) {
+          const midX = Math.max(a.l, b.l) + hOverlap / 2;
+          const label = document.createElement('div');
+          label.className = 'gap-label';
+          label.textContent = gap + 'px';
+          label.style.left = (midX - 12) + 'px';
+          label.style.top = (gapT + gap / 2 - 5) + 'px';
+          canvas.appendChild(label);
+        }
+      }
+    }
+  }
+}
+
 function renderCanvas() {
   const canvas = document.getElementById('canvas');
-  canvas.querySelectorAll('.ew, .snap-line').forEach(el => el.remove());
+  canvas.querySelectorAll('.ew, .snap-line, .gap-label, .gap-line').forEach(el => el.remove());
 
   WIDGETS.forEach(w => {
     const s = state[w.id];
@@ -598,6 +668,9 @@ function renderCanvas() {
 
     canvas.appendChild(el);
   });
+
+  // Render gap measurements between widgets
+  renderGapGuides();
 }
 
 // ── Widget list (sidebar) ───────────────────────────────────
@@ -926,7 +999,7 @@ function confirmSaveNewMode() {
       currentMode = name;
       currentVariant = 'a';
       renderModeTabs();
-      renderVariantTabs();
+      renderPresetBar();
       closeSaveModal();
       toast('Mode "' + name + '" saved' + (schedule ? ' with schedule' : ''));
     } else {
