@@ -1,148 +1,193 @@
-# Alfredo — Peer Review Handoff
+# Alfredo — Live Handoff
 
-> For: Codex (or any AI agent with repo access)
-> From: Claude Code (Opus 4.6)
-> Date: 2026-04-11
+> For: Codex, Claude, or any other agent with repo access
+> Maintained from live repo state
+> Last refreshed: 2026-04-12
 > Repo: `techops-rules/project-alfredo`
 
 ---
 
-## What this project is
+## What Alfredo is
 
-**Alfredo** is a personal ADHD operating system for Todd. It runs on three surfaces simultaneously:
+Alfredo is Todd's ADHD operating system across three surfaces:
 
-| Surface | Tech | Location |
-|---------|------|----------|
-| iOS app | SwiftUI, infinite canvas | `Shared/`, `iOS/` |
-| macOS app | SwiftUI, same codebase | `Shared/`, `macOS/` |
-| Pi kiosk | HTML/JS, 1024×600 screen | `pi-kiosk/` |
+| Surface | Tech | Role |
+|---------|------|------|
+| iOS app | SwiftUI | portable capture, briefings, canvas |
+| macOS app | SwiftUI | primary desktop control surface |
+| Pi kiosk | HTML/JS + Python | always-on ambient dashboard + mic surface |
 
-The dashboard shows: calendar events, task lists, a terminal widget (CLAUDE.TTY) bridging to Claude Code on the Pi, weather timeline, projects, and a scratchpad. It is deeply time-aware — events auto-clear, live meetings pulse, morning briefings pre-load with confidence-scored context.
-
----
-
-## Current state (v0.48.0, 2026-04-11)
-
-### What's working and shipped
-
-- iOS infinite canvas with pan/zoom, long-press edit mode, widget drag/resize
-- Calendar widget: time-aware (past events clear, live events glow, 25min pre-meeting pulse)
-- Tappable events → MeetingBriefingSheet with context + confidence scores
-- Tappable tasks → TaskBriefingSheet; long-press = focus mode
-- MeetingPrepService, BriefingScheduler (8am daily + 25min pre-meeting)
-- ALFREDO.TTY terminal widget — HTTP bridge to Claude Code at pihub.local:8420
-- Weather timeline widget — sun/moon dome arc, hourly forecast, Open-Meteo API
-- Pi kiosk: 5 context-aware modes (work/meeting/focus/night/weekend), weather arc, layout editor
-- Pi kiosk security: auth tokens on system endpoints, XSS fixed, command injection fixed
-- Git-based deployment: `pi-kiosk/deploy.sh` → rsync to Pi → systemctl restart
-
-### Uncommitted changes in working tree (minor, not yet committed)
-
-- `Shared/Models/WidgetLayout.swift` — modified
-- `Shared/Views/Dashboard/CalendarWidget.swift` — modified
-- `Shared/Views/Dashboard/DashboardView.swift` — modified
-- `Shared/Views/Dashboard/HotlistWidget.swift` — modified
-- `Shared/Views/Dashboard/WeatherWidget.swift` — modified
-- `Shared/Views/Dashboard/WidgetLayout.swift` — new untracked file
-
-These appear to be in-progress layout work. **Do not commit these without understanding what they are** — check `git diff` first.
+The design language is deliberate: dark terminal-style UI, JetBrains Mono, restrained motion, clear status states, and no shame-driven task framing.
 
 ---
 
-## What needs to be built (priority order)
+## Live repo status
 
-### 1. Stability: S8 — WebSocket race condition (HIGH)
-**File:** `Shared/Services/WebSocketSession.swift:79-86, 228-232`
+### Active in-flight work
 
-`receiveTask` and `pingTask` can be nil'd in `cleanup()` while `receiveLoop()` is running. Fix: cancel tasks before nilling, or guard with a lock. This can cause a crash in the ALFREDO.TTY terminal widget.
+There is parallel work in progress for **voice + Codex agent integration**. As of the latest refresh, the working tree includes active edits in:
 
-### 2. Stability: S9 — @State/@Observable audit (MEDIUM)
-**File:** `Shared/Views/Dashboard/DashboardView.swift:5-6`
+- `Shared/App/alfredoApp.swift`
+- `Shared/Views/Dashboard/TerminalWidget.swift`
+- `Shared/Views/Sheets/SettingsSheet.swift`
+- `Shared/Services/VoiceEventService.swift` (new)
+- `pi-kiosk/index.html`
+- `pi-kiosk/serve.py`
+- `pi-setup/alfredo-wake.py`
+- `pi-setup/alfredo-wake.service`
+- `CLAUDE.md`
+- `alfredo.xcodeproj/project.pbxproj`
 
-`TaskBoardService()` and `ScratchpadService()` created as `@State`. Confirm these use `@Observable` (correct pattern) vs `ObservableObject` (needs `@StateObject`). Low risk if already using `@Observable`.
+### What that work does (completed 2026-04-11)
 
-### 3. Phase 0: Responsive widget content (MEDIUM)
-**Files:** `Shared/Views/Components/WidgetShell.swift`, all widget views
+- Terminal defaults moved to **agent mode** (`ALFREDO.TTY`)
+- Native app starts a **voice event polling service** (VoiceEventService.swift)
+- Kiosk has **voice overlay UI**: toast, state bar, mute button, push-to-talk mic button
+- Kiosk server exposes voice API: `/proxy/voice-event`, `/proxy/voice-mute`, `/proxy/voice-activate`
+- Wake listener uses **Porcupine wake word + Piper neural TTS + push-to-talk**
+- **Monday-inspired persona** loaded from `~/alfredo-kiosk/persona.md` per Codex request
+- Voice events propagate to kiosk (visual), iOS (VoiceEventService → TerminalWidget), macOS (same)
 
-Widget containers are user-resizable but content is hardcoded. Wrap `WidgetShell` in a `GeometryReader`, inject a `WidgetSizeClass` environment value (`.compact`/`.regular`/`.expanded`), and have each widget adapt font sizes and item counts accordingly.
+### UI/UX Briefing
 
-See `docs/PLAN-calendar-todo-intelligence.md` § Phase 0 for full spec.
+**Read `docs/UI-BRIEFING.md` for the full widget inventory, layout systems, data architecture, and improvement opportunities across all three surfaces.** This is the primary reference for interface work.
 
-### 4. Minor stability (LOW — fix opportunistically)
-| # | Where | Issue |
-|---|-------|-------|
-| S14 | `pi-kiosk/index.html` | localStorage quota not handled → silent data loss on `setItem()` |
-| S15 | `pi-kiosk/index.html` | 2s polling race between settings.html writes and index.html reads |
-| S16 | `Shared/Views/Dashboard/TerminalWidget.swift` | URLSession request not cancellable on view dismiss |
-| S17 | `Shared/Services/WebSocketSession.swift` | UserDefaults unsafe casting, no type validation |
-| S18 | `pi-kiosk/index.html` | fetch() calls with `.catch(()=>{})` silently swallow errors |
+### Latest layout pass (2026-04-12)
 
-### 5. Future (don't build yet)
-- Apple Mail integration for email context in briefings
-- Back-to-back meeting brief bundling UI
-- Voice input: ROADOM mic → Whisper → bridge WebSocket
+A first cross-surface layout polish pass is now in progress in the working tree:
 
----
+- iPhone top chrome was rebuilt into a clearer control/status strip with:
+  - explicit mode label
+  - live connection state summary
+  - next-task / edit-state summary text
+  - dedicated sync + menu actions
+- iPhone canvas world size now derives from the actual flow layout instead of a fixed cramped height, and canvas panning is disabled while edit mode is active to reduce gesture conflicts.
+- Kiosk widgets now classify themselves as `compact` / `regular` / `expanded` via `ResizeObserver`, and widget spacing/type density respond to real panel size instead of one fixed style.
+- Kiosk work mode now surfaces `ALFREDO.TTY` next to `TODAY.EXE` instead of hiding the terminal completely.
+- Kiosk terminal output now acts as a live system feed for bridge/task/layout/voice events instead of a static placeholder.
+- No-signing validation builds completed for `alfredo-macOS` and `alfredo-iOS` with only pre-existing warnings (`CalendarService` deprecation, `MarkdownParser` let/var cleanup).
 
-## Infrastructure you need to know
+### Coordination notes
 
-### Pi (pihub.local / Tailscale: 100.120.26.124)
-- Runs the kiosk web server on `:8430` and Claude bridge on `:8420`
-- Deploy kiosk changes: `cd pi-kiosk && ./deploy.sh` (rsync + systemctl restart)
-- **Never** edit files directly on the Pi — always edit locally and deploy
-
-### Build & deploy iOS
-```bash
-xcodebuild -project alfredo.xcodeproj -scheme alfredo-iOS \
-  -destination 'id=00008150-00027C183644401C' build
-
-xcrun devicectl device install app \
-  --device 00008150-00027C183644401C \
-  ~/Library/Developer/Xcode/DerivedData/alfredo-bsnsupimkylzxhfsgrhgetcenjaf/Build/Products/Debug-iphoneos/alfredo.app
-```
-
-### Versioning convention
-- Bump version in `alfredo.xcodeproj` + `pi-kiosk/index.html` (search `v0.4`)
-- Tag commits: `git tag v0.X.Y && git push --tags`
-- Separate tags for kiosk-only changes: `v0.X.Y-kiosk`
+Voice pipeline is stable and deployed. Files can be edited freely — no in-flight ownership lock. For voice behavior changes, update `persona.md` (personality) or `alfredo-wake.py` (mechanics). For kiosk UI, edit `pi-kiosk/index.html`. For native widgets, edit `Shared/Views/Dashboard/`.
 
 ---
 
-## Coordination rules (Claude + Codex working together)
+## What this chat added
 
-1. **Always pull before starting work** — `git pull --ff-only`
-2. **Small, atomic commits** — one logical change per commit, clear message
-3. **Never force push to main**
-4. **Don't touch the Pi directly** — all changes go through deploy.sh
-5. **Check the plan doc first** — `docs/PLAN-calendar-todo-intelligence.md` is the source of truth for what's in scope
-6. **The `docs/HANDOFF.md` file** (this file) should be updated when significant work completes or the plan changes
-7. **Commit messages format:** `[surface] short description (vX.Y.Z)` — e.g. `[iOS] Fix WebSocket race in cleanup (v0.48.1)`
+This thread established the current shared direction for the project:
+
+1. The next broad product push is **cross-surface smoothness and clarity**, not a visual redesign.
+2. Documentation and handoff hygiene are part of the work, not an afterthought.
+3. Side-by-side Claude/Codex work must leave **live baton-pass notes** in the repo.
+4. Before any new implementation resumes, agents should **check current repo status first** rather than trusting older summaries.
+5. The kiosk mic should ultimately talk to a **Codex agent** with instructions Todd will provide.
 
 ---
 
-## Key files map
+## Agreed roadmap
 
-```
-Shared/
-  Models/          — Widget, Project, Layout models
-  Services/        — WeatherService, ProjectService, MeetingPrepService,
-                     BriefingScheduler, WebSocketSession, TaskBoardService
-  Views/
-    Dashboard/     — DashboardView, all widget views
-    Components/    — WidgetShell, StatusDotsView, AlfredoInputBar
-    Sheets/        — EventBriefingSheet, TaskBriefingSheet, ProjectDetailSheet
+### `v0.49.x` — Smoothness first
 
-iOS/
-  iOSTopChrome.swift
-  Info.plist       — NSLocalNetworkUsageDescription + NSBonjourServices required
+Focus on stability, responsiveness, and interaction clarity across iPhone, macOS, and kiosk:
 
-pi-kiosk/
-  index.html       — main kiosk (1024×600)
-  editor.html      — layout editor (settings page)
-  serve.py         — Python HTTP server + proxy endpoints
-  deploy.sh        — rsync + restart script
+- fix `WebSocketSession` cleanup race
+- audit `DashboardView` ownership for `@State` + `@Observable`
+- cancel terminal HTTP requests on dismiss
+- make `UserDefaults` decoding safer
+- add kiosk `localStorage` and `fetch()` error handling
+- make widget content responsive with shared size classes and density rules
+- tighten iPhone browse vs edit interactions
+- improve iOS/macOS shell-level sync and state affordances
+- improve kiosk settings ergonomics and explicit save/error states
 
-alfredo/           — Claude Code OS (task board, skills, memory)
-docs/              — PLAN-calendar-todo-intelligence.md (main plan)
-                     HANDOFF.md (this file)
-```
+### `v0.50.x` — Sync, helpfulness, ops
+
+Focus on shared state and system polish:
+
+- native-to-kiosk state sync via a shared `KioskSyncService`
+- kiosk snapshot endpoints for pushed state
+- more prominent `What Next` and quick capture across surfaces
+- systemd-consistent kiosk deploy/update flow
+- kiosk boot experience aligned with native boot tone
+
+---
+
+## Immediate priority stack
+
+1. **Voice input to Codex agent**
+   - ROADOM mic / wake flow on kiosk
+   - event path into kiosk UI and native terminal surface
+   - clean handoff into the Alfredo/Codex agent prompt
+2. **Real native-to-kiosk data sync**
+   - tasks, scratchpad, habits, goals, suggested next task
+3. **Cross-surface UX cleanup**
+   - responsive widgets, iPhone gesture cohesion, shell clarity
+4. **Ops hardening**
+   - deploy/update consistency, version/status surfacing
+
+---
+
+## Parallel work protocol
+
+For any Claude/Codex side-by-side session:
+
+1. Run `git status --short --branch` before editing.
+2. Inspect diffs in touched subsystems before assuming ownership.
+3. Update `docs/HANDOFF.md` when priorities, ownership, or active work changes.
+4. Update `alfredo/.claude/memory.md` at the end of each focused work session with:
+   - what changed
+   - what is in progress
+   - blockers or risks
+   - exact next step
+5. Update `COWORK.md` only when long-lived workflow or priority rules change.
+6. Leave a short handoff note with:
+   - owner
+   - subsystem
+   - status
+   - files to inspect next
+   - any do-not-overwrite warning
+
+---
+
+## Current baton-pass note
+
+### Owner
+Claude Code
+
+### Subsystem
+Voice input, wake listener, kiosk voice UI, voice event transport, terminal voice event display
+
+### Status
+Voice system complete and deployed as of 2026-04-12. Push-to-talk working, Piper TTS working, persona loaded. Porcupine wake word available but needs PICOVOICE_ACCESS_KEY.
+
+Next focus: **UI/UX improvements across all surfaces.** See `docs/UI-BRIEFING.md` for the full inventory and known issues.
+
+### Inspect next
+
+- `docs/UI-BRIEFING.md` — full widget/layout/data briefing
+- `pi-kiosk/index.html` — kiosk dashboard
+- `Shared/Views/Dashboard/DashboardView.swift` — iOS/macOS canvas
+- `Shared/Views/Dashboard/*Widget.swift` — individual widgets
+- `Shared/Models/WidgetContentMetrics.swift` — responsive sizing
+
+### Priority improvements
+
+1. Pi kiosk task sync with native app (tasks are siloed in localStorage)
+2. Pi kiosk live calendar data (currently stubs)
+3. Extend the Pi terminal feed beyond bridge/voice/layout logs into richer task + system context
+4. Habit/goal persistence (currently lost on app restart)
+5. iOS manual mode override (force focus/meeting mode)
+6. Consistent interaction patterns across surfaces
+
+---
+
+## Recommended resume sequence
+
+When work resumes:
+
+1. re-check `git status`
+2. inspect the current voice/agent diffs
+3. confirm build/runtime health for native and kiosk pieces
+4. decide whether the next change belongs in the voice path or in untouched UX/sync files
+5. only then resume implementation

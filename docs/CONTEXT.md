@@ -1,19 +1,24 @@
 # alfredo — project context for new sessions
 
-Paste this into Claude to resume work on the alfredo project.
+Paste this into a new agent session if you need a quick restart on the Alfredo project.
 
 ---
 
 ## What is alfredo?
 
-Personal productivity dashboard / command centre built by Todd. Two parts:
+Alfredo is Todd's personal productivity dashboard and ADHD operating system.
 
-1. **iOS + macOS Swift app** — infinite canvas with draggable/resizable widgets (tasks, habits, calendar, clock, terminal, scratchpad, goals, stats). Dark terminal aesthetic (JetBrains Mono, `#080E18` bg, `#61AFEF` ice accent).
-2. **Pi kiosk** — same dashboard running as a fullscreen web app on a Raspberry Pi with a 7" touchscreen, always-on beside the desk.
+It runs across three connected surfaces:
+
+1. **iOS app** — SwiftUI infinite canvas for capture, briefings, and mobile access
+2. **macOS app** — the main desktop control surface, same shared SwiftUI codebase
+3. **Pi kiosk** — fullscreen web dashboard on a Raspberry Pi with a ROADOM touchscreen and mic
+
+The visual language is intentionally terminal-like: JetBrains Mono, dark background, ice-blue accent, ASCII borders, restrained motion, and no shame-driven task framing.
 
 ## Repo
 
-- **GitHub**: [fill in once created]
+- **GitHub**: `git@github.com:techops-rules/project-alfredo.git`
 - **Mac project**: `~/Projects/project alfredo/`
 - **Pi**: `todd@pihub.local` (Tailscale: `100.120.26.124`)
 
@@ -22,116 +27,102 @@ Personal productivity dashboard / command centre built by Todd. Two parts:
 | Layer | Tech |
 |-------|------|
 | iOS/macOS app | Swift, SwiftUI, infinite canvas, iCloud sync |
-| Pi OS | Debian 13 (trixie), Wayland (labwc), aarch64 |
-| Pi kiosk | Chromium kiosk mode, JetBrains Mono, localStorage sync |
-| Pi bridge | Python (`alfredo-bridge.py`) — HTTP :8420, WebSocket :8421 → spawns `claude` PTY |
-| Pi kiosk server | Python (`serve.py`) — HTTP :8430, proxies health/iCloud/tailscale/presence |
+| Pi OS | Debian 13, Wayland (`labwc`), aarch64 |
+| Pi kiosk | HTML/CSS/JS, Chromium kiosk mode |
+| Pi bridge/services | Python systemd services |
+| Data layer | markdown files in iCloud container / fallback documents path |
 
 ## Pi services
 
 | Service | Purpose |
 |---------|---------|
-| `alfredo-bridge.service` | Claude Code bridge (HTTP + WS) |
-| `alfredo-kiosk-web.service` | Kiosk web server :8430 |
-| `alfredo-watchdog.timer` | Health check every 2 min |
+| `alfredo-bridge.service` | Claude/Codex bridge |
+| `alfredo-kiosk-web.service` | kiosk web server on `:8430` |
+| `alfredo-watchdog.timer` | health checks |
+| `alfredo-wake.service` | wake listener / voice entry point (in progress) |
 
-## Kiosk URLs
+## Current product state
 
-- **Dashboard**: `http://pihub.local:8430/`
-- **Settings** (Mac browser): `http://pihub.local:8430/settings.html`
+### Shipped / established
 
-## Kiosk features built
+- SwiftUI infinite canvas on iOS and macOS
+- draggable/resizable widgets
+- calendar and task briefing flows
+- terminal widget bridging to the Pi
+- kiosk dashboard with mode-aware UI and layout tooling
+- weather timeline and terminal-style system chrome
 
-- CLOCK.SYS, TODAY.EXE, WORK.TODO, LIFE.TODO, CALENDAR.DAT, CLAUDE.TTY, STATS.DAT, SCRATCH.PAD widgets
-- Status bar: BRIDGE · WS · NET · ICLOUD · TAILSCALE · SYNC (staleness green→yellow→red) · NEARBY (presence ping)
-- Triple-tap clock → exit kiosk to Pi desktop
-- A− / A+ font size controls (bottom-left of status bar)
-- Layout presets: DEFAULT / FOCUS / TERMINAL
-- Tap blank dot → add task (modal, localStorage)
-- Settings page: drag-and-drop layout editor, task/scratch editing, presence config, live preview iframe
+### In progress right now
+
+- voice input path on the kiosk, including wake listener, kiosk voice UI, and native voice event polling
+- Alfredo/Codex agent integration through the terminal and voice pipeline
+
+### Approved roadmap after the current voice batch
+
+- `v0.49.x`: smoothness first
+  - stability fixes
+  - responsive widget content
+  - iPhone gesture cohesion
+  - clearer sync/status affordances
+  - safer kiosk settings/error handling
+- `v0.50.x`: sync/helpfulness/ops
+  - native-to-kiosk state sync
+  - shared kiosk snapshot endpoints
+  - stronger `What Next` / quick capture surfaces
+  - deploy automation cleanup
+  - kiosk boot polish
+
+## Current priorities
+
+1. **Voice input to Codex agent**
+2. **Real native-to-kiosk sync**
+3. **Cross-surface UX cleanup**
+4. **Deploy and boot polish**
+5. **Hue / later integrations**
 
 ## Key files
 
 ```
 ~/Projects/project alfredo/
-├── alfredo.xcodeproj          # iOS + macOS (schemes: alfredo-iOS, alfredo-macOS)
-├── Shared/                    # Swift source (shared)
-│   ├── Views/Dashboard/       # DashboardView, widgets, InfiniteCanvas
-│   ├── Theme/TerminalTheme.swift  # ThemeManager, colors, BorderChars
-│   └── Models/                # Task, Habit, Goal, WidgetLayout, etc.
-├── iOS/                       # iOS-specific
-├── macOS/                     # macOS-specific
-├── pi-kiosk/                  # Web dashboard for Pi screen
-│   ├── index.html             # Main kiosk UI
-│   ├── settings.html          # Mac-accessible settings/layout editor
-│   └── serve.py               # HTTP server + proxies
-├── CLAUDE.md                  # Full project instructions
-└── DESIGN-BRIEF.md            # Design spec
-
-# On Pi: ~/alfredo-kiosk/ (deployed from pi-kiosk/ via rsync)
+├── alfredo.xcodeproj
+├── Shared/
+│   ├── App/
+│   ├── Models/
+│   ├── Services/
+│   └── Views/
+├── iOS/
+├── macOS/
+├── pi-kiosk/
+│   ├── index.html
+│   ├── settings.html
+│   └── serve.py
+├── pi-setup/
+├── alfredo/
+│   ├── Task Board.md
+│   ├── Scratchpad.md
+│   └── .claude/memory.md
+├── docs/
+│   ├── HANDOFF.md
+│   ├── PLAN-calendar-todo-intelligence.md
+│   └── CODEX-AGENT-ALFREDO.md
+└── COWORK.md
 ```
 
-## Deploy kiosk changes (Mac → Pi)
+## Working rules
 
-```bash
-cd ~/Projects/project\ alfredo
-rsync -av pi-kiosk/ pihub.local:~/alfredo-kiosk/
-ssh pihub.local 'sudo systemctl restart alfredo-kiosk-web && curl -s -X POST http://localhost:8430/reload-kiosk'
-```
+- Check `git status` before editing when parallel work may be active.
+- Read `docs/HANDOFF.md` and `alfredo/.claude/memory.md` before picking up implementation.
+- Keep `docs/HANDOFF.md` and `alfredo/.claude/memory.md` updated after meaningful work batches.
+- Do not assume older summaries are current if the repo state says otherwise.
 
-## Useful SSH commands
+## Useful URLs
 
-```bash
-# Relaunch kiosk fullscreen
-ssh pihub.local 'systemd-run --user WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 chromium --kiosk --ozone-platform=wayland --no-first-run --start-fullscreen http://localhost:8430/'
+- Dashboard: `http://pihub.local:8430/`
+- Settings: `http://pihub.local:8430/settings.html`
 
-# Kill kiosk (go to Pi desktop)
-ssh pihub.local 'pkill -f chromium'
+## Useful tasks to read first
 
-# Display off/on
-ssh pihub.local 'WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 wlr-randr --output HDMI-A-1 --off'
-ssh pihub.local 'WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 wlr-randr --output HDMI-A-1 --on'
-
-# Bridge logs
-ssh pihub.local 'journalctl -u alfredo-bridge -f'
-
-# Restart bridge
-ssh pihub.local 'sudo systemctl restart alfredo-bridge'
-```
-
-## Presence detection
-
-Pi pings `todds-MacBook-Pro.local` every 15s. NEARBY dot:
-- 🟢 Green = Mac reachable
-- 🟡 Yellow = not seen >5 min  
-- 🔴 Red = not seen >30 min, screen turns off after 10 min
-
-Configure hosts at: Settings → PRESENCE, or `POST /proxy/presence-hosts {"hosts":["hostname.local"]}`
-
-## TODO / next up
-
-- [ ] **GitHub sync** — repo setup in progress (fill in URL when done)
-- [ ] **Pi auto-pull** — cron `git pull` + rsync on Pi after push
-- [ ] **Philips Hue** — local REST API, needs bridge IP + token (1x button press). Wire to voice commands
-- [ ] **Voice input** — ROADOM USB mic → Whisper STT → bridge WebSocket ws://localhost:8421/ws → Claude response
-- [ ] **Real data sync** — pull tasks/habits/goals from iCloud markdown files into kiosk (Pi can't read iCloud directly; need Mac to push via bridge or shared endpoint)
-- [ ] **Boot screen** — replicate BootScreen.swift style ASCII boot sequence on kiosk load
-- [ ] **Hue status** — light color tied to bridge status (green=idle, amber=thinking, red=error)
-
-## App theme reference
-
-```swift
-background   = #080E18
-textPrimary  = #ABB2BF
-textSecondary= #5C6370
-textEmphasis = #E8EAED
-accent (ice) = #61AFEF
-success      = #98C379
-warning      = #E5C07B
-danger       = #E06C75
-font         = JetBrains Mono
-borderChars  = ╭─╮│╰─╯ (round, default)
-```
-
-## iPhone device ID (for Xcode deploy)
-`00008150-00027C183644401C`
+1. `alfredo/Task Board.md`
+2. `alfredo/.claude/memory.md`
+3. `alfredo/Scratchpad.md`
+4. `docs/HANDOFF.md`
