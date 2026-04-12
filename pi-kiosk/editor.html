@@ -116,6 +116,11 @@
   .ew:hover { box-shadow:0 0 0 1px var(--accent); }
   .ew.selected { box-shadow:0 0 0 2px var(--accent), 0 0 12px rgba(97,175,239,0.2); z-index:20; }
   .ew.hidden-widget { display:none; }
+  .ew.frameless {
+    border:1px dashed rgba(97,175,239,0.15); background:transparent; border-radius:3px;
+  }
+  .ew.frameless .ew-header { background:transparent; border-bottom:none; opacity:0.4; font-size:8px; }
+  .ew.frameless .ew-body { color:var(--text-secondary); opacity:0.5; font-size:9px; font-style:italic; }
   .ew.dragging { opacity:0.85; z-index:100; transition:none; }
   .ew-header {
     display:flex; align-items:center; gap:6px; padding:4px 8px;
@@ -272,6 +277,7 @@ const WIDGETS = [
   { id:'w-scratch', name:'SCRATCH.PAD',   zone:'primary',  content:'Notes' },
   { id:'w-tty',     name:'CLAUDE.TTY',    zone:'system',   content:'Terminal bridge' },
   { id:'w-meeting', name:'MEETING.LIVE',  zone:'active',   content:'Meeting view' },
+  { id:'w-funfact', name:'FUNFACT.TXT',  zone:'ambient',  content:'✦ Did you know...', frameless:true },
 ];
 
 // ── Presets per mode: opinionated widget selection + layout ──
@@ -314,6 +320,7 @@ const layouts = {
     'w-scratch': {left:668, top:297, width:336, height:240, show:false},
     'w-tty':     {left:772, top:362, width:236, height:195, show:true},
     'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-funfact': {left:218, top:155, width:280, height:28,  show:true},
   },
   meeting: {
     'w-clock':   {left:16,  top:8,   width:190, height:110, show:true},
@@ -327,6 +334,7 @@ const layouts = {
     'w-tty':     {left:340, top:352, width:310, height:185, show:false},
     'w-stats':   {left:522, top:130, width:336, height:155, show:false},
     'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+    'w-funfact': {left:218, top:155, width:280, height:28,  show:false},
   },
   night: {
     'w-clock':   {left:256, top:80,  width:512, height:200, show:true},
@@ -340,6 +348,7 @@ const layouts = {
     'w-stats':   {left:522, top:130, width:336, height:155, show:false},
     'w-scratch': {left:668, top:297, width:336, height:240, show:false},
     'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-funfact': {left:262, top:420, width:500, height:28,  show:true},
   },
   weekend: {
     'w-clock':   {left:16,  top:8,   width:230, height:140, show:true},
@@ -353,6 +362,7 @@ const layouts = {
     'w-tty':     {left:340, top:352, width:310, height:185, show:false},
     'w-stats':   {left:522, top:130, width:336, height:155, show:false},
     'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-funfact': {left:258, top:8,   width:260, height:28,  show:true},
   },
   focus: {
     'w-clock':   {left:16,  top:8,   width:190, height:110, show:true},
@@ -366,6 +376,7 @@ const layouts = {
     'w-stats':   {left:522, top:130, width:336, height:155, show:false},
     'w-scratch': {left:668, top:297, width:336, height:240, show:false},
     'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-funfact': {left:218, top:8,   width:280, height:28,  show:false},
   },
 };
 
@@ -382,7 +393,7 @@ const variants = {
     'w-cal':     {left:688, top:140, width:320, height:260, show:true},
     'w-today':   {left:16,  top:412, width:494, height:145, show:true},
     'w-stats':   {left:522, top:412, width:486, height:145, show:true},
-    'w-weather': h(), 'w-life': h(), 'w-tty': h(), 'w-scratch': h(), 'w-meeting': h(),
+    'w-weather': h(), 'w-life': h(), 'w-tty': h(), 'w-scratch': h(), 'w-meeting': h(), 'w-funfact': h(),
   },
   // WORK C: "Minimal" — clock + hotlist + weather only
   'work-c': {
@@ -390,7 +401,7 @@ const variants = {
     'w-hotlist': {left:16,  top:220, width:992, height:240, show:true},
     'w-weather': {left:328, top:8,   width:680, height:200, show:true},
     'w-work': h(), 'w-life': h(), 'w-cal': h(), 'w-today': h(),
-    'w-stats': h(), 'w-scratch': h(), 'w-tty': h(), 'w-meeting': h(),
+    'w-stats': h(), 'w-scratch': h(), 'w-tty': h(), 'w-meeting': h(), 'w-funfact': h(),
   },
 
   // MEETING B: "Split View" — meeting + hotlist + terminal sidebar
@@ -401,14 +412,14 @@ const variants = {
     'w-hotlist': {left:688, top:8,   width:320, height:220, show:true},
     'w-tty':     {left:688, top:240, width:320, height:316, show:true},
     'w-weather': h(), 'w-work': h(), 'w-life': h(), 'w-cal': h(),
-    'w-stats': h(), 'w-scratch': h(),
+    'w-stats': h(), 'w-scratch': h(), 'w-funfact': h(),
   },
   // MEETING C: "Minimal" — meeting only, full screen
   'meeting-c': {
     'w-meeting': {left:16,  top:8,   width:992, height:548, show:true},
     'w-clock': h(), 'w-today': h(), 'w-weather': h(), 'w-hotlist': h(),
     'w-work': h(), 'w-life': h(), 'w-cal': h(), 'w-tty': h(),
-    'w-stats': h(), 'w-scratch': h(),
+    'w-stats': h(), 'w-scratch': h(), 'w-funfact': h(),
   },
 
   // NIGHT B: "Wind Down" — clock + life tasks + scratchpad
@@ -418,14 +429,14 @@ const variants = {
     'w-scratch': {left:522, top:260, width:486, height:200, show:true},
     'w-weather': {left:200, top:472, width:624, height:84,  show:true},
     'w-work': h(), 'w-cal': h(), 'w-today': h(), 'w-hotlist': h(),
-    'w-tty': h(), 'w-stats': h(), 'w-meeting': h(),
+    'w-tty': h(), 'w-stats': h(), 'w-meeting': h(), 'w-funfact': h(),
   },
   // NIGHT C: "Clock Only" — just the clock, centered
   'night-c': {
     'w-clock':   {left:262, top:136, width:500, height:300, show:true},
     'w-weather': h(), 'w-work': h(), 'w-life': h(), 'w-cal': h(),
     'w-today': h(), 'w-hotlist': h(), 'w-tty': h(), 'w-stats': h(),
-    'w-scratch': h(), 'w-meeting': h(),
+    'w-scratch': h(), 'w-meeting': h(), 'w-funfact': h(),
   },
 
   // WEEKEND B: "Balanced" — life + work + today + weather (equal weight)
@@ -437,7 +448,7 @@ const variants = {
     'w-work':    {left:522, top:130, width:486, height:210, show:true},
     'w-cal':     {left:16,  top:352, width:494, height:205, show:true},
     'w-scratch': {left:522, top:352, width:486, height:205, show:true},
-    'w-hotlist': h(), 'w-tty': h(), 'w-stats': h(), 'w-meeting': h(),
+    'w-hotlist': h(), 'w-tty': h(), 'w-stats': h(), 'w-meeting': h(), 'w-funfact': h(),
   },
   // WEEKEND C: "Minimal" — clock + life tasks + weather
   'weekend-c': {
@@ -445,7 +456,7 @@ const variants = {
     'w-weather': {left:288, top:8,   width:720, height:180, show:true},
     'w-life':    {left:16,  top:200, width:992, height:356, show:true},
     'w-work': h(), 'w-cal': h(), 'w-today': h(), 'w-hotlist': h(),
-    'w-tty': h(), 'w-stats': h(), 'w-scratch': h(), 'w-meeting': h(),
+    'w-tty': h(), 'w-stats': h(), 'w-scratch': h(), 'w-meeting': h(), 'w-funfact': h(),
   },
 
   // FOCUS B: "Work + TTY" — work tasks and terminal side by side
@@ -456,7 +467,7 @@ const variants = {
     'w-work':    {left:16,  top:100, width:494, height:456, show:true},
     'w-tty':     {left:522, top:100, width:486, height:456, show:true},
     'w-weather': h(), 'w-life': h(), 'w-cal': h(), 'w-stats': h(),
-    'w-scratch': h(), 'w-meeting': h(),
+    'w-scratch': h(), 'w-meeting': h(), 'w-funfact': h(),
   },
   // FOCUS C: "Tasks Only" — just work tasks, maximum space
   'focus-c': {
@@ -464,7 +475,7 @@ const variants = {
     'w-today':   {left:188, top:8,   width:820, height:70,  show:true},
     'w-work':    {left:16,  top:90,  width:992, height:466, show:true},
     'w-weather': h(), 'w-life': h(), 'w-hotlist': h(), 'w-cal': h(),
-    'w-tty': h(), 'w-stats': h(), 'w-scratch': h(), 'w-meeting': h(),
+    'w-tty': h(), 'w-stats': h(), 'w-scratch': h(), 'w-meeting': h(), 'w-funfact': h(),
   },
 };
 
@@ -651,7 +662,7 @@ function renderCanvas() {
     if (!s) return;
 
     const el = document.createElement('div');
-    el.className = 'ew' + (s.show === false ? ' hidden-widget' : '') + (w.id === selectedWidget ? ' selected' : '');
+    el.className = 'ew' + (s.show === false ? ' hidden-widget' : '') + (w.id === selectedWidget ? ' selected' : '') + (w.frameless ? ' frameless' : '');
     el.dataset.id = w.id;
     el.style.left = s.left + 'px';
     el.style.top = s.top + 'px';
