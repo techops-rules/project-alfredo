@@ -208,6 +208,7 @@
   <div class="sidebar-footer">
     <div style="font-size:8px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:6px;">PRESETS</div>
     <div style="display:flex;gap:4px;margin-bottom:8px;" id="presetBar"></div>
+    <button class="btn primary" id="updatePresetBtn" style="display:none;margin-bottom:4px;" onclick="updateCurrentPreset()">UPDATE PRESET</button>
     <div style="display:flex;gap:4px;">
       <button class="btn danger" style="flex:1" onclick="revertLayout()">REVERT</button>
       <button class="btn primary" style="flex:1" onclick="saveAsNewMode()">SAVE NEW</button>
@@ -478,6 +479,7 @@ const API_BASE = window.location.origin;  // http://localhost:8430 or http://pih
 
 // ── State (deep clone current layout) ───────────────────────
 let state = JSON.parse(JSON.stringify(layouts[currentMode]));
+let cleanSnapshot = JSON.stringify(state);  // snapshot at preset load for dirty detection
 
 // ── Init ────────────────────────────────────────────────────
 function init() {
@@ -507,6 +509,7 @@ function switchMode(mode) {
   currentMode = mode;
   currentVariant = 'a';
   state = JSON.parse(JSON.stringify(layouts[mode]));
+  cleanSnapshot = JSON.stringify(state);
   selectedWidget = null;
   renderModeTabs();
   renderPresetBar();
@@ -527,12 +530,41 @@ function switchPreset(v) {
       state = JSON.parse(JSON.stringify(variants[key]));
     }
   }
+  cleanSnapshot = JSON.stringify(state);
   selectedWidget = null;
   renderPresetBar();
   renderCanvas();
   renderWidgetList();
   hideProps();
   updateLabel();
+  checkDirty();
+}
+
+function checkDirty() {
+  const dirty = JSON.stringify(state) !== cleanSnapshot;
+  const btn = document.getElementById('updatePresetBtn');
+  if (dirty && currentVariant !== 'custom') {
+    const mp = MODE_PRESETS[currentMode] || MODE_PRESETS.work;
+    const pi = PRESET_KEYS.indexOf(currentVariant);
+    const label = pi >= 0 ? mp.labels[pi] : currentVariant.toUpperCase();
+    btn.textContent = `UPDATE ${label}`;
+    btn.style.display = 'block';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function updateCurrentPreset() {
+  const updated = JSON.parse(JSON.stringify(state));
+  if (currentVariant === 'a') {
+    layouts[currentMode] = updated;
+  } else {
+    const key = currentMode + '-' + currentVariant;
+    variants[key] = updated;
+  }
+  cleanSnapshot = JSON.stringify(state);
+  checkDirty();
+  toast('Preset updated');
 }
 
 function renderPresetBar() {
@@ -658,6 +690,8 @@ function renderCanvas() {
 
   // Render gap measurements between widgets
   renderGapGuides();
+  // Check if state differs from loaded preset
+  checkDirty();
 }
 
 // ── Widget list (sidebar) ───────────────────────────────────
