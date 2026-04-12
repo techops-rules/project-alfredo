@@ -2,6 +2,11 @@
 # Alfredo kiosk autostart — launched by labwc on login
 # Installed to: ~/.config/labwc/autostart
 
+# Set Alfredo desktop wallpaper (visible if chromium hasn't launched yet)
+if command -v swaybg >/dev/null 2>&1 && [ -f ~/alfredo-kiosk/wallpaper.png ]; then
+    swaybg -i ~/alfredo-kiosk/wallpaper.png -m fill &
+fi
+
 # Wait for kiosk web server to be ready
 for i in 1 2 3 4 5 6 7 8 9 10; do
     curl -sf --max-time 2 http://localhost:8430/ >/dev/null 2>&1 && break
@@ -24,5 +29,6 @@ chromium \
     --disable-infobars \
     --disable-session-crashed-bubble \
     --start-fullscreen \
+    --password-store=basic \
     --autoplay-policy=no-user-gesture-required \
     "$START_URL" &

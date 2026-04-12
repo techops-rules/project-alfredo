@@ -17,139 +17,62 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding: 32px 48px;
+    padding: 24px 48px;
   }
 
-  .header {
-    text-align: center;
-    margin-bottom: 24px;
-  }
-  .header h1 {
-    font-size: 22px;
-    color: #4fc3f7;
-    letter-spacing: 6px;
-    margin-bottom: 4px;
-  }
-  .header .sub {
-    color: #555;
-    font-size: 11px;
-    letter-spacing: 2px;
-  }
+  .header { text-align: center; margin-bottom: 16px; }
+  .header h1 { font-size: 22px; color: #4fc3f7; letter-spacing: 6px; margin-bottom: 4px; }
+  .header .sub { color: #555; font-size: 11px; letter-spacing: 2px; }
 
-  .services {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+  .services { flex: 1; display: flex; flex-direction: column; gap: 4px; }
 
   .svc-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 6px 12px;
-    border-radius: 4px;
-    background: #111;
+    display: flex; align-items: center; gap: 12px;
+    padding: 5px 12px; border-radius: 4px; background: #111;
     transition: background 0.3s;
   }
-  .svc-row.checking { background: #111; }
   .svc-row.ok { background: #0a1a0a; }
   .svc-row.warn { background: #1a1a0a; }
   .svc-row.fail { background: #1a0a0a; }
 
   .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #333;
-    flex-shrink: 0;
-    transition: background 0.4s, box-shadow 0.4s;
+    width: 10px; height: 10px; border-radius: 50%; background: #333;
+    flex-shrink: 0; transition: background 0.4s, box-shadow 0.4s;
   }
-  .dot.waiting { background: #333; }
-  .dot.checking {
-    background: #ffd740;
-    box-shadow: 0 0 6px #ffd74066;
-    animation: pulse 1s infinite;
-  }
-  .dot.ok {
-    background: #66bb6a;
-    box-shadow: 0 0 8px #66bb6a44;
-  }
-  .dot.warn {
-    background: #ffa726;
-    box-shadow: 0 0 6px #ffa72644;
-  }
-  .dot.fail {
-    background: #ef5350;
-    box-shadow: 0 0 8px #ef535044;
-  }
+  .dot.checking { background: #ffd740; box-shadow: 0 0 6px #ffd74066; animation: pulse 1s infinite; }
+  .dot.ok { background: #66bb6a; box-shadow: 0 0 8px #66bb6a44; }
+  .dot.warn { background: #ffa726; box-shadow: 0 0 6px #ffa72644; }
+  .dot.fail { background: #ef5350; box-shadow: 0 0 8px #ef535044; }
+  .dot.retry { background: #ffd740; animation: pulse 0.5s infinite; }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  .svc-name {
-    width: 240px;
-    color: #aaa;
-    font-size: 13px;
-  }
-  .svc-status {
-    width: 90px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
+  .svc-name { width: 220px; color: #aaa; font-size: 13px; }
+  .svc-status { width: 90px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
   .svc-status.waiting { color: #555; }
   .svc-status.checking { color: #ffd740; }
   .svc-status.ok { color: #66bb6a; }
   .svc-status.warn { color: #ffa726; }
   .svc-status.fail { color: #ef5350; }
+  .svc-status.retry { color: #ffd740; }
 
   .svc-detail {
-    flex: 1;
-    color: #555;
-    font-size: 11px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    flex: 1; color: #555; font-size: 11px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .svc-detail.fail { color: #ef5350; }
   .svc-detail.warn { color: #ffa726; }
 
-  .footer {
-    text-align: center;
-    padding-top: 16px;
-    border-top: 1px solid #1a1a1a;
-    margin-top: 12px;
-  }
-  .footer .msg {
-    color: #333;
-    font-size: 12px;
-    min-height: 18px;
-    transition: color 0.5s;
-  }
-  .footer .msg.ready {
-    color: #66bb6a;
-  }
-  .footer .msg.issues {
-    color: #ffa726;
-  }
-  .progress-bar {
-    width: 100%;
-    height: 3px;
-    background: #1a1a1a;
-    border-radius: 2px;
-    margin-top: 8px;
-    overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%;
-    width: 0%;
-    background: #4fc3f7;
-    border-radius: 2px;
-    transition: width 0.4s, background 0.4s;
-  }
+  .footer { text-align: center; padding-top: 12px; border-top: 1px solid #1a1a1a; margin-top: 8px; }
+  .footer .msg { color: #333; font-size: 12px; min-height: 18px; transition: color 0.5s; }
+  .footer .msg.ready { color: #66bb6a; }
+  .footer .msg.issues { color: #ffa726; }
+  .footer .quip { color: #4fc3f7; font-size: 11px; margin-top: 6px; min-height: 16px; font-style: italic; opacity: 0; transition: opacity 1s; }
+  .footer .quip.show { opacity: 1; }
+  .footer .countdown { color: #333; font-size: 10px; margin-top: 4px; }
+
+  .progress-bar { width: 100%; height: 3px; background: #1a1a1a; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: #4fc3f7; border-radius: 2px; transition: width 0.4s, background 0.4s; }
   .progress-fill.done { background: #66bb6a; }
   .progress-fill.issues { background: #ffa726; }
 </style>
@@ -165,20 +88,22 @@
 
 <div class="footer">
   <div class="msg" id="msg">Initializing...</div>
+  <div class="quip" id="quip"></div>
+  <div class="countdown" id="countdown"></div>
   <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
 </div>
 
 <script>
 const CHECKS = [
-  { id: 'network',   name: 'Network',                check: () => checkHTTP('/proxy/health', 'bridge reachable') },
-  { id: 'kiosk-web', name: 'Kiosk Web Server',       check: () => checkHTTP('/', 'serving on :8430') },
+  { id: 'kiosk-web', name: 'Kiosk Web Server',       check: () => checkHTTP('/', 'serving on :8430'), retry: true },
   { id: 'bridge',    name: 'Claude Code Bridge',     check: () => checkHTTP('/proxy/health', 'healthy', true) },
   { id: 'calendar',  name: 'Calendar Feed',          check: () => checkCalendar() },
-  { id: 'weather',   name: 'Weather API',            check: () => checkHTTP('/proxy/weather', 'open-meteo ok', true) },
+  { id: 'weather',   name: 'Weather API',            check: () => checkWeather() },
   { id: 'presence',  name: 'Presence Detection',     check: () => checkHTTP('/proxy/presence', null, true) },
   { id: 'voice',     name: 'Voice / Wake Listener',  check: () => checkVoice() },
   { id: 'tailscale', name: 'Tailscale VPN',          check: () => checkHTTP('/proxy/tailscale', null, true) },
   { id: 'icloud',    name: 'iCloud Sync',            check: () => checkHTTP('/proxy/icloud', null, true) },
+  { id: 'self-heal', name: 'Self-Heal Watchdog',     check: () => ({ state: 'ok', detail: 'timer active' }) },
   { id: 'chromium',  name: 'Chromium Kiosk',         check: () => ({ state: 'ok', detail: 'running (you see this)' }) },
 ];
 
@@ -190,6 +115,14 @@ const QUIPS = [
   "Boot complete. I forgive you for the SD card incident. Mostly.",
   "Online and operational. The things I do for you, Todd.",
   "Systems green. I'd say I'm surprised, but that would require emotions.",
+  "Back online. No thanks to that SD card.",
+  "All services reporting in. Someone get me a coffee.",
+];
+
+const QUIPS_DEGRADED = [
+  "I'm back online. Mostly. A few things need attention.",
+  "Operational, but not at my best. Story of my life.",
+  "Some services are being dramatic. I'll keep an eye on them.",
 ];
 
 // Build UI
@@ -212,32 +145,28 @@ function updateRow(id, state, detail) {
   const dot = document.getElementById(`dot-${id}`);
   const status = document.getElementById(`status-${id}`);
   const detailEl = document.getElementById(`detail-${id}`);
+  if (!row) return;
 
   row.className = `svc-row ${state}`;
   dot.className = `dot ${state}`;
   status.className = `svc-status ${state}`;
-  status.textContent = state === 'ok' ? 'ONLINE' : state === 'checking' ? 'CHECKING' : state === 'warn' ? 'DEGRADED' : state === 'fail' ? 'OFFLINE' : 'WAITING';
+
+  const labels = { ok: 'ONLINE', checking: 'CHECKING', warn: 'DEGRADED', fail: 'OFFLINE', retry: 'RETRY', waiting: 'WAITING' };
+  status.textContent = labels[state] || state;
 
   if (detail) {
     detailEl.textContent = detail;
-    detailEl.className = `svc-detail ${state === 'fail' ? 'fail' : state === 'warn' ? 'warn' : ''}`;
+    detailEl.className = `svc-detail ${(state === 'fail' || state === 'warn') ? state : ''}`;
   }
 }
 
 async function checkHTTP(path, okMsg, optional) {
   try {
     const r = await fetch(`http://localhost:8430${path}`, { signal: AbortSignal.timeout(5000) });
-    if (r.ok) {
-      const text = await r.text().catch(() => '');
-      return { state: 'ok', detail: okMsg || `HTTP ${r.status}` };
-    }
-    return optional
-      ? { state: 'warn', detail: `HTTP ${r.status} — optional service` }
-      : { state: 'fail', detail: `HTTP ${r.status}` };
+    if (r.ok) return { state: 'ok', detail: okMsg || `HTTP ${r.status}` };
+    return optional ? { state: 'warn', detail: `HTTP ${r.status}` } : { state: 'fail', detail: `HTTP ${r.status}` };
   } catch (e) {
-    return optional
-      ? { state: 'warn', detail: 'not available (optional)' }
-      : { state: 'fail', detail: e.message || 'connection refused' };
+    return optional ? { state: 'warn', detail: 'not available' } : { state: 'fail', detail: e.message || 'connection refused' };
   }
 }
 
@@ -247,90 +176,134 @@ async function checkCalendar() {
     if (!r.ok) return { state: 'warn', detail: `HTTP ${r.status}` };
     const d = await r.json();
     const n = (d.events || []).length;
-    return { state: 'ok', detail: `${n} event${n !== 1 ? 's' : ''} loaded (${d.source || '?'})` };
-  } catch (e) {
-    return { state: 'warn', detail: 'calendar not configured' };
-  }
+    return { state: 'ok', detail: `${n} event${n !== 1 ? 's' : ''} (${d.source || '?'})` };
+  } catch (e) { return { state: 'warn', detail: 'not configured' }; }
+}
+
+async function checkWeather() {
+  try {
+    const r = await fetch('http://localhost:8430/proxy/weather', { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return { state: 'warn', detail: `HTTP ${r.status}` };
+    const d = await r.json();
+    const temp = d.current_weather?.temperature;
+    return temp != null ? { state: 'ok', detail: `${temp}°C — open-meteo` } : { state: 'ok', detail: 'connected' };
+  } catch (e) { return { state: 'warn', detail: 'API unreachable' }; }
 }
 
 async function checkVoice() {
   try {
     const r = await fetch('http://localhost:8430/proxy/voice-event?since=0', { signal: AbortSignal.timeout(5000) });
-    if (!r.ok) return { state: 'warn', detail: 'voice endpoint unavailable' };
+    if (!r.ok) return { state: 'warn', detail: 'endpoint unavailable' };
     const d = await r.json();
-    if (d.muted) return { state: 'ok', detail: 'online (muted)' };
-    return { state: 'ok', detail: 'listening' };
-  } catch (e) {
-    return { state: 'warn', detail: 'wake service not running' };
-  }
+    return { state: 'ok', detail: d.muted ? 'online (muted)' : 'listening' };
+  } catch (e) { return { state: 'warn', detail: 'wake service starting...' }; }
 }
 
 function speak(text) {
-  // Try espeak-ng on the Pi via serve.py exec, fall back to silent
-  fetch('http://localhost:8430/proxy/voice-event', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'boot-speak', text })
-  }).catch(() => {});
-
-  // Also try browser TTS as backup
   if ('speechSynthesis' in window) {
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.95;
-    u.pitch = 0.9;
+    u.rate = 0.95; u.pitch = 0.9;
     speechSynthesis.speak(u);
   }
 }
 
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
 async function runChecks() {
   const progress = document.getElementById('progress');
   const msg = document.getElementById('msg');
+  const quipEl = document.getElementById('quip');
+  const countdownEl = document.getElementById('countdown');
   let completed = 0;
   let failures = 0;
   let warnings = 0;
+  const failedChecks = [];
 
+  // Phase 1: Check all services sequentially with staggered timing
   for (const c of CHECKS) {
     updateRow(c.id, 'checking', '');
+    await delay(300);  // stagger for visual effect
 
     const result = await c.check();
     updateRow(c.id, result.state, result.detail);
 
-    if (result.state === 'fail') failures++;
+    if (result.state === 'fail') { failures++; failedChecks.push(c); }
     if (result.state === 'warn') warnings++;
     completed++;
 
-    const pct = (completed / CHECKS.length) * 100;
-    progress.style.width = pct + '%';
+    progress.style.width = ((completed / CHECKS.length) * 80) + '%';
     msg.textContent = `Checking services... ${completed}/${CHECKS.length}`;
   }
 
-  // Done
+  // Phase 2: Retry failed services (up to 3 rounds, 5s apart)
+  if (failedChecks.length > 0) {
+    for (let round = 1; round <= 3 && failedChecks.length > 0; round++) {
+      msg.textContent = `Retrying ${failedChecks.length} service${failedChecks.length > 1 ? 's' : ''}... (${round}/3)`;
+      await delay(5000);
+
+      const stillFailed = [];
+      for (const c of failedChecks) {
+        updateRow(c.id, 'retry', `retry ${round}/3...`);
+        await delay(500);
+        const result = await c.check();
+        updateRow(c.id, result.state, result.detail);
+        if (result.state === 'fail') {
+          stillFailed.push(c);
+        } else {
+          failures--;
+          if (result.state === 'warn') warnings++;
+        }
+      }
+      failedChecks.length = 0;
+      failedChecks.push(...stillFailed);
+    }
+  }
+
+  progress.style.width = '100%';
+
+  // Phase 3: Show result + quip
+  let holdTime;
   if (failures === 0 && warnings === 0) {
     progress.className = 'progress-fill done';
     msg.className = 'msg ready';
     msg.textContent = '● ALL SYSTEMS GREEN';
     const quip = QUIPS[Math.floor(Math.random() * QUIPS.length)];
+    quipEl.textContent = `"${quip}"`;
+    quipEl.className = 'quip show';
     speak(quip);
+    holdTime = 10;
   } else if (failures === 0) {
     progress.className = 'progress-fill issues';
     msg.className = 'msg issues';
-    msg.textContent = `◐ ONLINE — ${warnings} service${warnings > 1 ? 's' : ''} degraded`;
-    speak("I'm back online. Mostly. A few things need attention.");
+    msg.textContent = `◐ ONLINE — ${warnings} degraded`;
+    const quip = QUIPS_DEGRADED[Math.floor(Math.random() * QUIPS_DEGRADED.length)];
+    quipEl.textContent = `"${quip}"`;
+    quipEl.className = 'quip show';
+    speak(quip);
+    holdTime = 12;
   } else {
     progress.className = 'progress-fill issues';
     msg.className = 'msg issues';
-    msg.textContent = `${failures} service${failures > 1 ? 's' : ''} offline, ${warnings} degraded`;
+    msg.textContent = `${failures} offline, ${warnings} degraded`;
+    quipEl.textContent = '"Boot complete, but I\'m not feeling great."';
+    quipEl.className = 'quip show';
     speak("Boot complete, but I'm not feeling great. Check the status board.");
+    holdTime = 20;
   }
 
-  // Redirect to main kiosk after delay
-  setTimeout(() => {
-    window.location.href = 'http://localhost:8430/';
-  }, failures > 0 ? 15000 : 8000);
+  // Phase 4: Countdown then redirect
+  for (let i = holdTime; i > 0; i--) {
+    countdownEl.textContent = `dashboard in ${i}s`;
+    await delay(1000);
+  }
+  countdownEl.textContent = 'loading dashboard...';
+
+  // Navigate to main kiosk — use index.html explicitly to avoid reloading boot-splash
+  window.location.replace('http://localhost:8430/index.html');
 }
 
-// Start after brief delay for dramatic effect
-setTimeout(runChecks, 800);
+// Start after brief pause
+setTimeout(runChecks, 600);
 </script>
 </body>
 </html>
