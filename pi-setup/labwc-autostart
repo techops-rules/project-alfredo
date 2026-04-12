@@ -1,50 +1,52 @@
 #!/bin/sh
 # Alfredo kiosk autostart — launched by labwc on login
 # Installed to: ~/.config/labwc/autostart
-# Flow: boot-splash (timed) → kill chromium → relaunch on main kiosk
+#
+# IMPORTANT: labwc autostart runs synchronously — anything blocking
+# here prevents the desktop from initializing. The entire kiosk
+# launch sequence runs in a background subshell.
 
-LOGFILE="/tmp/alfredo-autostart.log"
-echo "$(date) autostart begin" > "$LOGFILE"
-
-# Set Alfredo desktop wallpaper via pcmanfm (Pi OS desktop manager)
+# Set wallpaper immediately (non-blocking)
 if command -v pcmanfm >/dev/null 2>&1 && [ -f ~/alfredo-kiosk/wallpaper.png ]; then
     pcmanfm --set-wallpaper="$HOME/alfredo-kiosk/wallpaper.png" --wallpaper-mode=stretch 2>/dev/null &
 fi
 
-# Chromium launch helper
-launch_chromium() {
-    chromium \
-        --kiosk \
-        --ozone-platform=wayland \
-        --noerrdialogs \
-        --no-first-run \
-        --disable-infobars \
-        --disable-session-crashed-bubble \
-        --start-fullscreen \
-        --password-store=basic \
-        --autoplay-policy=no-user-gesture-required \
-        "$1" &>/dev/null &
-}
+# Run the kiosk launch sequence in the background so labwc can finish starting
+(
+    LOG="/tmp/alfredo-autostart.log"
+    echo "$(date) autostart begin" > "$LOG"
 
-# Wait for kiosk web server (fast poll)
-for i in $(seq 1 15); do
-    curl -sf --max-time 1 http://localhost:8430/ >/dev/null 2>&1 && break
-    sleep 1
-done
+    # Wait for kiosk web server
+    for i in $(seq 1 15); do
+        curl -sf --max-time 1 http://localhost:8430/ >/dev/null 2>&1 && break
+        sleep 1
+    done
+    echo "$(date) web server ready" >> "$LOG"
 
-# Phase 1: Show boot splash (if available)
-if curl -sf --max-time 2 http://localhost:8430/boot-splash.html >/dev/null 2>&1; then
-    echo "$(date) launching boot-splash" >> "$LOGFILE"
-    launch_chromium "http://localhost:8430/boot-splash.html"
-    # Let it run for 20 seconds (shows service checks + quip)
-    sleep 20
-    # Kill boot-splash chromium
-    pkill -f chromium 2>/dev/null
-    sleep 1
-    echo "$(date) boot-splash done, switching to kiosk" >> "$LOGFILE"
-fi
+    # Phase 1: Boot splash (if available)
+    if curl -sf --max-time 2 http://localhost:8430/boot-splash.html >/dev/null 2>&1; then
+        echo "$(date) launching boot-splash" >> "$LOG"
+        chromium --kiosk --ozone-platform=wayland --noerrdialogs --no-first-run \
+            --disable-infobars --disable-session-crashed-bubble --start-fullscreen \
+            --password-store=basic --autoplay-policy=no-user-gesture-required \
+            "http://localhost:8430/boot-splash.html" &>/dev/null &
+        SPLASH_PID=$!
 
-# Phase 2: Launch main kiosk
-echo "$(date) launching main kiosk" >> "$LOGFILE"
-launch_chromium "http://localhost:8430/"
-echo "$(date) autostart complete" >> "$LOGFILE"
+        # Show for 25 seconds (service checks + quip + flavor text)
+        sleep 25
+
+        # Kill boot-splash
+        kill $SPLASH_PID 2>/dev/null
+        pkill -f chromium 2>/dev/null
+        sleep 2
+        echo "$(date) boot-splash done" >> "$LOG"
+    fi
+
+    # Phase 2: Main kiosk
+    echo "$(date) launching main kiosk" >> "$LOG"
+    chromium --kiosk --ozone-platform=wayland --noerrdialogs --no-first-run \
+        --disable-infobars --disable-session-crashed-bubble --start-fullscreen \
+        --password-store=basic --autoplay-policy=no-user-gesture-required \
+        "http://localhost:8430/" &>/dev/null &
+    echo "$(date) autostart complete" >> "$LOG"
+) &
