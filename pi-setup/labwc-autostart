@@ -29,6 +29,7 @@ fi
         chromium --kiosk --ozone-platform=wayland --noerrdialogs --no-first-run \
             --disable-infobars --disable-session-crashed-bubble --start-fullscreen \
             --password-store=basic --autoplay-policy=no-user-gesture-required \
+            --force-device-scale-factor=1 --enable-features=OverlayScrollbar \
             "http://localhost:8430/boot-splash.html" &>/dev/null &
         SPLASH_PID=$!
 
