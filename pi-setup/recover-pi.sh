@@ -414,6 +414,60 @@ run_step "Presence config" "" pi_run '
 [ ! -f ~/alfredo-kiosk/presence.json ] && echo "{\"hosts\":[\"todds-MacBook-Pro.local\"],\"interval\":15}" > ~/alfredo-kiosk/presence.json || true
 ' || true
 
+# Disable keyring unlock prompt (blocks Chromium on auto-login)
+run_step "Disable keyring prompt" "" pi_run '
+mkdir -p ~/.config/autostart
+for comp in gnome-keyring-pkcs11 gnome-keyring-secrets gnome-keyring-ssh; do
+    printf "[Desktop Entry]\nType=Application\nName=%s\nHidden=true\n" "$comp" > ~/.config/autostart/${comp}.desktop
+done
+mkdir -p ~/.config/chromium
+[ ! -f ~/.config/chromium-flags.conf ] && echo "--password-store=basic" > ~/.config/chromium-flags.conf || true
+' || true
+
+# Generate and install Alfredo boot splash (replaces Pi logo)
+run_step "Boot splash image" "" pi_run '
+python3 <<SPLASH_PY
+from PIL import Image, ImageDraw, ImageFont
+import math
+W, H = 1024, 600
+img = Image.new("RGB", (W, H), (10, 10, 10))
+draw = ImageDraw.Draw(img)
+try:
+    fl = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 48)
+    fs = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 14)
+    fd = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 11)
+except:
+    fl = fs = fd = ImageFont.load_default()
+for y in range(H):
+    for x in range(W):
+        dx, dy = (x - W/2) / (W/2), (y - H/2) / (H/2)
+        b = max(0, int(8 * (1 - math.sqrt(dx*dx + dy*dy))))
+        r, g, bb = img.getpixel((x, y))
+        img.putpixel((x, y), (r+b, g+b, bb+b))
+accent = (79, 195, 247)
+draw.line([(80, 200), (W-80, 200)], fill=(20,20,20), width=1)
+draw.line([(80, 400), (W-80, 400)], fill=(20,20,20), width=1)
+title = "A L F R E D O"
+bb = draw.textbbox((0,0), title, font=fl)
+draw.text(((W-(bb[2]-bb[0]))/2, 250), title, fill=accent, font=fl)
+sub = "SYSTEM BOOT"
+bb2 = draw.textbbox((0,0), sub, font=fs)
+draw.text(((W-(bb2[2]-bb2[0]))/2, 320), sub, fill=(80,80,80), font=fs)
+dots = ["SYS","NET","SVC","WEB","TTY"]
+dy2, sp = 440, 80
+sx = (W - (len(dots)-1)*sp) / 2
+for i, label in enumerate(dots):
+    cx = int(sx + i*sp)
+    draw.ellipse([(cx-4,dy2-4),(cx+4,dy2+4)], fill=(20,50,62))
+    lb = draw.textbbox((0,0), label, font=fd)
+    draw.text((cx-(lb[2]-lb[0])/2, dy2+12), label, fill=(50,50,50), font=fd)
+img.save("/tmp/alfredo-splash.png", "PNG")
+SPLASH_PY
+sudo cp /usr/share/plymouth/themes/pix/splash.png /usr/share/plymouth/themes/pix/splash.png.original 2>/dev/null || true
+sudo cp /tmp/alfredo-splash.png /usr/share/plymouth/themes/pix/splash.png
+sudo update-initramfs -u 2>/dev/null || true
+' || true
+
 # ══════════════════════════════════════════════════════════
 #  PHASE 6: RETRY FAILURES
 # ══════════════════════════════════════════════════════════
