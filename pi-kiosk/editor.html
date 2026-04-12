@@ -190,10 +190,15 @@
     <div class="prop-row"><span class="prop-label">HEIGHT</span><input class="prop-input" id="propHeight" type="number"></div>
   </div>
 
+  <div class="section-label">VARIANT</div>
+  <div style="padding:0 8px 8px;">
+    <div class="mode-tabs" id="variantTabs"></div>
+  </div>
+
   <div class="sidebar-footer">
-    <button class="btn danger" onclick="revertLayout()">REVERT</button>
-    <button class="btn primary" onclick="exportAll()">EXPORT ALL MODES</button>
-    <button class="btn deploy" onclick="saveAndDeploy()">SAVE & DEPLOY</button>
+    <button class="btn danger" onclick="revertLayout()">REVERT CHANGES</button>
+    <button class="btn primary" onclick="saveAsNewMode()">SAVE AS NEW MODE</button>
+    <button class="btn deploy" onclick="applyToKiosk()">APPLY TO KIOSK</button>
   </div>
 </div>
 
@@ -221,14 +226,17 @@
   </div>
 </div>
 
-<div class="modal-bg" id="exportModal">
+<div class="modal-bg" id="saveModal">
   <div class="modal-content">
-    <h2 id="exportTitle">EXPORTED LAYOUT</h2>
-    <p style="font-size:9px;color:var(--text-secondary);margin-bottom:8px;">Copy into <code>const modeLayouts</code> in index.html, then: <code>bash pi-kiosk/deploy.sh</code></p>
-    <pre id="exportCode"></pre>
+    <h2>SAVE AS NEW MODE</h2>
+    <div class="prop-row"><span class="prop-label">NAME</span><input class="prop-input" id="newModeName" style="width:150px" placeholder="e.g. evening"></div>
+    <p style="font-size:9px;color:var(--text-secondary);margin:12px 0 6px;">When should this mode activate? (optional)</p>
+    <div class="prop-row"><span class="prop-label">TIME</span><input class="prop-input" id="newModeTime" style="width:100px" placeholder="e.g. 18:00"></div>
+    <div class="prop-row"><span class="prop-label">DAYS</span><input class="prop-input" id="newModeDays" style="width:200px" placeholder="e.g. MON,TUE,WED,THU,FRI"></div>
+    <div class="prop-row"><span class="prop-label">CONDITION</span><input class="prop-input" id="newModeCond" style="width:200px" placeholder="e.g. after-work, night, weekend"></div>
     <div class="modal-actions">
-      <button class="btn" onclick="closeExport()">CLOSE</button>
-      <button class="btn primary" onclick="copyExport()">COPY TO CLIPBOARD</button>
+      <button class="btn" onclick="closeSaveModal()">CANCEL</button>
+      <button class="btn deploy" onclick="confirmSaveNewMode()">SAVE & APPLY</button>
     </div>
   </div>
 </div>
@@ -250,6 +258,10 @@ const WIDGETS = [
   { id:'w-tty',     name:'CLAUDE.TTY',    zone:'system',   content:'Terminal bridge' },
   { id:'w-meeting', name:'MEETING.LIVE',  zone:'active',   content:'Meeting view' },
 ];
+
+// ── Layout variants: 3 options per mode ─────────────────────
+// Variant A = current/default, B & C = suggested alternatives
+const VARIANT_LABELS = { a: 'DEFAULT', b: 'BALANCED', c: 'COMPACT' };
 
 // ── Mode layouts (synced from index.html modeLayouts) ───────
 const layouts = {
@@ -320,12 +332,149 @@ const layouts = {
   },
 };
 
+// ── Variant B/C alternatives per mode ────────────────────────
+// B = "balanced" — more equal widget sizes, C = "compact" — denser, more visible
+const variants = {
+  'work-b': {
+    'w-clock':   {left:16,  top:8,   width:160, height:120, show:true},
+    'w-hotlist': {left:188, top:8,   width:330, height:165, show:true},
+    'w-weather': {left:530, top:8,   width:478, height:165, show:true},
+    'w-work':    {left:16,  top:185, width:330, height:185, show:true},
+    'w-cal':     {left:358, top:185, width:320, height:185, show:true},
+    'w-life':    {left:690, top:185, width:318, height:185, show:true},
+    'w-today':   {left:16,  top:382, width:330, height:175, show:true},
+    'w-scratch': {left:358, top:382, width:320, height:175, show:true},
+    'w-tty':     {left:690, top:382, width:318, height:175, show:true},
+    'w-stats':   {left:16,  top:382, width:330, height:175, show:false},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+  'work-c': {
+    'w-clock':   {left:16,  top:8,   width:140, height:100, show:true},
+    'w-weather': {left:168, top:8,   width:340, height:100, show:true},
+    'w-hotlist': {left:520, top:8,   width:488, height:100, show:true},
+    'w-work':    {left:16,  top:118, width:494, height:150, show:true},
+    'w-life':    {left:522, top:118, width:486, height:150, show:true},
+    'w-cal':     {left:16,  top:278, width:330, height:140, show:true},
+    'w-today':   {left:358, top:278, width:316, height:140, show:true},
+    'w-scratch': {left:686, top:278, width:322, height:140, show:true},
+    'w-tty':     {left:16,  top:428, width:494, height:130, show:true},
+    'w-stats':   {left:522, top:428, width:486, height:130, show:true},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+  'meeting-b': {
+    'w-clock':   {left:16,  top:8,   width:160, height:80,  show:true},
+    'w-today':   {left:188, top:8,   width:400, height:80,  show:true},
+    'w-weather': {left:600, top:8,   width:408, height:80,  show:true},
+    'w-meeting': {left:16,  top:100, width:680, height:455, show:true},
+    'w-hotlist': {left:708, top:100, width:300, height:220, show:true},
+    'w-tty':     {left:708, top:332, width:300, height:223, show:true},
+    'w-work':    {left:16,  top:185, width:494, height:165, show:false},
+    'w-life':    {left:522, top:185, width:486, height:165, show:false},
+    'w-cal':     {left:16,  top:362, width:494, height:195, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+  },
+  'meeting-c': {
+    'w-meeting': {left:16,  top:8,   width:992, height:548, show:true},
+    'w-clock':   {left:16,  top:8,   width:160, height:80,  show:false},
+    'w-today':   {left:188, top:8,   width:400, height:80,  show:false},
+    'w-weather': {left:600, top:8,   width:408, height:80,  show:false},
+    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
+    'w-work':    {left:16,  top:185, width:494, height:165, show:false},
+    'w-life':    {left:522, top:185, width:486, height:165, show:false},
+    'w-cal':     {left:16,  top:362, width:494, height:195, show:false},
+    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+  },
+  'night-b': {
+    'w-clock':   {left:200, top:60,  width:624, height:220, show:true},
+    'w-weather': {left:200, top:290, width:624, height:100, show:true},
+    'w-life':    {left:200, top:400, width:624, height:155, show:true},
+    'w-work':    {left:16,  top:390, width:494, height:150, show:false},
+    'w-cal':     {left:16,  top:362, width:494, height:195, show:false},
+    'w-today':   {left:522, top:362, width:486, height:195, show:false},
+    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
+    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+  'night-c': {
+    'w-clock':   {left:312, top:150, width:400, height:160, show:true},
+    'w-weather': {left:312, top:320, width:400, height:80,  show:true},
+    'w-work':    {left:16,  top:390, width:494, height:150, show:false},
+    'w-life':    {left:522, top:390, width:486, height:150, show:false},
+    'w-cal':     {left:16,  top:362, width:494, height:195, show:false},
+    'w-today':   {left:522, top:362, width:486, height:195, show:false},
+    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
+    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+  'weekend-b': {
+    'w-clock':   {left:16,  top:8,   width:200, height:120, show:true},
+    'w-weather': {left:228, top:8,   width:390, height:120, show:true},
+    'w-today':   {left:630, top:8,   width:378, height:120, show:true},
+    'w-life':    {left:16,  top:140, width:496, height:210, show:true},
+    'w-cal':     {left:524, top:140, width:484, height:210, show:true},
+    'w-scratch': {left:16,  top:362, width:496, height:195, show:true},
+    'w-hotlist': {left:524, top:362, width:484, height:195, show:true},
+    'w-work':    {left:16,  top:185, width:494, height:165, show:false},
+    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+  'weekend-c': {
+    'w-clock':   {left:16,  top:8,   width:160, height:100, show:true},
+    'w-weather': {left:188, top:8,   width:340, height:100, show:true},
+    'w-life':    {left:540, top:8,   width:468, height:200, show:true},
+    'w-scratch': {left:16,  top:120, width:512, height:200, show:true},
+    'w-cal':     {left:540, top:220, width:468, height:176, show:true},
+    'w-today':   {left:16,  top:332, width:512, height:224, show:true},
+    'w-hotlist': {left:540, top:408, width:468, height:148, show:true},
+    'w-work':    {left:16,  top:185, width:494, height:165, show:false},
+    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+  'focus-b': {
+    'w-clock':   {left:16,  top:8,   width:160, height:80,  show:true},
+    'w-today':   {left:188, top:8,   width:300, height:80,  show:true},
+    'w-hotlist': {left:500, top:8,   width:508, height:80,  show:true},
+    'w-work':    {left:16,  top:100, width:992, height:455, show:true},
+    'w-weather': {left:218, top:8,   width:320, height:110, show:false},
+    'w-life':    {left:510, top:130, width:480, height:410, show:false},
+    'w-cal':     {left:16,  top:352, width:310, height:185, show:false},
+    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+  'focus-c': {
+    'w-clock':   {left:16,  top:8,   width:140, height:70,  show:true},
+    'w-work':    {left:16,  top:88,  width:620, height:468, show:true},
+    'w-hotlist': {left:648, top:8,   width:360, height:180, show:true},
+    'w-tty':     {left:648, top:200, width:360, height:356, show:true},
+    'w-today':   {left:168, top:8,   width:468, height:70,  show:true},
+    'w-weather': {left:218, top:8,   width:320, height:110, show:false},
+    'w-life':    {left:510, top:130, width:480, height:410, show:false},
+    'w-cal':     {left:16,  top:352, width:310, height:185, show:false},
+    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
+    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+  },
+};
+
 let currentMode = 'work';
+let currentVariant = 'a';  // a=default, b=balanced, c=compact
 let selectedWidget = null;
 const SNAP_THRESHOLD = 8;
 const CANVAS_W = 1024;
 const CANVAS_H = 572; // minus statusbar
 const MARGIN_L = 16, MARGIN_R = 16, MARGIN_T = 8, MARGIN_B = 8;
+const API_BASE = window.location.origin;  // http://localhost:8430 or http://pihub.local:8430
 
 // ── State (deep clone current layout) ───────────────────────
 let state = JSON.parse(JSON.stringify(layouts[currentMode]));
@@ -333,6 +482,7 @@ let state = JSON.parse(JSON.stringify(layouts[currentMode]));
 // ── Init ────────────────────────────────────────────────────
 function init() {
   renderModeTabs();
+  renderVariantTabs();
   renderCanvas();
   renderWidgetList();
   updateLabel();
@@ -353,20 +503,53 @@ function renderModeTabs() {
 }
 
 function switchMode(mode) {
-  // Save current edits back
   layouts[currentMode] = JSON.parse(JSON.stringify(state));
   currentMode = mode;
+  currentVariant = 'a';
   state = JSON.parse(JSON.stringify(layouts[mode]));
   selectedWidget = null;
   renderModeTabs();
+  renderVariantTabs();
   renderCanvas();
   renderWidgetList();
   hideProps();
   updateLabel();
 }
 
+function switchVariant(v) {
+  layouts[currentMode] = JSON.parse(JSON.stringify(state));
+  currentVariant = v;
+  if (v === 'a') {
+    state = JSON.parse(JSON.stringify(layouts[currentMode]));
+  } else {
+    const key = currentMode + '-' + v;
+    if (variants[key]) {
+      state = JSON.parse(JSON.stringify(variants[key]));
+    }
+  }
+  selectedWidget = null;
+  renderVariantTabs();
+  renderCanvas();
+  renderWidgetList();
+  hideProps();
+  updateLabel();
+}
+
+function renderVariantTabs() {
+  const tabs = document.getElementById('variantTabs');
+  tabs.innerHTML = '';
+  ['a', 'b', 'c'].forEach(v => {
+    const tab = document.createElement('button');
+    tab.className = 'mode-tab' + (v === currentVariant ? ' active' : '');
+    tab.textContent = VARIANT_LABELS[v];
+    tab.onclick = () => switchVariant(v);
+    tabs.appendChild(tab);
+  });
+}
+
 function updateLabel() {
-  document.getElementById('canvasLabel').textContent = `${currentMode.toUpperCase()} · 1024 x 600 · ROADOM 7"`;
+  const vLabel = currentVariant === 'a' ? '' : ` · ${VARIANT_LABELS[currentVariant]}`;
+  document.getElementById('canvasLabel').textContent = `${currentMode.toUpperCase()}${vLabel} · 1024 x 600 · ROADOM 7"`;
 }
 
 // ── Canvas ──────────────────────────────────────────────────
@@ -653,64 +836,105 @@ function clearSnapLines() {
 
 // ── Revert ──────────────────────────────────────────────────
 function revertLayout() {
-  // Reload from original (discard edits for this mode)
-  state = JSON.parse(JSON.stringify(layouts[currentMode]));
+  if (currentVariant === 'a') {
+    // Can't revert default easily — just fetch from server
+    fetch(API_BASE + '/proxy/layout').then(r => r.json()).then(data => {
+      if (data.layouts && data.layouts[currentMode]) {
+        state = JSON.parse(JSON.stringify(data.layouts[currentMode]));
+      } else {
+        state = JSON.parse(JSON.stringify(layouts[currentMode]));
+      }
+      renderCanvas(); renderWidgetList();
+      toast('Reverted ' + currentMode.toUpperCase());
+    }).catch(() => {
+      state = JSON.parse(JSON.stringify(layouts[currentMode]));
+      renderCanvas(); renderWidgetList();
+      toast('Reverted to default');
+    });
+  } else {
+    switchVariant(currentVariant);
+    toast('Reverted to ' + VARIANT_LABELS[currentVariant]);
+  }
   selectedWidget = null;
   hideProps();
-  renderCanvas();
-  renderWidgetList();
-  toast('Reverted ' + currentMode.toUpperCase() + ' to saved state');
 }
 
-// ── Export single mode ──────────────────────────────────────
-function generateModeCode(mode) {
-  const data = mode === currentMode ? state : layouts[mode];
-  let code = `  ${mode}: {\n`;
-  WIDGETS.forEach(w => {
-    const s = data[w.id];
-    if (!s) return;
-    if (s.show === false) {
-      code += `    '${w.id}':${' '.repeat(Math.max(1,12-w.id.length))}{show:false},\n`;
-    } else {
-      const parts = [`left:'${s.left}px'`, `top:'${s.top}px'`, `width:'${s.width}px'`, `height:'${s.height}px'`, `show:true`];
-      code += `    '${w.id}':${' '.repeat(Math.max(1,12-w.id.length))}{${parts.join(', ')}},\n`;
-    }
-  });
-  code += `  },`;
-  return code;
-}
-
-function saveAndDeploy() {
-  // Save current edits
+// ── Apply to Kiosk (push via API) ───────────────────────────
+function applyToKiosk() {
   layouts[currentMode] = JSON.parse(JSON.stringify(state));
-  const code = generateModeCode(currentMode);
-  document.getElementById('exportTitle').textContent = `EXPORT: ${currentMode.toUpperCase()}`;
-  document.getElementById('exportCode').textContent = code;
-  document.getElementById('exportModal').classList.add('open');
-  toast('Layout saved — copy into index.html');
-}
-
-function exportAll() {
-  // Save current edits first
-  layouts[currentMode] = JSON.parse(JSON.stringify(state));
-  let code = 'const modeLayouts = {\n';
+  // Build all mode layouts for push
+  const allLayouts = {};
   Object.keys(layouts).forEach(mode => {
-    code += generateModeCode(mode) + '\n';
+    allLayouts[mode] = layouts[mode];
   });
-  code += '};';
-  document.getElementById('exportTitle').textContent = 'EXPORT: ALL MODES';
-  document.getElementById('exportCode').textContent = code;
-  document.getElementById('exportModal').classList.add('open');
-  toast('All modes exported');
+
+  toast('Pushing to kiosk...');
+  fetch(API_BASE + '/proxy/layout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'apply', layouts: allLayouts })
+  }).then(r => r.json()).then(data => {
+    if (data.ok) {
+      toast('Applied to kiosk — reloading');
+    } else {
+      toast('Error: ' + (data.error || 'unknown'));
+    }
+  }).catch(err => {
+    toast('Failed to reach kiosk: ' + err.message);
+  });
 }
 
-function closeExport() {
-  document.getElementById('exportModal').classList.remove('open');
+// ── Save as new mode ────────────────────────────────────────
+function saveAsNewMode() {
+  document.getElementById('saveModal').classList.add('open');
+  document.getElementById('newModeName').value = '';
+  document.getElementById('newModeTime').value = '';
+  document.getElementById('newModeDays').value = '';
+  document.getElementById('newModeCond').value = '';
+  document.getElementById('newModeName').focus();
 }
 
-function copyExport() {
-  const code = document.getElementById('exportCode').textContent;
-  navigator.clipboard.writeText(code).then(() => toast('Copied to clipboard'));
+function closeSaveModal() {
+  document.getElementById('saveModal').classList.remove('open');
+}
+
+function confirmSaveNewMode() {
+  const name = document.getElementById('newModeName').value.trim().toLowerCase().replace(/\s+/g, '-');
+  if (!name) { toast('Name required'); return; }
+
+  const timeVal = document.getElementById('newModeTime').value.trim();
+  const daysVal = document.getElementById('newModeDays').value.trim();
+  const condVal = document.getElementById('newModeCond').value.trim();
+
+  const schedule = (timeVal || daysVal || condVal) ? {
+    time: timeVal || null,
+    days: daysVal ? daysVal.split(',').map(d => d.trim()) : null,
+    condition: condVal || null
+  } : null;
+
+  const layout = JSON.parse(JSON.stringify(state));
+
+  toast('Saving mode "' + name + '"...');
+  fetch(API_BASE + '/proxy/layout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'save-mode', name, layout, schedule })
+  }).then(r => r.json()).then(data => {
+    if (data.ok) {
+      // Add to local layouts
+      layouts[name] = layout;
+      currentMode = name;
+      currentVariant = 'a';
+      renderModeTabs();
+      renderVariantTabs();
+      closeSaveModal();
+      toast('Mode "' + name + '" saved' + (schedule ? ' with schedule' : ''));
+    } else {
+      toast('Error: ' + (data.error || 'unknown'));
+    }
+  }).catch(err => {
+    toast('Failed: ' + err.message);
+  });
 }
 
 function toast(msg) {

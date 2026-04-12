@@ -144,16 +144,41 @@
         </div>
       </div>
       <div class="card">
-        <div class="card-header">ACCENT COLOR</div>
+        <div class="card-header">THEME</div>
         <div class="card-body">
           <div class="field">
-            <label>THEME</label>
+            <label>ACCENT</label>
             <div class="color-row" id="accentPicker">
-              <div class="color-chip selected" data-color="#61AFEF" style="background:#61AFEF" title="ICE"></div>
-              <div class="color-chip" data-color="#E06C75" style="background:#E06C75" title="CORAL"></div>
-              <div class="color-chip" data-color="#E5C07B" style="background:#E5C07B" title="AMBER"></div>
+              <div class="color-chip selected" data-color="#61AFEF" style="background:#61AFEF" title="ICE (default)"></div>
+              <div class="color-chip" data-color="#5B8DB8" style="background:#5B8DB8" title="STEEL"></div>
+              <div class="color-chip" data-color="#6B8FA3" style="background:#6B8FA3" title="SLATE"></div>
+              <div class="color-chip" data-color="#7B9EA8" style="background:#7B9EA8" title="MIST"></div>
+              <div class="color-chip" data-color="#4A7A8C" style="background:#4A7A8C" title="DEEP TEAL"></div>
+              <div class="color-chip" data-color="#5C7C6E" style="background:#5C7C6E" title="SAGE"></div>
+              <div class="color-chip" data-color="#8B8FA3" style="background:#8B8FA3" title="PEWTER"></div>
+              <div class="color-chip" data-color="#7A6F8E" style="background:#7A6F8E" title="DUSK"></div>
               <div class="color-chip" data-color="#98C379" style="background:#98C379" title="GREEN"></div>
-              <div class="color-chip" data-color="#C678DD" style="background:#C678DD" title="PURPLE"></div>
+            </div>
+          </div>
+          <div class="field" style="margin-top:12px">
+            <label>SURFACE</label>
+            <div class="color-row" id="surfacePicker">
+              <div class="color-chip selected" data-color="#080E18" style="background:#080E18;border:1px solid #222" title="VOID (default)"></div>
+              <div class="color-chip" data-color="#0C1018" style="background:#0C1018;border:1px solid #222" title="DEEP NAVY"></div>
+              <div class="color-chip" data-color="#0A0F12" style="background:#0A0F12;border:1px solid #222" title="CHARCOAL"></div>
+              <div class="color-chip" data-color="#0D0E14" style="background:#0D0E14;border:1px solid #222" title="ONYX"></div>
+              <div class="color-chip" data-color="#0C100C" style="background:#0C100C;border:1px solid #222" title="FOREST BLACK"></div>
+              <div class="color-chip" data-color="#100E0E" style="background:#100E0E;border:1px solid #222" title="WARM BLACK"></div>
+            </div>
+          </div>
+          <div class="field" style="margin-top:12px">
+            <label>TEXT EMPHASIS</label>
+            <div class="color-row" id="emphasisPicker">
+              <div class="color-chip selected" data-color="#E8EAED" style="background:#E8EAED" title="BRIGHT (default)"></div>
+              <div class="color-chip" data-color="#C8CCD0" style="background:#C8CCD0" title="SOFT"></div>
+              <div class="color-chip" data-color="#B0B8C0" style="background:#B0B8C0" title="MUTED"></div>
+              <div class="color-chip" data-color="#D0D4DA" style="background:#D0D4DA" title="COOL"></div>
+              <div class="color-chip" data-color="#D8D0C8" style="background:#D8D0C8" title="WARM"></div>
             </div>
           </div>
         </div>
@@ -254,9 +279,9 @@
         <div class="card-header">VOICE · MIC SETUP</div>
         <div class="card-body">
           <div style="color:var(--text2);font-size:11px;line-height:1.8">
-            Mic not yet connected.<br>
-            Once the ROADOM mic is attached, voice input will pipe through Whisper → bridge WebSocket (ws://localhost:8421/ws).<br><br>
-            <span style="color:var(--warning)">TODO: configure mic device + speech-to-text pipeline</span>
+            ROADOM mic path: wake/push-to-talk → local Whisper transcription → bridge `/chat` in agent mode.<br>
+            Spoken commands are transcribed on the Pi, sent through the Alfredo/Codex system prompt, then spoken back with Piper.<br><br>
+            Wake word still needs a valid Picovoice access key. Push-to-talk works without it.
           </div>
         </div>
       </div>

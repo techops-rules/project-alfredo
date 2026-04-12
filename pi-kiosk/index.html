@@ -128,7 +128,16 @@
   .clock-time .sec { font-size:18px; color:var(--accent); opacity:0.6; }
   .clock-time .ampm { font-size:12px; color:var(--text-secondary); margin-left:4px; }
   .clock-date { font-size:11px; font-weight:500; color:var(--accent); letter-spacing:2px; margin-top:4px; }
+  .clock-24h { font-size:9px; color:var(--text-secondary); opacity:0.35; margin-top:2px; letter-spacing:1px; }
   .clock-time.flash .hm { color:#ff6b35; }
+  /* Floating fun fact — sits on empty canvas space, not inside a widget */
+  #funfact-float {
+    position:absolute; z-index:2; pointer-events:none;
+    font-size:9px; color:var(--text-secondary); opacity:0.4;
+    line-height:1.4; max-width:300px; transition:opacity 0.5s, left 0.3s, top 0.3s;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  #funfact-float::before { content:'✦ '; color:var(--accent); opacity:0.5; }
 
   /* Today bar */
   .today-bar { display:flex; height:100%; align-items:center; }
@@ -308,9 +317,7 @@
   .meeting-full hr { border:none; border-top:1px dashed var(--accent-border); margin:6px 0; }
   .cal-rec { font-size:7px; font-weight:700; color:var(--accent); letter-spacing:1px; margin-left:6px; opacity:0.6; }
 
-  /* Funfact */
-  .funfact { font-size:9px; color:var(--text-secondary); margin-top:8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.4; opacity:0.6; }
-  .funfact::before { content:'✦ '; color:var(--accent); }
+  /* Funfact (legacy — now uses #funfact-float) */
 
   /* Waiting/Deferred counts */
   .today-count { font-size:18px; font-weight:700; color:var(--text-emphasis); }
@@ -423,7 +430,7 @@
         <span class="hm" id="clockHM"></span><span class="sec" id="clockSec"></span><span class="ampm" id="clockAMPM"></span>
       </div>
       <div class="clock-date" id="clockDate"></div>
-      <div class="funfact" id="funfact"></div>
+      <div class="clock-24h" id="clock24h"></div>
     </div>
   </div>
 
@@ -548,6 +555,9 @@
   </div>
 </div>
 
+<!-- Floating fun fact — positioned dynamically on empty canvas space -->
+<div id="funfact-float"></div>
+
 <!-- Status bar -->
 <div class="statusbar">
   <div class="status-item"><div class="status-dot" id="sd-bridge"></div>BRIDGE</div>
@@ -637,12 +647,13 @@
 // ── Clock ───────────────────────────────────────────────────
 function updateClock() {
   const now = new Date();
-  const h = now.getHours()%12||12, m = String(now.getMinutes()).padStart(2,'0'), s = String(now.getSeconds()).padStart(2,'0');
-  document.getElementById('clockHM').textContent = h+':'+m;
+  const h12 = now.getHours()%12||12, h24 = now.getHours(), m = String(now.getMinutes()).padStart(2,'0'), s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clockHM').textContent = h12+':'+m;
   document.getElementById('clockSec').textContent = s;
-  document.getElementById('clockAMPM').textContent = now.getHours()>=12?'PM':'AM';
+  document.getElementById('clockAMPM').textContent = h24>=12?'PM':'AM';
   const D=['SUN','MON','TUE','WED','THU','FRI','SAT'], M=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  document.getElementById('clockDate').textContent = D[now.getDay()]+' . '+M[now.getMonth()]+' '+String(now.getDate()).padStart(2,'0')+' . '+now.getFullYear();
+  document.getElementById('clockDate').textContent = D[now.getDay()]+' · '+M[now.getMonth()]+' '+String(now.getDate()).padStart(2,'0')+' · '+now.getFullYear();
+  document.getElementById('clock24h').textContent = String(h24).padStart(2,'0')+':'+m+':'+s;
 }
 setInterval(updateClock,1000); updateClock();
 
@@ -1206,7 +1217,57 @@ const FUNFACTS=[
   "The total weight of ants on Earth roughly equals that of humans.",
   "There are more possible chess games than atoms in the universe."
 ];
-document.getElementById('funfact').textContent=FUNFACTS[Math.floor(Math.random()*FUNFACTS.length)];
+// ── Floating fun fact — finds empty canvas space, hides if overlapping ──
+function positionFunFact() {
+  const ff = document.getElementById('funfact-float');
+  if (!ff) return;
+  ff.textContent = FUNFACTS[Math.floor(Math.random() * FUNFACTS.length)];
+
+  // Get all visible widget rects
+  const widgets = document.querySelectorAll('.widget');
+  const rects = [];
+  widgets.forEach(w => {
+    if (w.style.display === 'none' || w.offsetParent === null) return;
+    rects.push({ l: w.offsetLeft, t: w.offsetTop, r: w.offsetLeft + w.offsetWidth, b: w.offsetTop + w.offsetHeight });
+  });
+  // Also include statusbar
+  rects.push({ l: 0, t: 572, r: 1024, b: 600 });
+
+  const ffW = 280, ffH = 30;
+  // Try candidate positions (prefer bottom-right empty areas)
+  const candidates = [
+    { x: 730, y: 545 },  // bottom-right above statusbar
+    { x: 16,  y: 545 },  // bottom-left above statusbar
+    { x: 520, y: 545 },  // bottom-center
+    { x: 730, y: 170 },  // mid-right
+    { x: 16,  y: 170 },  // mid-left
+    { x: 400, y: 130 },  // center-ish
+  ];
+
+  function overlaps(x, y) {
+    for (const r of rects) {
+      if (x < r.r && x + ffW > r.l && y < r.b && y + ffH > r.t) return true;
+    }
+    return false;
+  }
+
+  let placed = false;
+  for (const c of candidates) {
+    if (!overlaps(c.x, c.y)) {
+      ff.style.left = c.x + 'px';
+      ff.style.top = c.y + 'px';
+      ff.style.opacity = '0.4';
+      placed = true;
+      break;
+    }
+  }
+  if (!placed) {
+    ff.style.opacity = '0';  // hide if no room
+  }
+}
+positionFunFact();
+// Rotate fun fact every 45 seconds
+setInterval(positionFunFact, 45000);
 
 // ── Waiting / Deferred ─────────────────────────────────────
 let waitingItems=loadData('waitingItems',[]);

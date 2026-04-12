@@ -320,6 +320,56 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if body is None: return
             voice_push_active = body.get("active", True)
             self._json({"active": voice_push_active})
+        elif self.path == "/proxy/layout":
+            # Editor pushes layout updates — saves to layouts.json, triggers kiosk reload
+            body = self._read_json_body()
+            if body is None: return
+            action = body.get("action", "apply")  # apply, save-mode, get
+            if action == "apply":
+                # Apply layouts to kiosk — save and trigger reload
+                layouts = body.get("layouts", {})
+                with open("layouts.json", "w") as f:
+                    json.dump({"layouts": layouts, "updated": time.time()}, f, indent=2)
+                # Trigger kiosk reload
+                env = {**os.environ, "WAYLAND_DISPLAY": "wayland-0", "XDG_RUNTIME_DIR": "/run/user/1000"}
+                subprocess.Popen(
+                    ["chromium", "--ozone-platform=wayland", "http://localhost:8430/?layout_reload=1"],
+                    env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+                self._json({"ok": True, "action": "applied", "modes": list(layouts.keys())})
+            elif action == "save-mode":
+                # Save a new custom mode with optional schedule
+                mode_name = body.get("name", "")
+                mode_layout = body.get("layout", {})
+                schedule = body.get("schedule", None)  # {time:"22:00", days:["SAT","SUN"], condition:"night"}
+                if not mode_name:
+                    self._json({"ok": False, "error": "name required"}); return
+                try:
+                    with open("layouts.json") as f:
+                        data = json.load(f)
+                except Exception:
+                    data = {"layouts": {}, "schedules": {}}
+                data.setdefault("layouts", {})[mode_name] = mode_layout
+                if schedule:
+                    data.setdefault("schedules", {})[mode_name] = schedule
+                data["updated"] = time.time()
+                with open("layouts.json", "w") as f:
+                    json.dump(data, f, indent=2)
+                self._json({"ok": True, "action": "saved", "mode": mode_name})
+            elif action == "revert":
+                # Delete layouts.json to revert to hardcoded defaults
+                try:
+                    os.remove("layouts.json")
+                except FileNotFoundError:
+                    pass
+                env = {**os.environ, "WAYLAND_DISPLAY": "wayland-0", "XDG_RUNTIME_DIR": "/run/user/1000"}
+                subprocess.Popen(
+                    ["chromium", "--ozone-platform=wayland", "http://localhost:8430/"],
+                    env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+                self._json({"ok": True, "action": "reverted"})
+            else:
+                self._json({"ok": False, "error": "unknown action"})
         elif self.path == "/proxy/voice-event":
             # Wake listener posts voice events here
             body = self._read_json_body()
@@ -388,7 +438,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return {"ok": False, "tasks": [], "source": "error"}
 
     def do_GET(self):
-        if self.path == "/proxy/health":
+        if self.path == "/proxy/layout":
+            # Return saved layouts (if any)
+            try:
+                with open("layouts.json") as f:
+                    self._json(json.load(f))
+            except FileNotFoundError:
+                self._json({"layouts": {}, "schedules": {}, "updated": 0})
+        elif self.path == "/proxy/health":
             self._proxy_json("http://localhost:8420/health")
         elif self.path == "/proxy/icloud":
             try:
