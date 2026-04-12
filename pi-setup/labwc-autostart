@@ -2,9 +2,9 @@
 # Alfredo kiosk autostart — launched by labwc on login
 # Installed to: ~/.config/labwc/autostart
 
-# Set Alfredo desktop wallpaper (visible if chromium hasn't launched yet)
-if command -v swaybg >/dev/null 2>&1 && [ -f ~/alfredo-kiosk/wallpaper.png ]; then
-    swaybg -i ~/alfredo-kiosk/wallpaper.png -m fill &
+# Set Alfredo desktop wallpaper via pcmanfm (Pi OS desktop manager)
+if command -v pcmanfm >/dev/null 2>&1 && [ -f ~/alfredo-kiosk/wallpaper.png ]; then
+    pcmanfm --set-wallpaper="$HOME/alfredo-kiosk/wallpaper.png" --wallpaper-mode=stretch 2>/dev/null &
 fi
 
 # Wait for kiosk web server to be ready
