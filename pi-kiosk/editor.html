@@ -859,6 +859,9 @@ function startResize(e, id, handle) {
 }
 
 // ── Snap logic ──────────────────────────────────────────────
+// Standard gaps to snap to (in px)
+const STANDARD_GAPS = [8, 10, 12, 16, 20];
+
 function calcSnaps(dragId, left, top, w, h) {
   const edges = { left, right: left + w, top, bottom: top + h, cx: left + w/2, cy: top + h/2 };
   let snapX = null, snapY = null;
@@ -878,23 +881,70 @@ function calcSnaps(dragId, left, top, w, h) {
     { type:'h', pos:Math.round(CANVAS_H * 2 / 3) },
   ];
 
-  // Other visible widget edges
-  WIDGETS.forEach(w => {
-    if (w.id === dragId) return;
-    const s = state[w.id];
+  // Collect other visible widget rects
+  const others = [];
+  WIDGETS.forEach(ww => {
+    if (ww.id === dragId) return;
+    const s = state[ww.id];
     if (!s || s.show === false) return;
+    others.push({ l: s.left, t: s.top, r: s.left + s.width, b: s.top + s.height });
+    // Edge alignment guides
     guides.push({ type:'v', pos:s.left });
     guides.push({ type:'v', pos:s.left + s.width });
     guides.push({ type:'h', pos:s.top });
     guides.push({ type:'h', pos:s.top + s.height });
   });
 
-  guides.forEach(g => {
+  // Gap-matching: collect existing gaps between widget pairs, then snap to match
+  const existingGapsH = new Set();  // horizontal gaps (left-right)
+  const existingGapsV = new Set();  // vertical gaps (top-bottom)
+  for (let i = 0; i < others.length; i++) {
+    for (let j = i + 1; j < others.length; j++) {
+      const a = others[i], b = others[j];
+      // Horizontal gap
+      const hGap1 = b.l - a.r, hGap2 = a.l - b.r;
+      if (hGap1 > 0 && hGap1 < 60) existingGapsH.add(Math.round(hGap1));
+      if (hGap2 > 0 && hGap2 < 60) existingGapsH.add(Math.round(hGap2));
+      // Vertical gap
+      const vGap1 = b.t - a.b, vGap2 = a.t - b.b;
+      if (vGap1 > 0 && vGap1 < 60) existingGapsV.add(Math.round(vGap1));
+      if (vGap2 > 0 && vGap2 < 60) existingGapsV.add(Math.round(vGap2));
+    }
+  }
+
+  // Add standard gaps + existing gaps as snap positions relative to each widget edge
+  const gapsToSnapH = [...new Set([...STANDARD_GAPS, ...existingGapsH])];
+  const gapsToSnapV = [...new Set([...STANDARD_GAPS, ...existingGapsV])];
+
+  others.forEach(o => {
+    // Snap dragged widget's left edge to be [gap] right of other's right edge
+    gapsToSnapH.forEach(gap => {
+      guides.push({ type:'v', pos: o.r + gap });  // my left = their right + gap
+      guides.push({ type:'v', pos: o.l - gap });  // my right = their left - gap (handled via edges.right)
+    });
+    gapsToSnapV.forEach(gap => {
+      guides.push({ type:'h', pos: o.b + gap });  // my top = their bottom + gap
+      guides.push({ type:'h', pos: o.t - gap });  // my bottom = their top - gap
+    });
+  });
+
+  // Deduplicate guides
+  const seen = new Set();
+  const uniqueGuides = guides.filter(g => {
+    const key = g.type + ':' + Math.round(g.pos);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  uniqueGuides.forEach(g => {
     if (g.type === 'v') {
       [edges.left, edges.right, edges.cx].forEach(e => {
         if (Math.abs(e - g.pos) < SNAP_THRESHOLD) {
           const offset = e - edges.left;
-          snapX = g.pos - offset;
+          if (snapX === null || Math.abs(e - g.pos) < Math.abs(edges.left + (snapX - left) + (e - edges.left) - g.pos)) {
+            snapX = g.pos - offset;
+          }
           lines.push({ type:'v', pos:g.pos });
         }
       });
@@ -902,7 +952,9 @@ function calcSnaps(dragId, left, top, w, h) {
       [edges.top, edges.bottom, edges.cy].forEach(e => {
         if (Math.abs(e - g.pos) < SNAP_THRESHOLD) {
           const offset = e - edges.top;
-          snapY = g.pos - offset;
+          if (snapY === null || Math.abs(e - g.pos) < Math.abs(edges.top + (snapY - top) + (e - edges.top) - g.pos)) {
+            snapY = g.pos - offset;
+          }
           lines.push({ type:'h', pos:g.pos });
         }
       });
