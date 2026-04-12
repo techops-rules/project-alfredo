@@ -141,8 +141,8 @@
 
   /* Snap lines (during drag) */
   .snap-line { position:absolute; z-index:50; pointer-events:none; }
-  .snap-line.h { left:0; right:0; height:1px; background:rgba(225,80,100,0.6); }
-  .snap-line.v { top:0; bottom:0; width:1px; background:rgba(225,80,100,0.6); }
+  .snap-line.h { left:0; right:0; height:1px; background:rgba(225,80,100,0.7); box-shadow:0 0 4px rgba(225,80,100,0.3); }
+  .snap-line.v { top:0; bottom:0; width:1px; background:rgba(225,80,100,0.7); box-shadow:0 0 4px rgba(225,80,100,0.3); }
 
   /* Gap indicators between widgets */
   .gap-label {
@@ -273,9 +273,30 @@ const WIDGETS = [
   { id:'w-meeting', name:'MEETING.LIVE',  zone:'active',   content:'Meeting view' },
 ];
 
-// ── Layout variants: 3 options per mode ─────────────────────
-// Variant A = current/default, B & C = suggested alternatives
-const PRESET_LABELS = ['PRESET 1', 'PRESET 2', 'PRESET 3', 'CUSTOM'];
+// ── Presets per mode: opinionated widget selection + layout ──
+// Each mode has 3 curated presets + custom. Presets control WHICH widgets show AND where.
+const MODE_PRESETS = {
+  work: {
+    labels: ['FULL DASH', 'WORK FOCUS', 'MINIMAL', 'CUSTOM'],
+    descs: ['All widgets — calendar, tasks, weather, terminal', 'Tasks + calendar + hotlist only', 'Clock + hotlist + weather', 'Your layout'],
+  },
+  meeting: {
+    labels: ['IMMERSIVE', 'SPLIT VIEW', 'MINIMAL', 'CUSTOM'],
+    descs: ['Meeting dominates, clock + weather small', 'Meeting + hotlist + terminal sidebar', 'Meeting only, full screen', 'Your layout'],
+  },
+  night: {
+    labels: ['AMBIENT', 'WIND DOWN', 'CLOCK ONLY', 'CUSTOM'],
+    descs: ['Large clock + weather + dim tasks', 'Clock + life tasks + scratchpad', 'Just the clock, centered', 'Your layout'],
+  },
+  weekend: {
+    labels: ['LIFE DASH', 'BALANCED', 'MINIMAL', 'CUSTOM'],
+    descs: ['Life tasks + scratch + calendar + weather', 'Life + work + today + weather', 'Clock + life tasks + weather', 'Your layout'],
+  },
+  focus: {
+    labels: ['DEEP WORK', 'WORK + TTY', 'TASKS ONLY', 'CUSTOM'],
+    descs: ['Large work tasks + today + hotlist', 'Work tasks + terminal side by side', 'Just work tasks, maximum space', 'Your layout'],
+  },
+};
 const PRESET_KEYS = ['a', 'b', 'c', 'custom'];
 
 // ── Mode layouts (synced from index.html modeLayouts) ───────
@@ -347,145 +368,109 @@ const layouts = {
   },
 };
 
-// ── Variant B/C alternatives per mode ────────────────────────
-// B = "balanced" — more equal widget sizes, C = "compact" — denser, more visible
+// ── Variant B/C: curated presets with different widget selections ──
+// Hidden widgets use default positions (offscreen/collapsed)
+function h(id) { return {left:0, top:0, width:100, height:80, show:false}; }
+
 const variants = {
+  // WORK B: "Work Focus" — tasks + calendar + hotlist only, no TTY/life/weather
   'work-b': {
-    'w-clock':   {left:16,  top:8,   width:160, height:120, show:true},
-    'w-hotlist': {left:188, top:8,   width:330, height:165, show:true},
-    'w-weather': {left:530, top:8,   width:478, height:165, show:true},
-    'w-work':    {left:16,  top:185, width:330, height:185, show:true},
-    'w-cal':     {left:358, top:185, width:320, height:185, show:true},
-    'w-life':    {left:690, top:185, width:318, height:185, show:true},
-    'w-today':   {left:16,  top:382, width:330, height:175, show:true},
-    'w-scratch': {left:358, top:382, width:320, height:175, show:true},
-    'w-tty':     {left:690, top:382, width:318, height:175, show:true},
-    'w-stats':   {left:16,  top:382, width:330, height:175, show:false},
-    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-clock':   {left:16,  top:8,   width:190, height:120, show:true},
+    'w-hotlist': {left:218, top:8,   width:790, height:120, show:true},
+    'w-work':    {left:16,  top:140, width:660, height:260, show:true},
+    'w-cal':     {left:688, top:140, width:320, height:260, show:true},
+    'w-today':   {left:16,  top:412, width:494, height:145, show:true},
+    'w-stats':   {left:522, top:412, width:486, height:145, show:true},
+    'w-weather': h(), 'w-life': h(), 'w-tty': h(), 'w-scratch': h(), 'w-meeting': h(),
   },
+  // WORK C: "Minimal" — clock + hotlist + weather only
   'work-c': {
-    'w-clock':   {left:16,  top:8,   width:140, height:100, show:true},
-    'w-weather': {left:168, top:8,   width:340, height:100, show:true},
-    'w-hotlist': {left:520, top:8,   width:488, height:100, show:true},
-    'w-work':    {left:16,  top:118, width:494, height:150, show:true},
-    'w-life':    {left:522, top:118, width:486, height:150, show:true},
-    'w-cal':     {left:16,  top:278, width:330, height:140, show:true},
-    'w-today':   {left:358, top:278, width:316, height:140, show:true},
-    'w-scratch': {left:686, top:278, width:322, height:140, show:true},
-    'w-tty':     {left:16,  top:428, width:494, height:130, show:true},
-    'w-stats':   {left:522, top:428, width:486, height:130, show:true},
-    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-clock':   {left:16,  top:8,   width:300, height:200, show:true},
+    'w-hotlist': {left:16,  top:220, width:992, height:240, show:true},
+    'w-weather': {left:328, top:8,   width:680, height:200, show:true},
+    'w-work': h(), 'w-life': h(), 'w-cal': h(), 'w-today': h(),
+    'w-stats': h(), 'w-scratch': h(), 'w-tty': h(), 'w-meeting': h(),
   },
+
+  // MEETING B: "Split View" — meeting + hotlist + terminal sidebar
   'meeting-b': {
     'w-clock':   {left:16,  top:8,   width:160, height:80,  show:true},
-    'w-today':   {left:188, top:8,   width:400, height:80,  show:true},
-    'w-weather': {left:600, top:8,   width:408, height:80,  show:true},
-    'w-meeting': {left:16,  top:100, width:680, height:455, show:true},
-    'w-hotlist': {left:708, top:100, width:300, height:220, show:true},
-    'w-tty':     {left:708, top:332, width:300, height:223, show:true},
-    'w-work':    {left:16,  top:185, width:494, height:165, show:false},
-    'w-life':    {left:522, top:185, width:486, height:165, show:false},
-    'w-cal':     {left:16,  top:362, width:494, height:195, show:false},
-    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
-    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+    'w-today':   {left:188, top:8,   width:410, height:80,  show:true},
+    'w-meeting': {left:16,  top:100, width:660, height:456, show:true},
+    'w-hotlist': {left:688, top:8,   width:320, height:220, show:true},
+    'w-tty':     {left:688, top:240, width:320, height:316, show:true},
+    'w-weather': h(), 'w-work': h(), 'w-life': h(), 'w-cal': h(),
+    'w-stats': h(), 'w-scratch': h(),
   },
+  // MEETING C: "Minimal" — meeting only, full screen
   'meeting-c': {
     'w-meeting': {left:16,  top:8,   width:992, height:548, show:true},
-    'w-clock':   {left:16,  top:8,   width:160, height:80,  show:false},
-    'w-today':   {left:188, top:8,   width:400, height:80,  show:false},
-    'w-weather': {left:600, top:8,   width:408, height:80,  show:false},
-    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
-    'w-work':    {left:16,  top:185, width:494, height:165, show:false},
-    'w-life':    {left:522, top:185, width:486, height:165, show:false},
-    'w-cal':     {left:16,  top:362, width:494, height:195, show:false},
-    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
-    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
-    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
+    'w-clock': h(), 'w-today': h(), 'w-weather': h(), 'w-hotlist': h(),
+    'w-work': h(), 'w-life': h(), 'w-cal': h(), 'w-tty': h(),
+    'w-stats': h(), 'w-scratch': h(),
   },
+
+  // NIGHT B: "Wind Down" — clock + life tasks + scratchpad
   'night-b': {
-    'w-clock':   {left:200, top:60,  width:624, height:220, show:true},
-    'w-weather': {left:200, top:290, width:624, height:100, show:true},
-    'w-life':    {left:200, top:400, width:624, height:155, show:true},
-    'w-work':    {left:16,  top:390, width:494, height:150, show:false},
-    'w-cal':     {left:16,  top:362, width:494, height:195, show:false},
-    'w-today':   {left:522, top:362, width:486, height:195, show:false},
-    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
-    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
-    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
-    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
-    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-clock':   {left:200, top:40,  width:624, height:200, show:true},
+    'w-life':    {left:16,  top:260, width:494, height:200, show:true},
+    'w-scratch': {left:522, top:260, width:486, height:200, show:true},
+    'w-weather': {left:200, top:472, width:624, height:84,  show:true},
+    'w-work': h(), 'w-cal': h(), 'w-today': h(), 'w-hotlist': h(),
+    'w-tty': h(), 'w-stats': h(), 'w-meeting': h(),
   },
+  // NIGHT C: "Clock Only" — just the clock, centered
   'night-c': {
-    'w-clock':   {left:312, top:150, width:400, height:160, show:true},
-    'w-weather': {left:312, top:320, width:400, height:80,  show:true},
-    'w-work':    {left:16,  top:390, width:494, height:150, show:false},
-    'w-life':    {left:522, top:390, width:486, height:150, show:false},
-    'w-cal':     {left:16,  top:362, width:494, height:195, show:false},
-    'w-today':   {left:522, top:362, width:486, height:195, show:false},
-    'w-hotlist': {left:258, top:8,   width:396, height:165, show:false},
-    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
-    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
-    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
-    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-clock':   {left:262, top:136, width:500, height:300, show:true},
+    'w-weather': h(), 'w-work': h(), 'w-life': h(), 'w-cal': h(),
+    'w-today': h(), 'w-hotlist': h(), 'w-tty': h(), 'w-stats': h(),
+    'w-scratch': h(), 'w-meeting': h(),
   },
+
+  // WEEKEND B: "Balanced" — life + work + today + weather (equal weight)
   'weekend-b': {
-    'w-clock':   {left:16,  top:8,   width:200, height:120, show:true},
-    'w-weather': {left:228, top:8,   width:390, height:120, show:true},
-    'w-today':   {left:630, top:8,   width:378, height:120, show:true},
-    'w-life':    {left:16,  top:140, width:496, height:210, show:true},
-    'w-cal':     {left:524, top:140, width:484, height:210, show:true},
-    'w-scratch': {left:16,  top:362, width:496, height:195, show:true},
-    'w-hotlist': {left:524, top:362, width:484, height:195, show:true},
-    'w-work':    {left:16,  top:185, width:494, height:165, show:false},
-    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
-    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
-    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-clock':   {left:16,  top:8,   width:200, height:110, show:true},
+    'w-weather': {left:228, top:8,   width:390, height:110, show:true},
+    'w-today':   {left:630, top:8,   width:378, height:110, show:true},
+    'w-life':    {left:16,  top:130, width:494, height:210, show:true},
+    'w-work':    {left:522, top:130, width:486, height:210, show:true},
+    'w-cal':     {left:16,  top:352, width:494, height:205, show:true},
+    'w-scratch': {left:522, top:352, width:486, height:205, show:true},
+    'w-hotlist': h(), 'w-tty': h(), 'w-stats': h(), 'w-meeting': h(),
   },
+  // WEEKEND C: "Minimal" — clock + life tasks + weather
   'weekend-c': {
-    'w-clock':   {left:16,  top:8,   width:160, height:100, show:true},
-    'w-weather': {left:188, top:8,   width:340, height:100, show:true},
-    'w-life':    {left:540, top:8,   width:468, height:200, show:true},
-    'w-scratch': {left:16,  top:120, width:512, height:200, show:true},
-    'w-cal':     {left:540, top:220, width:468, height:176, show:true},
-    'w-today':   {left:16,  top:332, width:512, height:224, show:true},
-    'w-hotlist': {left:540, top:408, width:468, height:148, show:true},
-    'w-work':    {left:16,  top:185, width:494, height:165, show:false},
-    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
-    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
-    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-clock':   {left:16,  top:8,   width:260, height:180, show:true},
+    'w-weather': {left:288, top:8,   width:720, height:180, show:true},
+    'w-life':    {left:16,  top:200, width:992, height:356, show:true},
+    'w-work': h(), 'w-cal': h(), 'w-today': h(), 'w-hotlist': h(),
+    'w-tty': h(), 'w-stats': h(), 'w-scratch': h(), 'w-meeting': h(),
   },
+
+  // FOCUS B: "Work + TTY" — work tasks and terminal side by side
   'focus-b': {
     'w-clock':   {left:16,  top:8,   width:160, height:80,  show:true},
-    'w-today':   {left:188, top:8,   width:300, height:80,  show:true},
-    'w-hotlist': {left:500, top:8,   width:508, height:80,  show:true},
-    'w-work':    {left:16,  top:100, width:992, height:455, show:true},
-    'w-weather': {left:218, top:8,   width:320, height:110, show:false},
-    'w-life':    {left:510, top:130, width:480, height:410, show:false},
-    'w-cal':     {left:16,  top:352, width:310, height:185, show:false},
-    'w-tty':     {left:340, top:352, width:310, height:185, show:false},
-    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
-    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
-    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-today':   {left:188, top:8,   width:468, height:80,  show:true},
+    'w-hotlist': {left:668, top:8,   width:340, height:80,  show:true},
+    'w-work':    {left:16,  top:100, width:494, height:456, show:true},
+    'w-tty':     {left:522, top:100, width:486, height:456, show:true},
+    'w-weather': h(), 'w-life': h(), 'w-cal': h(), 'w-stats': h(),
+    'w-scratch': h(), 'w-meeting': h(),
   },
+  // FOCUS C: "Tasks Only" — just work tasks, maximum space
   'focus-c': {
-    'w-clock':   {left:16,  top:8,   width:140, height:70,  show:true},
-    'w-work':    {left:16,  top:88,  width:620, height:468, show:true},
-    'w-hotlist': {left:648, top:8,   width:360, height:180, show:true},
-    'w-tty':     {left:648, top:200, width:360, height:356, show:true},
-    'w-today':   {left:168, top:8,   width:468, height:70,  show:true},
-    'w-weather': {left:218, top:8,   width:320, height:110, show:false},
-    'w-life':    {left:510, top:130, width:480, height:410, show:false},
-    'w-cal':     {left:16,  top:352, width:310, height:185, show:false},
-    'w-stats':   {left:522, top:130, width:336, height:155, show:false},
-    'w-scratch': {left:668, top:297, width:336, height:240, show:false},
-    'w-meeting': {left:16,  top:130, width:992, height:410, show:false},
+    'w-clock':   {left:16,  top:8,   width:160, height:70,  show:true},
+    'w-today':   {left:188, top:8,   width:820, height:70,  show:true},
+    'w-work':    {left:16,  top:90,  width:992, height:466, show:true},
+    'w-weather': h(), 'w-life': h(), 'w-hotlist': h(), 'w-cal': h(),
+    'w-tty': h(), 'w-stats': h(), 'w-scratch': h(), 'w-meeting': h(),
   },
 };
 
 let currentMode = 'work';
 let currentVariant = 'a';  // a=default, b=balanced, c=compact
 let selectedWidget = null;
-const SNAP_THRESHOLD = 8;
+const SNAP_THRESHOLD = 12;  // magnetic snap distance in px
 const CANVAS_W = 1024;
 const CANVAS_H = 572; // minus statusbar
 const MARGIN_L = 16, MARGIN_R = 16, MARGIN_T = 8, MARGIN_B = 8;
@@ -553,12 +538,14 @@ function switchPreset(v) {
 function renderPresetBar() {
   const bar = document.getElementById('presetBar');
   bar.innerHTML = '';
+  const mp = MODE_PRESETS[currentMode] || MODE_PRESETS.work;
   PRESET_KEYS.forEach((v, i) => {
     const btn = document.createElement('button');
     btn.className = 'mode-tab' + (v === currentVariant ? ' active' : '');
     btn.style.flex = '1';
     btn.style.fontSize = '7px';
-    btn.textContent = PRESET_LABELS[i];
+    btn.title = mp.descs[i] || '';
+    btn.textContent = mp.labels[i] || PRESET_KEYS[i].toUpperCase();
     btn.onclick = () => switchPreset(v);
     bar.appendChild(btn);
   });
