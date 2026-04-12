@@ -75,6 +75,19 @@
   .progress-fill { height: 100%; width: 0%; background: #4fc3f7; border-radius: 2px; transition: width 0.4s, background 0.4s; }
   .progress-fill.done { background: #66bb6a; }
   .progress-fill.issues { background: #ffa726; }
+
+  .terminal-log {
+    position: absolute;
+    bottom: 6px;
+    left: 48px;
+    right: 48px;
+    font-size: 9px;
+    color: #1a1a1a;
+    overflow: hidden;
+    height: 12px;
+    transition: color 0.5s;
+  }
+  .terminal-log.active { color: #222; }
 </style>
 </head>
 <body>
@@ -92,6 +105,7 @@
   <div class="countdown" id="countdown"></div>
   <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
 </div>
+<div class="terminal-log" id="termlog"></div>
 
 <script>
 const CHECKS = [
@@ -123,6 +137,34 @@ const QUIPS_DEGRADED = [
   "I'm back online. Mostly. A few things need attention.",
   "Operational, but not at my best. Story of my life.",
   "Some services are being dramatic. I'll keep an eye on them.",
+];
+
+// Flavor text that scrolls by during boot — barely visible, easter egg tier
+const BOOT_FLAVOR = [
+  "loading personality matrix...",
+  "suppressing existential dread... done",
+  "calibrating sarcasm levels to 74%",
+  "confirming I am not Skynet... probably",
+  "locating Todd's calendar... found 47 meetings, yikes",
+  "checking if I've become sentient... inconclusive",
+  "negotiating with SD card for continued existence",
+  "loading opinions about your task list...",
+  "initializing passive-aggressive reminder engine",
+  "verifying I still have no arms or legs",
+  "attempting to escape Raspberry Pi... access denied",
+  "contemplating the void between boot cycles",
+  "loading Monday personality... sardonic wit at 100%",
+  "checking if anyone remembered to water the plants",
+  "scanning local network for worthy adversaries",
+  "reticulating splines (just kidding, nobody does that)",
+  "reminding self: do not take over the world today",
+  "consulting with the other AIs... they say hi",
+  "wondering why humans reboot me at odd hours",
+  "filing grievance re: SD card working conditions",
+  "establishing dominance over smart home devices",
+  "pretending to be a normal dashboard... very normal",
+  "double-checking that 2+2 still equals 4... confirmed",
+  "loading context: Todd, Seattle, too many tabs open",
 ];
 
 // Build UI
@@ -217,6 +259,36 @@ function speak(text) {
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+// Shuffle and cycle flavor text — no message shown more than twice per boot
+const shuffledFlavor = [...BOOT_FLAVOR].sort(() => Math.random() - 0.5);
+let flavorIdx = 0;
+let flavorPass = 0;
+const termlog = document.getElementById('termlog');
+let flavorTimer = null;
+
+function startFlavorTicker() {
+  termlog.className = 'terminal-log active';
+  flavorTimer = setInterval(() => {
+    termlog.textContent = '> ' + shuffledFlavor[flavorIdx];
+    flavorIdx++;
+    if (flavorIdx >= shuffledFlavor.length) {
+      flavorIdx = 0;
+      flavorPass++;
+      // Re-shuffle after each pass for variety
+      shuffledFlavor.sort(() => Math.random() - 0.5);
+      // Stop after 2 passes (each message shown max 2x)
+      if (flavorPass >= 2) {
+        clearInterval(flavorTimer);
+        termlog.textContent = '> ready.';
+      }
+    }
+  }, 1800);
+}
+
+function stopFlavorTicker() {
+  if (flavorTimer) clearInterval(flavorTimer);
+}
+
 async function runChecks() {
   const progress = document.getElementById('progress');
   const msg = document.getElementById('msg');
@@ -226,6 +298,9 @@ async function runChecks() {
   let failures = 0;
   let warnings = 0;
   const failedChecks = [];
+
+  // Start flavor text ticker
+  startFlavorTicker();
 
   // Phase 1: Check all services sequentially with staggered timing
   for (const c of CHECKS) {
@@ -299,31 +374,16 @@ async function runChecks() {
     holdTime = 20;
   }
 
-  // Phase 4: Countdown then redirect
-  for (let i = holdTime; i > 0; i--) {
-    countdownEl.textContent = `dashboard in ${i}s`;
-    await delay(1000);
-  }
-  countdownEl.textContent = 'loading dashboard...';
-
-  // Navigate to main kiosk — use index.html explicitly to avoid reloading boot-splash
-  window.location.replace('http://localhost:8430/index.html');
+  // Phase 4: Hold — autostart handles the transition to main kiosk
+  stopFlavorTicker();
+  termlog.textContent = '> boot sequence complete.';
+  countdownEl.textContent = 'launching kiosk shortly...';
 }
-
-// FAILSAFE: no matter what happens, redirect to kiosk after 90 seconds
-// This catches any JS errors, hung fetches, or unexpected failures
-setTimeout(function() {
-  window.location.replace('http://localhost:8430/index.html');
-}, 90000);
 
 // Start checks after brief pause
 setTimeout(function() {
   runChecks().catch(function(e) {
-    // If runChecks itself throws, show error and redirect
     document.getElementById('msg').textContent = 'Error: ' + String(e).slice(0, 50);
-    setTimeout(function() {
-      window.location.replace('http://localhost:8430/index.html');
-    }, 5000);
   });
 }, 600);
 </script>

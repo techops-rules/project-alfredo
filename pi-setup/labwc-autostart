@@ -1,34 +1,50 @@
 #!/bin/sh
 # Alfredo kiosk autostart — launched by labwc on login
 # Installed to: ~/.config/labwc/autostart
+# Flow: boot-splash (timed) → kill chromium → relaunch on main kiosk
+
+LOGFILE="/tmp/alfredo-autostart.log"
+echo "$(date) autostart begin" > "$LOGFILE"
 
 # Set Alfredo desktop wallpaper via pcmanfm (Pi OS desktop manager)
 if command -v pcmanfm >/dev/null 2>&1 && [ -f ~/alfredo-kiosk/wallpaper.png ]; then
     pcmanfm --set-wallpaper="$HOME/alfredo-kiosk/wallpaper.png" --wallpaper-mode=stretch 2>/dev/null &
 fi
 
-# Wait for kiosk web server to be ready
-for i in 1 2 3 4 5 6 7 8 9 10; do
-    curl -sf --max-time 2 http://localhost:8430/ >/dev/null 2>&1 && break
-    sleep 2
+# Chromium launch helper
+launch_chromium() {
+    chromium \
+        --kiosk \
+        --ozone-platform=wayland \
+        --noerrdialogs \
+        --no-first-run \
+        --disable-infobars \
+        --disable-session-crashed-bubble \
+        --start-fullscreen \
+        --password-store=basic \
+        --autoplay-policy=no-user-gesture-required \
+        "$1" &>/dev/null &
+}
+
+# Wait for kiosk web server (fast poll)
+for i in $(seq 1 15); do
+    curl -sf --max-time 1 http://localhost:8430/ >/dev/null 2>&1 && break
+    sleep 1
 done
 
-# Start URL: boot splash if available, otherwise main kiosk
-# Boot splash checks all services, shows status, then redirects to main kiosk
-START_URL="http://localhost:8430/"
+# Phase 1: Show boot splash (if available)
 if curl -sf --max-time 2 http://localhost:8430/boot-splash.html >/dev/null 2>&1; then
-    START_URL="http://localhost:8430/boot-splash.html"
+    echo "$(date) launching boot-splash" >> "$LOGFILE"
+    launch_chromium "http://localhost:8430/boot-splash.html"
+    # Let it run for 20 seconds (shows service checks + quip)
+    sleep 20
+    # Kill boot-splash chromium
+    pkill -f chromium 2>/dev/null
+    sleep 1
+    echo "$(date) boot-splash done, switching to kiosk" >> "$LOGFILE"
 fi
 
-# Launch Chromium in kiosk mode
-chromium \
-    --kiosk \
-    --ozone-platform=wayland \
-    --noerrdialogs \
-    --no-first-run \
-    --disable-infobars \
-    --disable-session-crashed-bubble \
-    --start-fullscreen \
-    --password-store=basic \
-    --autoplay-policy=no-user-gesture-required \
-    "$START_URL" &
+# Phase 2: Launch main kiosk
+echo "$(date) launching main kiosk" >> "$LOGFILE"
+launch_chromium "http://localhost:8430/"
+echo "$(date) autostart complete" >> "$LOGFILE"
