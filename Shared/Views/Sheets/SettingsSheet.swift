@@ -366,7 +366,7 @@ struct SettingsSheet: View {
 
     private var borderPreviewRow: some View {
         let bc = theme.borderChars
-        let inner = "  alfredo v0.42  "
+        let inner = "  alfredo v0.51  "
         let w = inner.count
         let top = bc.tl + String(repeating: bc.h, count: w) + bc.tr
         let mid = bc.v + inner + bc.v

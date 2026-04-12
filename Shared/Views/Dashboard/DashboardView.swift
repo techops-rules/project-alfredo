@@ -62,12 +62,6 @@ struct DashboardView: View {
     @State private var minimapVisible = false
     @State private var minimapHideTask: Task<Void, Never>?
 
-    #if os(iOS)
-    private let worldSize = CGSize(width: 800, height: 1600)
-    #else
-    private let worldSize = CGSize(width: 2800, height: 1200)
-    #endif
-
     // Platform-specific edit mode: macOS always allows drag/resize, iOS requires edit mode
     private var widgetsEditable: Bool {
         #if os(iOS)
@@ -75,6 +69,33 @@ struct DashboardView: View {
         #else
         return true
         #endif
+    }
+
+    private var worldSize: CGSize {
+        #if os(iOS)
+        return iOSWorldSize
+        #else
+        return CGSize(width: 2800, height: 1200)
+        #endif
+    }
+
+    private var appContextLabel: String {
+        switch appContext {
+        case .workFocus: return "Work"
+        case .night: return "Night"
+        case .weekend: return "Weekend"
+        case .personal: return "Personal"
+        }
+    }
+
+    private var chromeSummary: String? {
+        if let current = whatNext.currentTask {
+            return "NOW // \(current.text)"
+        }
+        if let next = whatNext.suggestNext(from: taskBoard.todayTasks) {
+            return "NEXT // \(next.text)"
+        }
+        return nil
     }
 
     var body: some View {
@@ -87,7 +108,13 @@ struct DashboardView: View {
                 VStack(spacing: 0) {
                     // Top chrome (fixed)
                     #if os(iOS)
-                    iOSTopChrome(onHamburger: { showSettingsSheet = true })
+                    iOSTopChrome(
+                        modeLabel: appContextLabel,
+                        summary: chromeSummary,
+                        isEditMode: isEditMode,
+                        onSync: { syncAll() },
+                        onHamburger: { showSettingsSheet = true }
+                    )
                     #else
                     BreadcrumbBar(
                         engine: whatNext,
@@ -99,7 +126,11 @@ struct DashboardView: View {
 
                     // Canvas with zoom
                     ZStack {
-                        InfiniteCanvas(worldSize: worldSize, offset: $canvasOffset) {
+                        InfiniteCanvas(
+                            worldSize: worldSize,
+                            offset: $canvasOffset,
+                            isPanningEnabled: !isEditMode
+                        ) {
                             ZStack(alignment: .topLeading) {
                                 canvasWidgets
                             }
@@ -125,11 +156,14 @@ struct DashboardView: View {
                     .gesture(
                         MagnificationGesture()
                             .onChanged { scale in
+                                guard !isEditMode else { return }
                                 canvasScale = min(max(baseScale * scale, 0.5), 2.0)
                             }
                             .onEnded { _ in
+                                guard !isEditMode else { return }
                                 baseScale = canvasScale
                             }
+                    , including: isEditMode ? .subviews : .gesture
                     )
                     .simultaneousGesture(
                         LongPressGesture(minimumDuration: 0.5)
@@ -677,6 +711,11 @@ struct DashboardView: View {
     /// Positions are computed dynamically by iOSFlowLayout, skipping hidden widgets.
     private enum WidgetWidth { case full, halfLeft, halfRight }
     private typealias WidgetSlot = (id: String, width: WidgetWidth, height: CGFloat)
+    private let iosFullWidth: CGFloat = 375
+    private let iosHalfWidth: CGFloat = 182
+    private let iosFlowGap: CGFloat = 11
+    private let iosFlowSpacing: CGFloat = 5
+    private let iosScreen2OriginX: CGFloat = 395
 
     private var screen1Slots: [WidgetSlot] {
         #if os(iOS)
@@ -757,20 +796,40 @@ struct DashboardView: View {
         #endif
     }
 
-    private func iOSDefaultLayout(_ widgetId: String) -> WidgetLayoutState {
-        let fw: CGFloat = 375
-        let hw: CGFloat = 182
-        let gap: CGFloat = 11
-        let spacing: CGFloat = 5
-        let s2: CGFloat = 395
+    private var iOSWorldSize: CGSize {
+        let screen1Extent = flowExtent(for: screen1Slots, xBase: 0)
+        let screen2Extent = flowExtent(for: screen2Slots, xBase: iosScreen2OriginX)
 
+        return CGSize(
+            width: max(iosScreen2OriginX + iosFullWidth + 28, max(screen1Extent.width, screen2Extent.width) + 20),
+            height: max(1100, max(screen1Extent.height, screen2Extent.height) + 56)
+        )
+    }
+
+    private func iOSDefaultLayout(_ widgetId: String) -> WidgetLayoutState {
         // Flow screen 1
-        if let result = flowPosition(for: widgetId, in: screen1Slots, xBase: 0, fw: fw, hw: hw, gap: gap, spacing: spacing) {
+        if let result = flowPosition(
+            for: widgetId,
+            in: screen1Slots,
+            xBase: 0,
+            fw: iosFullWidth,
+            hw: iosHalfWidth,
+            gap: iosFlowGap,
+            spacing: iosFlowSpacing
+        ) {
             return result
         }
 
         // Flow screen 2
-        if let result = flowPosition(for: widgetId, in: screen2Slots, xBase: s2, fw: fw, hw: hw, gap: gap, spacing: spacing) {
+        if let result = flowPosition(
+            for: widgetId,
+            in: screen2Slots,
+            xBase: iosScreen2OriginX,
+            fw: iosFullWidth,
+            hw: iosHalfWidth,
+            gap: iosFlowGap,
+            spacing: iosFlowSpacing
+        ) {
             return result
         }
 
@@ -828,6 +887,46 @@ struct DashboardView: View {
         }
 
         return nil
+    }
+
+    private func flowExtent(for slots: [WidgetSlot], xBase: CGFloat) -> CGSize {
+        var y: CGFloat = 0
+        var maxX = xBase
+        var i = 0
+
+        while i < slots.count {
+            let slot = slots[i]
+
+            if slot.width == .halfLeft && i + 1 < slots.count && slots[i + 1].width == .halfRight {
+                let leftSlot = slot
+                let rightSlot = slots[i + 1]
+                let leftVisible = isWidgetVisibleForFlow(leftSlot.id)
+                let rightVisible = isWidgetVisibleForFlow(rightSlot.id)
+                let pairHeight = max(leftSlot.height, rightSlot.height)
+
+                if leftVisible || rightVisible {
+                    if leftVisible {
+                        maxX = max(maxX, xBase + iosHalfWidth)
+                    }
+                    if rightVisible {
+                        maxX = max(maxX, xBase + iosHalfWidth + iosFlowGap + iosHalfWidth)
+                    }
+                    y += pairHeight + iosFlowSpacing
+                }
+                i += 2
+                continue
+            }
+
+            if isWidgetVisibleForFlow(slot.id) {
+                let width = slot.width == .full ? iosFullWidth : iosHalfWidth
+                let x = slot.width == .halfRight ? xBase + iosHalfWidth + iosFlowGap : xBase
+                maxX = max(maxX, x + width)
+                y += slot.height + iosFlowSpacing
+            }
+            i += 1
+        }
+
+        return CGSize(width: maxX, height: max(0, y - iosFlowSpacing))
     }
 
     private func isWidgetVisibleForFlow(_ id: String) -> Bool {

@@ -3,6 +3,7 @@ import SwiftUI
 struct InfiniteCanvas<Content: View>: View {
     let worldSize: CGSize
     @Binding var offset: CGPoint
+    var isPanningEnabled: Bool = true
     @ViewBuilder let content: () -> Content
 
     @State private var dragStartOffset: CGPoint = .zero
@@ -51,7 +52,6 @@ struct InfiniteCanvas<Content: View>: View {
             // NOTE: .drawingGroup() removed — it rasterizes NSViewRepresentable
             // text fields (TerminalTextField) into a Metal texture, which captures
             // the macOS Secure Input overlay (yellow 🚫) on unsigned debug builds.
-            #if os(iOS)
             .gesture(
                 DragGesture(minimumDistance: 5)
                     .onChanged { value in
@@ -60,18 +60,7 @@ struct InfiniteCanvas<Content: View>: View {
                     .onEnded { value in
                         handleDragEnded(value, viewportSize: viewportSize)
                     }
-            )
-            #else
-            .gesture(
-                DragGesture(minimumDistance: 5)
-                    .onChanged { value in
-                        handleDragChanged(value, edges: edges)
-                    }
-                    .onEnded { value in
-                        handleDragEnded(value, viewportSize: viewportSize)
-                    }
-            )
-            #endif
+            , including: isPanningEnabled ? .gesture : .subviews)
         }
     }
 

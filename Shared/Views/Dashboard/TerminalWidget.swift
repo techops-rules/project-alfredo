@@ -154,6 +154,7 @@ final class TerminalSession: ObservableObject {
     private let wsSession = WebSocketSession()
     private var useWebSocket = false
     private var useAgentMode = true
+    private var voiceObserver: Any?
 
     var statusBadge: String? {
         if isLoading { return "..." }
@@ -249,11 +250,46 @@ final class TerminalSession: ObservableObject {
             }
         }
 
+        // Listen for voice events from VoiceEventService
+        voiceObserver = NotificationCenter.default.addObserver(
+            forName: .voiceEvent, object: nil, queue: .main
+        ) { [weak self] notif in
+            guard let event = notif.userInfo?["event"] as? VoiceEventService.VoiceEvent else { return }
+            Task { @MainActor in
+                self?.handleVoiceEvent(event)
+            }
+        }
+
         // Try WebSocket connection after a brief delay
         Task {
             try? await Task.sleep(for: .seconds(1))
             attemptWebSocket()
         }
+    }
+
+    nonisolated func cleanup() {
+        // Called externally if needed; observers are cleaned up automatically
+    }
+
+    // MARK: - Voice Events
+
+    private func handleVoiceEvent(_ event: VoiceEventService.VoiceEvent) {
+        switch event.type {
+        case "wake":
+            lines.append(.system("🎙 \(event.text)"))
+        case "listening":
+            lines.append(.system("🎙 listening..."))
+        case "command":
+            lines.append(.user(event.text))
+        case "reply":
+            let replyText = event.reply.isEmpty ? event.text : event.reply
+            lines.append(.response(replyText))
+        case "idle":
+            lines.append(.system("🎙 \(event.text)"))
+        default:
+            break
+        }
+        saveCache()
     }
 
     // MARK: - WebSocket

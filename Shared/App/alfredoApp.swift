@@ -40,6 +40,7 @@ struct alfredoApp: App {
     #endif
     private let updateService = UpdateService.shared
     private let briefingScheduler = BriefingScheduler.shared
+    private let voiceEventService = VoiceEventService.shared
 
     var body: some Scene {
         #if os(macOS)
@@ -49,6 +50,7 @@ struct alfredoApp: App {
                     menuBarManager.setup()
                     // updateService.startChecking()
                     briefingScheduler.start()
+                    voiceEventService.start()
                 }
         }
         .windowStyle(.titleBar)
@@ -61,6 +63,7 @@ struct alfredoApp: App {
                 .onAppear {
                     // updateService.startChecking()
                     briefingScheduler.start()
+                    voiceEventService.start()
                 }
         }
         #endif
