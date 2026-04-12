@@ -5,6 +5,7 @@ struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var onOpenTerminal: (() -> Void)? = nil
+    var onOpenDirectMode: (() -> Void)? = nil
     var onToggleWidget: ((WidgetID) -> Void)? = nil
     var widgetVisibility: WidgetVisibility = WidgetVisibility()
 
@@ -35,15 +36,27 @@ struct SettingsSheet: View {
                 VStack(alignment: .leading, spacing: 0) {
 
                     // MARK: - Terminal
-                    if let onOpenTerminal {
+                    if onOpenTerminal != nil || onOpenDirectMode != nil {
                         sectionHeader("QUICK LAUNCH")
-                        largeButton(
-                            icon: "terminal",
-                            label: "Open Terminal",
-                            sublabel: ">_ CLAUDE.TTY"
-                        ) {
-                            onOpenTerminal()
-                            dismiss()
+                        if let onOpenDirectMode {
+                            largeButton(
+                                icon: "waveform.circle",
+                                label: "Talk to Alfredo",
+                                sublabel: "DIRECT MODE"
+                            ) {
+                                onOpenDirectMode()
+                                dismiss()
+                            }
+                        }
+                        if let onOpenTerminal {
+                            largeButton(
+                                icon: "terminal",
+                                label: "Open Terminal",
+                                sublabel: ">_ CLAUDE.TTY"
+                            ) {
+                                onOpenTerminal()
+                                dismiss()
+                            }
                         }
                         sectionDivider
                     }
@@ -167,6 +180,13 @@ struct SettingsSheet: View {
                         .padding(.bottom, 16)
                         sectionDivider
                     }
+
+                    // MARK: - Layout Preset
+                    sectionHeader("LAYOUT")
+                    layoutPresetSection
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 16)
+                    sectionDivider
 
                     // MARK: - Preview
                     sectionHeader("PREVIEW")
@@ -325,6 +345,136 @@ struct SettingsSheet: View {
             .padding(.horizontal, 20)
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Layout Presets
+
+    private var layoutPresetSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            #if os(iOS)
+            Text("iPhone layout preset — controls widget order and sizing on both screens")
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(ThemeManager.textSecondary)
+
+            let presets: [(String, String, String)] = [
+                ("DASHBOARD", "dashboard", "Balanced view: weather, hotlist, calendar, tasks across two screens"),
+                ("FOCUS", "focus", "Deep work: large task list, minimal distractions, calendar below"),
+                ("MINIMAL", "minimal", "Essential only: clock, hotlist, weather. Hide everything else"),
+                ("CUSTOM", "custom", "Your arrangement — toggle widgets above, adjust to taste"),
+            ]
+            #else
+            Text("Mac layout preset — sets widget positions on the canvas")
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(ThemeManager.textSecondary)
+
+            let presets: [(String, String, String)] = [
+                ("COMMAND", "command", "Mission control: all widgets visible, organized by zone"),
+                ("FOCUS", "focus", "Work tasks + terminal prominent, secondary widgets compact"),
+                ("CLEAN", "clean", "Key widgets only: tasks, calendar, weather. Large and readable"),
+                ("CUSTOM", "custom", "Drag and resize freely — your positions persist to iCloud"),
+            ]
+            #endif
+
+            ForEach(presets, id: \.1) { (label, key, desc) in
+                presetRow(label: label, key: key, description: desc)
+            }
+        }
+    }
+
+    @AppStorage("layout.preset") private var currentPreset: String = "dashboard"
+
+    private func presetRow(label: String, key: String, description: String) -> some View {
+        Button {
+            currentPreset = key
+            applyLayoutPreset(key)
+        } label: {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(currentPreset == key ? theme.accentFull : ThemeManager.textSecondary.opacity(0.2))
+                    .frame(width: 8, height: 8)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundColor(currentPreset == key ? ThemeManager.textEmphasis : ThemeManager.textSecondary)
+                        .tracking(1)
+                    Text(description)
+                        .font(.system(size: 8, design: .monospaced))
+                        .foregroundColor(ThemeManager.textSecondary.opacity(0.6))
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                if currentPreset == key {
+                    Text("ACTIVE")
+                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                        .foregroundColor(theme.accentFull)
+                        .tracking(1)
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(currentPreset == key ? theme.accentFull.opacity(0.05) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func applyLayoutPreset(_ key: String) {
+        #if os(iOS)
+        // iOS presets control widget visibility — the flow layout handles positioning
+        switch key {
+        case "dashboard":
+            // Show all primary widgets
+            setVisibility(show: [.weather, .hotlist, .calendar, .workTasks, .lifeTasks, .habits, .projects, .goals, .todayBar, .stats])
+            setVisibility(hide: [.terminal, .scratchpad, .deferredTasks, .waitingTasks, .longTermTasks])
+        case "focus":
+            // Work tasks prominent, minimal distractions
+            setVisibility(show: [.weather, .workTasks, .calendar, .hotlist, .todayBar])
+            setVisibility(hide: [.lifeTasks, .habits, .projects, .goals, .stats, .terminal, .scratchpad, .deferredTasks, .waitingTasks, .longTermTasks])
+        case "minimal":
+            // Just the essentials
+            setVisibility(show: [.weather, .hotlist, .todayBar])
+            setVisibility(hide: [.workTasks, .lifeTasks, .habits, .calendar, .projects, .goals, .stats, .terminal, .scratchpad, .deferredTasks, .waitingTasks, .longTermTasks])
+        case "custom":
+            break // user controls visibility manually
+        default:
+            break
+        }
+        #else
+        // macOS presets set widget visibility — positions are free-form
+        switch key {
+        case "command":
+            setVisibility(show: WidgetID.allCases)
+        case "focus":
+            setVisibility(show: [.workTasks, .terminal, .calendar, .hotlist, .weather, .todayBar, .clock])
+            setVisibility(hide: [.lifeTasks, .habits, .projects, .goals, .stats, .scratchpad, .deferredTasks, .waitingTasks, .longTermTasks, .funFact])
+        case "clean":
+            setVisibility(show: [.workTasks, .lifeTasks, .calendar, .weather, .todayBar, .clock])
+            setVisibility(hide: [.habits, .projects, .goals, .stats, .terminal, .scratchpad, .hotlist, .deferredTasks, .waitingTasks, .longTermTasks, .funFact])
+        case "custom":
+            break
+        default:
+            break
+        }
+        #endif
+    }
+
+    private func setVisibility(show widgets: [WidgetID]) {
+        for w in widgets {
+            if !widgetVisibility.isVisible(w) {
+                onToggleWidget?(w)
+            }
+        }
+    }
+
+    private func setVisibility(hide widgets: [WidgetID]) {
+        for w in widgets {
+            if widgetVisibility.isVisible(w) {
+                onToggleWidget?(w)
+            }
+        }
     }
 
     // MARK: - Chip button
