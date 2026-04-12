@@ -10,12 +10,22 @@
   - added kiosk widget size classes and surfaced ALFREDO.TTY in work mode
   - turned the kiosk terminal into a live status/voice feed
   - validated native builds with no-signing macOS + iOS simulator builds
+- Codex patched the remaining kiosk mic handoff gap on 2026-04-12:
+  - `alfredo-wake.py` now transcribes recorded speech with local Whisper before calling the bridge
+  - voice requests now hit `alfredo-bridge` `/chat` with `mode: "agent"`
+  - kiosk/native voice events now show the actual spoken transcript instead of a placeholder
+- Codex landed Direct Mode Slice 1 on 2026-04-12:
+  - new `DirectModeSessionService`, `DirectModeContextService`, and `DirectModeSheet`
+  - explicit "Talk to Alfredo" entry points on iOS/macOS
+  - kiosk direct-session start/stop, timeout, history, and context snapshot plumbing
+  - direct turns are read-only and use schedule/task/project/memory context
 
 ## Open Threads
 - Voice path: ROADOM mic / wake listener -> kiosk voice event queue -> kiosk overlay + native polling -> Alfredo/Codex agent handoff.
 - Cross-surface UX plan is approved and waiting behind the current voice integration batch.
 - Real native-to-kiosk sync is still a major follow-up after the voice path settles.
 - Current UI pass compiles; remaining work is product refinement, not syntax rescue.
+- Direct Mode Slice 2 is still open: reminder/task capture, fuzzy-time resolution, optional Apple Reminders escalation, and location/travel timing.
 
 ## Parked
 - `WebSocketSession` cleanup race
@@ -35,10 +45,12 @@
   - `v0.50.x`: real kiosk sync, helpfulness upgrades, deploy/boot polish
 - The kiosk mic should ultimately talk to a Codex agent using instructions Todd will provide.
 - Note upkeep is part of Definition of Done for each focused work batch.
+- `docs/SESSION-START.md` is now the one-file fresh-session entry point. If Todd says `Let's work on Project Alfredo`, treat that as the cue to run the standard startup checks before editing.
 
 ## Next Step
 - When work resumes, check the current build outcome first.
 - If the UI pass compiles cleanly, continue with:
+  - live Pi validation of the new Whisper -> direct-mode voice path
+  - Direct Mode Slice 2 capture/actions
   - kiosk task/calendar sync
   - richer Pi terminal content
-  - follow-up widget density polish on native and kiosk

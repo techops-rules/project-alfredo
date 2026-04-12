@@ -726,6 +726,26 @@ function saveData(key,val){localStorage.setItem(key,JSON.stringify(val));}
 let workTasks=loadData('workTasks',[]);
 let lifeTasks=loadData('lifeTasks',[{text:'Set up Pi screen',done:true},{text:'Organize desk cables',done:false}]);
 let scratchLines=loadData('scratch',['// jot things here']);
+let currentCalendarEvents = [];
+let _directContextSyncTimer = null;
+
+function queueDirectContextSync(){
+  clearTimeout(_directContextSyncTimer);
+  _directContextSyncTimer = setTimeout(syncDirectContext, 250);
+}
+
+function syncDirectContext(){
+  fetch('/proxy/direct-context', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      workTasks,
+      lifeTasks,
+      scratch: scratchLines,
+      calendar: currentCalendarEvents
+    })
+  }).catch(()=>{});
+}
 
 // ── Claude-suggested work tasks ─────────────────────────────
 // Fetch if bridge is up; fall back to localStorage. Retries on reconnect.
@@ -777,8 +797,9 @@ function renderTasks(cid,bid,tasks,key){
   // Blank dot always at bottom for adding new items
   const blank=document.createElement('div'); blank.className='task-blank';
   blank.innerHTML='<div class="task-dot"></div><span class="task-text">add item...</span>';
-  blank.addEventListener('click',()=>openModal('ADD TO '+(key==='workTasks'?'WORK.TODO':'LIFE.TODO'),val=>{if(val){tasks.push({text:val,done:false});saveData(key,tasks);renderTasks(cid,bid,tasks,key);updateTodayBar();}}));
+  blank.addEventListener('click',()=>openModal('ADD TO '+(key==='workTasks'?'WORK.TODO':'LIFE.TODO'),val=>{if(val){tasks.push({text:val,done:false});saveData(key,tasks);renderTasks(cid,bid,tasks,key);updateTodayBar();queueDirectContextSync();}}));
   el.appendChild(blank);
+  queueDirectContextSync();
 }
 renderTasks('workTasks','workBadge',workTasks,'workTasks');
 renderTasks('lifeTasks','lifeBadge',lifeTasks,'lifeTasks');
@@ -853,8 +874,10 @@ function renderCalEvent(e,now){
 }
 function renderCalendar(events){
   const el=document.getElementById('calendarBody');
+  currentCalendarEvents = events || [];
   if(!events||!events.length){
     el.innerHTML='<div class="cal-event"><span class="cal-time">--</span><div class="cal-bar"></div><span class="cal-title dim">no events today</span></div>';
+    queueDirectContextSync();
     return;
   }
   const now=new Date(), todayStr=now.toLocaleDateString('sv'); // YYYY-MM-DD in local timezone
@@ -879,6 +902,7 @@ function renderCalendar(events){
   const meetings=today.filter(e=>!e.isAllDay);
   const pastMeetings=meetings.filter(e=>new Date(e.endTime)<=now).length;
   renderDots('dotsMeetings',meetings.length,pastMeetings);
+  queueDirectContextSync();
 }
 function escHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function fetchCalendar(){
@@ -1194,8 +1218,9 @@ function renderScratch(){
   scratchLines.forEach(l=>{const d=document.createElement('div');d.className='scratch-line';d.textContent=l;el.appendChild(d);});
   const add=document.createElement('div'); add.className='scratch-add';
   add.innerHTML='<span>+ add note...</span>';
-  add.addEventListener('click',()=>openModal('ADD TO SCRATCH.PAD',val=>{if(val){scratchLines.push(val);saveData('scratch',scratchLines);renderScratch();}}));
+  add.addEventListener('click',()=>openModal('ADD TO SCRATCH.PAD',val=>{if(val){scratchLines.push(val);saveData('scratch',scratchLines);renderScratch();queueDirectContextSync();}}));
   el.appendChild(add);
+  queueDirectContextSync();
 }
 renderScratch();
 
@@ -1915,6 +1940,7 @@ if(savedAccent) applyAccent(savedAccent);
 let _voiceSince = Date.now() / 1000;
 let _voiceToastTimer = null;
 let _voiceState = 'idle'; // idle, wake, listening, thinking, reply, dismissed
+let _voiceMode = 'voice';
 const voiceToast = document.getElementById('voiceToast');
 const vtLabel = document.getElementById('vtLabel');
 const vtText = document.getElementById('vtText');
@@ -1932,6 +1958,10 @@ function setVoiceState(state) {
   } else {
     voiceBtn.classList.add('active');
   }
+}
+
+function voiceLabel(base) {
+  return _voiceMode === 'direct' ? 'DIRECT MODE' : base;
 }
 
 function showVoiceToast(label, text, cssClass, duration) {
@@ -1962,35 +1992,41 @@ async function pollVoiceEvents() {
     if (d.events && d.events.length > 0) {
       for (const ev of d.events) {
         _voiceSince = Math.max(_voiceSince, ev.timestamp + 0.001);
+        _voiceMode = ev.mode || 'voice';
         switch (ev.type) {
           case 'wake':
             setVoiceState('wake');
-            showVoiceToast('ALFREDO', ev.text || 'Wake word detected', '', 0); // no auto-dismiss
-            pushTermLine(ev.text || 'wake word detected', 'sys');
+            showVoiceToast(voiceLabel('ALFREDO'), ev.text || 'Wake word detected', '', 0); // no auto-dismiss
+            pushTermLine((_voiceMode === 'direct' ? 'direct // ' : '') + (ev.text || 'wake word detected'), 'sys');
             break;
           case 'listening':
             setVoiceState('listening');
-            showVoiceToast('LISTENING', '<span class="vt-dots"></span>', 'listening', 0);
-            pushTermLine('listening for command', 'sys');
+            showVoiceToast(voiceLabel('LISTENING'), '<span class="vt-dots"></span>', 'listening', 0);
+            pushTermLine((_voiceMode === 'direct' ? 'direct // ' : '') + 'listening for command', 'sys');
             break;
           case 'command':
             setVoiceState('thinking');
-            showVoiceToast('THINKING', '<span class="vt-dots"></span>', 'thinking', 0);
+            showVoiceToast(voiceLabel('THINKING'), '<span class="vt-dots"></span>', 'thinking', 0);
             pushTermLine('> ' + (ev.text || 'voice command'), 'user');
             break;
           case 'reply':
             setVoiceState('reply');
-            showVoiceToast('ALFREDO', ev.reply || ev.text || '...', '', 10000);
+            showVoiceToast(voiceLabel('ALFREDO'), ev.reply || ev.text || '...', '', 10000);
             pushTermLine(ev.reply || ev.text || '...', 'reply');
+            break;
+          case 'session':
+            setVoiceState('listening');
+            showVoiceToast(voiceLabel('ALFREDO'), ev.text || 'direct mode active', '', 4000);
+            pushTermLine(ev.text || 'direct mode active', 'good');
             break;
           case 'idle':
             setVoiceState('idle');
-            showVoiceToast('ALFREDO', ev.text || '...', '', 5000);
+            showVoiceToast(voiceLabel('ALFREDO'), ev.text || '...', '', 5000);
             pushTermLine(ev.text || 'idle', 'sys');
             break;
           case 'dismissed':
             dismissVoice();
-            showVoiceToast('ALFREDO', ev.text || 'fine, shutting up.', 'dismissed', 3000);
+            showVoiceToast(voiceLabel('ALFREDO'), ev.text || 'fine, shutting up.', 'dismissed', 3000);
             pushTermLine(ev.text || 'dismissed', 'warn');
             break;
         }
@@ -2034,6 +2070,7 @@ muteBtn.addEventListener('click', async () => {
 
 // Check initial mute state
 fetch('/proxy/voice-mute').then(r=>r.json()).then(d=>updateMuteUI(d.muted)).catch(()=>{});
+queueDirectContextSync();
 
 document.getElementById('voiceBtn').addEventListener('click', () => {
   if (_voiceMuted) {

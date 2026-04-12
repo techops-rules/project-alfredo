@@ -5,6 +5,7 @@ struct AlfredoInputBar: View {
     @Environment(\.theme) private var theme
     @StateObject private var session = TerminalSession()
     @State private var showSheet = false
+    @State private var showDirectModeSheet = false
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
@@ -40,6 +41,15 @@ struct AlfredoInputBar: View {
                     .fill(session.statusColor)
                     .frame(width: 6, height: 6)
 
+                Button {
+                    showDirectModeSheet = true
+                } label: {
+                    Image(systemName: "waveform.circle")
+                        .font(.system(size: 13))
+                        .foregroundColor(theme.accentFull)
+                }
+                .buttonStyle(.plain)
+
                 // Expand button
                 Button {
                     showSheet = true
@@ -57,6 +67,12 @@ struct AlfredoInputBar: View {
         }
         .sheet(isPresented: $showSheet) {
             AlfredoFullView(session: session)
+                .environment(\.theme, ThemeManager.shared)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showDirectModeSheet) {
+            DirectModeSheet(session: DirectModeSessionService.shared, surface: .iOS)
                 .environment(\.theme, ThemeManager.shared)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)

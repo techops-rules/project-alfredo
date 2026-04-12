@@ -9,6 +9,12 @@
 /* Begin PBXBuildFile section */
 		7F27865AF4A7D51AE90BE760 /* BriefingScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D2A58DA276CD04F5792A1C0 /* BriefingScheduler.swift */; };
 		6F20367A606DE715DD3555C2 /* BriefingScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D2A58DA276CD04F5792A1C0 /* BriefingScheduler.swift */; };
+		DD11000100000001DMCT0001 /* DirectModeContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11000100000000DMCT0000 /* DirectModeContextService.swift */; };
+		DD11000100000002DMCT0002 /* DirectModeContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11000100000000DMCT0000 /* DirectModeContextService.swift */; };
+		DD11000200000001DMSS0001 /* DirectModeSessionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11000200000000DMSS0000 /* DirectModeSessionService.swift */; };
+		DD11000200000002DMSS0002 /* DirectModeSessionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11000200000000DMSS0000 /* DirectModeSessionService.swift */; };
+		DD11000300000001DMDS0001 /* DirectModeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11000300000000DMDS0000 /* DirectModeSheet.swift */; };
+		DD11000300000002DMDS0002 /* DirectModeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11000300000000DMDS0000 /* DirectModeSheet.swift */; };
 		0598A547F59353E26F61C67B /* Habit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FAEFAFA2ABFADCFC5FEEA1B /* Habit.swift */; };
 		0914F7B659D82CEBAD1BAC2C /* DraggableWidgetContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3F98BDC5979FF4B118DD7E /* DraggableWidgetContainer.swift */; };
 		0C2136ECF6C0F9447B9D9E54 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CFB24AC99711A28C86C939 /* DashboardView.swift */; };
@@ -168,6 +174,9 @@
 		1626F9AF3D7A73915AE520D9 /* UpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateService.swift; sourceTree = "<group>"; };
 		AA11CC3300000001PTKS0001 /* PushTokenService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTokenService.swift; sourceTree = "<group>"; };
 		BB22DD4400000001VCES0001 /* VoiceEventService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceEventService.swift; sourceTree = "<group>"; };
+		DD11000100000000DMCT0000 /* DirectModeContextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectModeContextService.swift; sourceTree = "<group>"; };
+		DD11000200000000DMSS0000 /* DirectModeSessionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectModeSessionService.swift; sourceTree = "<group>"; };
+		DD11000300000000DMDS0000 /* DirectModeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectModeSheet.swift; sourceTree = "<group>"; };
 		1C1DBB3AF8D61EAD55997EF3 /* MemoryFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryFile.swift; sourceTree = "<group>"; };
 		2469CD70AD9F19C123F93312 /* AsciiMascot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsciiMascot.swift; sourceTree = "<group>"; };
 		3341665366C92100017CD0C3 /* ScratchpadWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScratchpadWidget.swift; sourceTree = "<group>"; };
@@ -301,6 +310,8 @@
 				AA00001100000004EMSV0001 /* EmailService.swift */,
 				AA11CC3300000001PTKS0001 /* PushTokenService.swift */,
 				BB22DD4400000001VCES0001 /* VoiceEventService.swift */,
+				DD11000100000000DMCT0000 /* DirectModeContextService.swift */,
+				DD11000200000000DMSS0000 /* DirectModeSessionService.swift */,
 
 				BB8889B0DBD847AAA299579E /* WeatherService.swift */,
 				1AC697A1E69347B0B9F29421 /* ProjectService.swift */,);
@@ -436,6 +447,7 @@
 				DCD428C085C65B72EB2A9257 /* TaskBriefingSheet.swift */,
 				AA00001100000001SETS0001 /* SettingsSheet.swift */,
 				AA00001100000002EMRP0001 /* EmailReplySheet.swift */,
+				DD11000300000000DMDS0000 /* DirectModeSheet.swift */,
 			);
 			path = Sheets;
 			sourceTree = "<group>";
@@ -553,12 +565,15 @@
 				2D53F7946E436C67976353FD /* CalendarEvent.swift in Sources */,
 				60FDC21EB96187E476E99CDE /* CalendarService.swift in Sources */,
 				6F20367A606DE715DD3555C2 /* BriefingScheduler.swift in Sources */,
+				DD11000100000001DMCT0001 /* DirectModeContextService.swift in Sources */,
+				DD11000200000001DMSS0001 /* DirectModeSessionService.swift in Sources */,
 				35D900E3983B8DCE71C79D8D /* CalendarWidget.swift in Sources */,
 				1AF6DA97FBF9179B1D546B17 /* MeetingPrepService.swift in Sources */,
 				7FA9E6CA6C58510F666FD865 /* EventBriefingSheet.swift in Sources */,
 				F6ED67841BFC4098BDDAED1C /* TaskBriefingSheet.swift in Sources */,
 				AA00001200000001SETS0001 /* SettingsSheet.swift in Sources */,
 				AA00001200000003EMRP0001 /* EmailReplySheet.swift in Sources */,
+				DD11000300000001DMDS0001 /* DirectModeSheet.swift in Sources */,
 				AA00001200000005TENR0001 /* TaskEnrichmentService.swift in Sources */,
 				AA00001200000007EMSV0001 /* EmailService.swift in Sources */,
 				AA11CC3300000002PTKS0001 /* PushTokenService.swift in Sources */,
@@ -634,12 +649,15 @@
 				A3372B05D3DD8025C74980AD /* CalendarEvent.swift in Sources */,
 				293DC2AF14E6A43747C83961 /* CalendarService.swift in Sources */,
 				7F27865AF4A7D51AE90BE760 /* BriefingScheduler.swift in Sources */,
+				DD11000100000002DMCT0002 /* DirectModeContextService.swift in Sources */,
+				DD11000200000002DMSS0002 /* DirectModeSessionService.swift in Sources */,
 				71E8DDDDBBC3B0DB7D66A97B /* CalendarWidget.swift in Sources */,
 				C66CC3C701F17E8502C978CC /* MeetingPrepService.swift in Sources */,
 				DCEF84BAB4F1A68BA6F45731 /* EventBriefingSheet.swift in Sources */,
 				9F070B564BA1430D4552CD99 /* TaskBriefingSheet.swift in Sources */,
 				AA00001200000002SETS0002 /* SettingsSheet.swift in Sources */,
 				AA00001200000004EMRP0002 /* EmailReplySheet.swift in Sources */,
+				DD11000300000002DMDS0002 /* DirectModeSheet.swift in Sources */,
 				AA00001200000006TENR0002 /* TaskEnrichmentService.swift in Sources */,
 				AA00001200000008EMSV0002 /* EmailService.swift in Sources */,
 				AA11CC3300000003PTKS0002 /* PushTokenService.swift in Sources */,

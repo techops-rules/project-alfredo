@@ -274,18 +274,21 @@ final class TerminalSession: ObservableObject {
     // MARK: - Voice Events
 
     private func handleVoiceEvent(_ event: VoiceEventService.VoiceEvent) {
+        let prefix = event.mode == "direct" ? "DIRECT" : "🎙"
         switch event.type {
         case "wake":
-            lines.append(.system("🎙 \(event.text)"))
+            lines.append(.system("\(prefix) \(event.text)"))
         case "listening":
-            lines.append(.system("🎙 listening..."))
+            lines.append(.system("\(prefix) listening..."))
         case "command":
             lines.append(.user(event.text))
         case "reply":
             let replyText = event.reply.isEmpty ? event.text : event.reply
             lines.append(.response(replyText))
+        case "session":
+            lines.append(.system(event.text.isEmpty ? "DIRECT mode active" : event.text))
         case "idle":
-            lines.append(.system("🎙 \(event.text)"))
+            lines.append(.system("\(prefix) \(event.text)"))
         default:
             break
         }

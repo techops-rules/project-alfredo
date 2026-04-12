@@ -24,6 +24,7 @@ import subprocess
 import tempfile
 import time
 import wave
+import uuid
 from urllib.request import Request, urlopen
 
 import pyaudio
@@ -51,6 +52,8 @@ PIPER_MODEL = os.environ.get(
 COMMAND_TIMEOUT = 8.0   # max seconds to record after wake
 SILENCE_TIMEOUT = 1.5   # silence to stop recording
 COOLDOWN = 3.0          # min seconds between wake triggers
+WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "tiny.en")
+DIRECT_IDLE_TIMEOUT = 5 * 60
 
 # ── Endpoints ───────────────────────────────────────────────
 BRIDGE_URL = "http://localhost:8420/chat"
@@ -92,6 +95,22 @@ SHUTUP_QUIPS = [
     "fine.",
     "okay, shutting up.",
     "got it, going quiet.",
+]
+
+DIRECT_START_PHRASES = [
+    "talk to alfredo",
+    "direct mode",
+    "i need to talk to alfredo",
+    "let me talk to alfredo",
+]
+
+DIRECT_STOP_PHRASES = [
+    "stop",
+    "that's enough",
+    "thats enough",
+    "got it",
+    "thank you",
+    "thanks",
 ]
 
 
@@ -219,10 +238,18 @@ class TTS:
 
 # ── Kiosk integration ───────────────────────────────────────
 
-def post_event(event_type, text="", reply=""):
+def post_event(event_type, text="", reply="", mode="voice", session_id=None, session_state=None):
     """Post voice event to kiosk for visual display."""
     try:
-        data = json.dumps({"type": event_type, "text": text, "reply": reply}).encode()
+        data = json.dumps({
+            "type": event_type,
+            "text": text,
+            "reply": reply,
+            "mode": mode,
+            "session_id": session_id,
+            "surface": "kiosk",
+            "session_state": session_state,
+        }).encode()
         req = Request(f"{KIOSK_URL}/proxy/voice-event", data=data,
                       headers={"Content-Type": "application/json"})
         urlopen(req, timeout=3)
@@ -266,11 +293,15 @@ class AlfredoVoice:
         self.tts = TTS()
         self.last_wake = 0
         self.porcupine = None
+        self.whisper_model = None
         self._init_porcupine()
 
         # VAD for recording (not wake detection)
         import webrtcvad
         self.vad = webrtcvad.Vad(2)
+        self.direct_session_id = None
+        self.direct_expires_at = 0
+        self.direct_history = []
 
     def _init_porcupine(self):
         """Initialize Porcupine wake word engine."""
@@ -349,24 +380,155 @@ class AlfredoVoice:
             wf.writeframes(b"".join(frames))
         return tmp.name
 
-    def send_to_codex(self, wav_path=None):
-        """Send to Codex bridge. Returns reply text."""
-        post_event("command", text="(thinking...)")
+    def transcribe_command(self, wav_path):
+        """Transcribe recorded speech to text with Whisper."""
+        try:
+            if self.whisper_model is None:
+                LOG.info("Loading Whisper model: %s", WHISPER_MODEL)
+                import whisper
+                self.whisper_model = whisper.load_model(WHISPER_MODEL)
+
+            result = self.whisper_model.transcribe(
+                wav_path,
+                language="en",
+                fp16=False,
+                verbose=False,
+            )
+            text = (result.get("text") or "").strip()
+            if text:
+                LOG.info("Transcript: %s", text[:120])
+            return text
+        except Exception as e:
+            LOG.error("Whisper transcription failed: %s", e)
+            return ""
+
+    def fetch_direct_context(self):
+        """Fetch kiosk-side context snapshot for direct mode prompts."""
+        try:
+            with urlopen(f"{KIOSK_URL}/proxy/direct-context", timeout=3) as r:
+                data = json.loads(r.read())
+        except Exception as e:
+            LOG.warning("Direct context fetch failed: %s", e)
+            return ""
+
+        work = [t.get("text", "") for t in data.get("workTasks", [])[:5] if t.get("text")]
+        life = [t.get("text", "") for t in data.get("lifeTasks", [])[:5] if t.get("text")]
+        scratch = [line for line in data.get("scratch", [])[:4] if line]
+        calendar_items = []
+        for event in data.get("calendar", [])[:8]:
+            title = event.get("title", "")
+            start = event.get("startTime", "")
+            location = event.get("location", "")
+            if start:
+                start = start[11:16] if "T" in start else start
+            calendar_items.append(f"- {start} {title}" + (f" @ {location}" if location else ""))
+
+        return (
+            "[KIOSK DIRECT CONTEXT]\n"
+            + "Calendar:\n" + ("\n".join(calendar_items) if calendar_items else "No events cached.") + "\n\n"
+            + "Work tasks:\n" + ("\n".join(f"- {item}" for item in work) if work else "No work tasks cached.") + "\n\n"
+            + "Life tasks:\n" + ("\n".join(f"- {item}" for item in life) if life else "No life tasks cached.") + "\n\n"
+            + "Scratchpad:\n" + ("\n".join(f"- {item}" for item in scratch) if scratch else "No scratch notes cached.") + "\n"
+            + "[/KIOSK DIRECT CONTEXT]"
+        )
+
+    def is_direct_active(self):
+        return self.direct_session_id is not None and time.time() < self.direct_expires_at
+
+    def extend_direct_session(self):
+        if self.direct_session_id:
+            self.direct_expires_at = time.time() + DIRECT_IDLE_TIMEOUT
+
+    def begin_direct_session(self, transcript):
+        if self.direct_session_id is None:
+            self.direct_session_id = str(uuid.uuid4())
+            self.direct_history = []
+            LOG.info("Direct mode started: %s", self.direct_session_id)
+            post_event(
+                "session",
+                text="direct mode active",
+                mode="direct",
+                session_id=self.direct_session_id,
+                session_state="listening",
+            )
+        self.extend_direct_session()
+
+    def close_direct_session(self, reason="direct mode closed"):
+        if not self.direct_session_id:
+            return
+        session_id = self.direct_session_id
+        self.direct_session_id = None
+        self.direct_expires_at = 0
+        self.direct_history = []
+        LOG.info("Direct mode ended: %s", session_id)
+        post_event(
+            "dismissed",
+            text=reason,
+            mode="direct",
+            session_id=session_id,
+            session_state="closing",
+        )
+
+    def normalize_transcript(self, transcript):
+        return transcript.lower().strip()
+
+    def is_direct_start_phrase(self, transcript):
+        normalized = self.normalize_transcript(transcript)
+        return any(phrase in normalized for phrase in DIRECT_START_PHRASES)
+
+    def is_direct_invocation_only(self, transcript):
+        normalized = self.normalize_transcript(transcript)
+        invocation_only = {
+            "talk to alfredo",
+            "direct mode",
+            "i need to talk to alfredo",
+            "let me talk to alfredo",
+        }
+        return normalized in invocation_only
+
+    def is_direct_stop_phrase(self, transcript):
+        normalized = self.normalize_transcript(transcript)
+        return any(phrase in normalized for phrase in DIRECT_STOP_PHRASES)
+
+    def send_to_codex(self, transcript, wav_path=None, direct_mode=False):
+        """Send the transcribed voice command to the Codex agent bridge."""
+        mode = "direct" if direct_mode else "voice"
+        post_event(
+            "command",
+            text=transcript,
+            mode=mode,
+            session_id=self.direct_session_id,
+            session_state="thinking",
+        )
 
         persona = load_persona()
         persona_block = f"\n\n[PERSONA]\n{persona}\n[/PERSONA]\n" if persona else ""
+        direct_context = self.fetch_direct_context() if direct_mode else ""
+        history_block = ""
+        if direct_mode and self.direct_history:
+            history_block = "[DIRECT HISTORY]\n" + "\n".join(self.direct_history[-8:]) + "\n[/DIRECT HISTORY]\n"
 
         prompt = (
             "[Voice command from Alfredo kiosk mic] "
-            "The user just spoke to you via the kiosk. "
+            + ("[DIRECT MODE ACTIVE] Stay in the same short conversation unless the user ends it.\n" if direct_mode else "")
+            + f'The user said: "{transcript}"\n\n'
+            "Respond to the user's actual spoken request. "
             "Give a brief, useful response — one or two sentences max. "
             "This will be spoken aloud via TTS so keep it conversational and short. "
             "No emoji — this is for text-to-speech."
-            f"{persona_block}"
+            + ("\nUse the kiosk direct context below when it helps.\n" if direct_mode else "")
+            + history_block
+            + (direct_context + "\n" if direct_mode and direct_context else "")
+            + persona_block
         )
 
         try:
-            data = json.dumps({"prompt": prompt}).encode()
+            data = json.dumps({
+                "prompt": prompt,
+                "mode": "agent",
+                "conversation_mode": "direct" if direct_mode else "voice",
+                "session_id": self.direct_session_id,
+            }).encode()
             req = Request(BRIDGE_URL, data=data,
                           headers={"Content-Type": "application/json"})
             with urlopen(req, timeout=60) as r:
@@ -378,6 +540,10 @@ class AlfredoVoice:
             if not reply.endswith("."):
                 reply += "."
             LOG.info("Codex: %s", reply[:80])
+            if direct_mode:
+                self.direct_history.append(f"user: {transcript}")
+                self.direct_history.append(f"assistant: {reply}")
+                self.extend_direct_session()
             return reply
         except Exception as e:
             LOG.error("Codex failed: %s", e)
@@ -419,18 +585,72 @@ class AlfredoVoice:
             return
 
         # Send to Codex
-        post_event("command", text="(thinking...)")
+        transcript = self.transcribe_command(wav_path)
+        if not transcript:
+            quip = "I didn't catch that. Try again."
+            post_event("idle", text=quip, mode="direct" if self.is_direct_active() else "voice", session_id=self.direct_session_id)
+            self.tts.speak_and_wait(quip)
+            try:
+                os.unlink(wav_path)
+            except Exception:
+                pass
+            return
+
+        starting_direct = self.is_direct_start_phrase(transcript)
+        if starting_direct:
+            self.begin_direct_session(transcript)
+            if self.is_direct_invocation_only(transcript):
+                reply = "Direct mode is active. Go ahead."
+                post_event(
+                    "reply",
+                    reply=reply,
+                    mode="direct",
+                    session_id=self.direct_session_id,
+                    session_state="speaking",
+                )
+                self.tts.speak_and_wait(reply)
+                self.extend_direct_session()
+                try:
+                    os.unlink(wav_path)
+                except Exception:
+                    pass
+                return
+
+        if self.is_direct_active() and self.is_direct_stop_phrase(transcript):
+            quip = random.choice(SHUTUP_QUIPS)
+            self.close_direct_session("direct mode closed")
+            self.tts.speak_and_wait(quip)
+            return
+
+        if self.is_direct_active():
+            post_event(
+                "session",
+                text="direct mode listening",
+                mode="direct",
+                session_id=self.direct_session_id,
+                session_state="listening",
+            )
+
         LOG.info("Sending to Codex...")
-        reply = self.send_to_codex(wav_path)
+        reply = self.send_to_codex(transcript, wav_path, direct_mode=self.is_direct_active())
 
         # Speak reply
-        post_event("reply", reply=reply)
+        post_event(
+            "reply",
+            reply=reply,
+            mode="direct" if self.is_direct_active() else "voice",
+            session_id=self.direct_session_id,
+            session_state="speaking" if self.is_direct_active() else None,
+        )
         proc = self.tts.speak(reply)
         if proc:
             try:
                 proc.wait(timeout=30)
             except subprocess.TimeoutExpired:
                 proc.kill()
+
+        if self.is_direct_active():
+            self.extend_direct_session()
 
     def run(self):
         device_idx = self.find_input_device()
@@ -456,6 +676,9 @@ class AlfredoVoice:
 
         try:
             while True:
+                if self.direct_session_id and not self.is_direct_active():
+                    self.close_direct_session("direct mode closed")
+
                 # Check push-to-talk from kiosk/phone
                 if check_push_to_talk():
                     clear_push_to_talk()

@@ -54,6 +54,7 @@ struct DashboardView: View {
     // iOS bottom sheets
     @State private var showSettingsSheet = false
     @State private var showWidgetSheet = false
+    @State private var showDirectModeSheet = false
 
     // Email reply deep link
     @State private var emailReplyTask: AppTask?
@@ -215,12 +216,22 @@ struct DashboardView: View {
                     showSettingsSheet = false
                     showTerminal()
                 },
+                onOpenDirectMode: {
+                    showSettingsSheet = false
+                    showDirectModeSheet = true
+                },
                 onToggleWidget: { widgetVisibility.toggle($0) },
                 widgetVisibility: widgetVisibility
             )
             .environment(\.theme, ThemeManager.shared)
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showDirectModeSheet) {
+            DirectModeSheet(session: DirectModeSessionService.shared, surface: .iOS)
+                .environment(\.theme, ThemeManager.shared)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
         #else
         .sheet(isPresented: $showFocusMode) {
@@ -239,11 +250,20 @@ struct DashboardView: View {
                     showSettingsSheet = false
                     showTerminal()
                 },
+                onOpenDirectMode: {
+                    showSettingsSheet = false
+                    showDirectModeSheet = true
+                },
                 onToggleWidget: { widgetVisibility.toggle($0) },
                 widgetVisibility: widgetVisibility
             )
             .environment(\.theme, ThemeManager.shared)
             .frame(minWidth: 360, minHeight: 600)
+        }
+        .sheet(isPresented: $showDirectModeSheet) {
+            DirectModeSheet(session: DirectModeSessionService.shared, surface: .macOS)
+                .environment(\.theme, ThemeManager.shared)
+                .frame(minWidth: 560, minHeight: 520)
         }
         #endif
         .sheet(item: $emailReplyTask) { task in

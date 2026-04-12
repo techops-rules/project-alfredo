@@ -52,6 +52,8 @@ There is parallel work in progress for **voice + Codex agent integration**. As o
 
 **Read `docs/UI-BRIEFING.md` for the full widget inventory, layout systems, data architecture, and improvement opportunities across all three surfaces.** This is the primary reference for interface work.
 
+**Read `docs/SESSION-START.md` for the default fresh-session startup checklist.** If Todd says `Let's work on Project Alfredo`, treat that as the cue to run that checklist before implementation.
+
 ### Latest layout pass (2026-04-12)
 
 A first cross-surface layout polish pass is now in progress in the working tree:
@@ -66,6 +68,22 @@ A first cross-surface layout polish pass is now in progress in the working tree:
 - Kiosk work mode now surfaces `ALFREDO.TTY` next to `TODAY.EXE` instead of hiding the terminal completely.
 - Kiosk terminal output now acts as a live system feed for bridge/task/layout/voice events instead of a static placeholder.
 - No-signing validation builds completed for `alfredo-macOS` and `alfredo-iOS` with only pre-existing warnings (`CalendarService` deprecation, `MarkdownParser` let/var cleanup).
+
+### Latest voice wiring pass (2026-04-12)
+
+- Kiosk mic path now does real end-to-end handoff: record audio -> local Whisper transcription -> `alfredo-bridge` `/chat` in `agent` mode -> Codex reply via Piper TTS.
+- One-shot HTTP bridge calls now accept `mode: "agent"` and apply `~/alfredo-kiosk/agent-prompt.txt` the same way the WebSocket path already did.
+- Voice `command` events now carry the actual transcript instead of a placeholder, so kiosk and native terminal surfaces show what was spoken.
+- `pi-kiosk/settings.html` and `pi-kiosk/README.md` now describe the live voice path instead of the old "speech-to-text TODO" note.
+
+### Latest Direct Mode slice (2026-04-12)
+
+- Direct Mode Slice 1 foundation is now in the tree across kiosk + native surfaces.
+- Native app now has a shared `DirectModeSessionService`, `DirectModeContextService`, and `DirectModeSheet` for explicit multi-turn "Talk to Alfredo" sessions.
+- iOS/macOS now expose Direct Mode as a first-class entry point from settings and the iPhone input bar instead of hiding it behind the terminal only.
+- Kiosk voice transport now distinguishes `mode: "direct"` and `session` events, and kiosk context snapshots are pushed into `/proxy/direct-context` for the wake listener to use.
+- `alfredo-wake.py` now supports explicit direct-mode start/stop phrases, session timeout/extension, session IDs, kiosk-side conversation history, and read-only context-aware direct turns routed through the agent bridge.
+- Slice 1 is intentionally read-only: no reminder/task creation yet, no location/travel routing yet, and no Apple Reminders escalation yet.
 
 ### Coordination notes
 
@@ -161,7 +179,17 @@ Voice input, wake listener, kiosk voice UI, voice event transport, terminal voic
 ### Status
 Voice system complete and deployed as of 2026-04-12. Push-to-talk working, Piper TTS working, persona loaded. Porcupine wake word available but needs PICOVOICE_ACCESS_KEY.
 
-Next focus: **UI/UX improvements across all surfaces.** See `docs/UI-BRIEFING.md` for the full inventory and known issues.
+Follow-up from Codex on 2026-04-12: the mic handoff now includes local Whisper transcription and agent-mode `/chat` requests, so push-to-talk reaches the Codex system prompt rather than a generic one-shot bridge prompt.
+
+Direct Mode Slice 1 also landed on 2026-04-12: kiosk/native now have explicit multi-turn direct conversation scaffolding with shared session state and read-only context assembly for schedule, tasks, projects, and memory.
+
+Next focus: **Direct Mode Slice 2** or broader cross-surface UX polish, depending on priority.
+If continuing Direct Mode, the next batch is:
+
+1. task/reminder capture from voice
+2. fuzzy-time resolution like "later"
+3. optional Apple Reminders escalation
+4. location/travel timing
 
 ### Inspect next
 

@@ -12,6 +12,10 @@ final class VoiceEventService {
         let text: String
         let reply: String
         let timestamp: TimeInterval
+        let mode: String
+        let sessionID: String?
+        let surface: String?
+        let sessionState: String?
     }
 
     private(set) var lastEvent: VoiceEvent?
@@ -57,10 +61,23 @@ final class VoiceEventService {
                     let text = event["text"] as? String ?? ""
                     let reply = event["reply"] as? String ?? ""
                     let ts = event["timestamp"] as? TimeInterval ?? 0
+                    let mode = event["mode"] as? String ?? "voice"
+                    let sessionID = event["session_id"] as? String
+                    let surface = event["surface"] as? String
+                    let sessionState = event["session_state"] as? String
 
                     self.sinceTimestamp = max(self.sinceTimestamp, ts + 0.001)
 
-                    let voiceEvent = VoiceEvent(type: type, text: text, reply: reply, timestamp: ts)
+                    let voiceEvent = VoiceEvent(
+                        type: type,
+                        text: text,
+                        reply: reply,
+                        timestamp: ts,
+                        mode: mode,
+                        sessionID: sessionID,
+                        surface: surface,
+                        sessionState: sessionState
+                    )
                     self.lastEvent = voiceEvent
                     self.isListening = type == "listening"
 

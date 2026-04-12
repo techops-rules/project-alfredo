@@ -27,6 +27,15 @@ voice_muted = False
 # Push-to-talk activation — set True from kiosk/phone, cleared by wake listener
 voice_push_active = False
 
+# Kiosk-side context snapshot for Direct Mode
+direct_context = {
+    "workTasks": [],
+    "lifeTasks": [],
+    "scratch": [],
+    "calendar": [],
+    "updatedAt": 0,
+}
+
 def check_presence():
     if not PRESENCE_HOSTS:
         return {"present": None, "absent_mins": 0, "note": "no hosts configured"}
@@ -379,11 +388,24 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 "text": body.get("text", ""),
                 "reply": body.get("reply", ""),
                 "timestamp": time.time(),
+                "mode": body.get("mode", "voice"),
+                "session_id": body.get("session_id"),
+                "surface": body.get("surface", "kiosk"),
+                "session_state": body.get("session_state"),
             }
             voice_events.append(event)
             if len(voice_events) > VOICE_EVENT_MAX:
                 voice_events.pop(0)
             self._json({"ok": True})
+        elif self.path == "/proxy/direct-context":
+            body = self._read_json_body()
+            if body is None: return
+            direct_context["workTasks"] = body.get("workTasks", [])
+            direct_context["lifeTasks"] = body.get("lifeTasks", [])
+            direct_context["scratch"] = body.get("scratch", [])
+            direct_context["calendar"] = body.get("calendar", [])
+            direct_context["updatedAt"] = time.time()
+            self._json({"ok": True, "updatedAt": direct_context["updatedAt"]})
         else:
             self.send_response(404); self.end_headers()
 
@@ -484,6 +506,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json({"muted": voice_muted})
         elif self.path == "/proxy/voice-activate":
             self._json({"active": voice_push_active})
+        elif self.path == "/proxy/direct-context":
+            snapshot = dict(direct_context)
+            snapshot["calendar"] = get_merged_calendar().get("events", [])
+            self._json(snapshot)
         else:
             super().do_GET()
 

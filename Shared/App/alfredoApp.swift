@@ -41,6 +41,7 @@ struct alfredoApp: App {
     private let updateService = UpdateService.shared
     private let briefingScheduler = BriefingScheduler.shared
     private let voiceEventService = VoiceEventService.shared
+    private let directModeSession = DirectModeSessionService.shared
 
     var body: some Scene {
         #if os(macOS)

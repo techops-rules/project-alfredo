@@ -62,11 +62,21 @@ class HTTPHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(length)) if length else {}
             prompt = body.get("prompt", "").strip()
+            mode = body.get("mode", "raw")
             if not prompt:
                 self._json(400, {"error": "empty prompt"})
                 return
+
+            claude_cmd = ["claude"]
+            if mode == "agent" and os.path.exists(AGENT_PROMPT_PATH):
+                claude_cmd.extend(["--system-prompt", AGENT_PROMPT_PATH])
+                LOG.info("HTTP chat using agent prompt from %s", AGENT_PROMPT_PATH)
+            elif mode == "agent":
+                LOG.warning("HTTP chat requested agent mode but %s not found", AGENT_PROMPT_PATH)
+            claude_cmd.extend(["--print", prompt])
+
             result = subprocess.run(
-                ["claude", "--print", prompt],
+                claude_cmd,
                 capture_output=True, text=True, timeout=110, cwd=os.path.expanduser("~"),
             )
             response_text = result.stdout.strip() or result.stderr.strip() or "(no output)"
