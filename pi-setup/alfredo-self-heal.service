@@ -1,0 +1,7 @@
+[Unit]
+Description=Alfredo Self-Heal — escalating recovery
+
+[Service]
+Type=oneshot
+User=todd
+ExecStart=/home/todd/alfredo-bridge/alfredo-self-heal.sh

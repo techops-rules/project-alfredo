@@ -58,6 +58,14 @@ open ~/Library/Developer/Xcode/DerivedData/alfredo-bsnsupimkylzxhfsgrhgetcenjaf/
 - [x] iOS canvas redesign with weather timeline, ALFREDO.TTY, and flow layout (v0.48.0)
 - [x] iOS context-aware layout, weather cleanup, weekend calendar (v0.49.0)
 - [x] Codex agent system prompt + HANDOFF.md for peer agent coordination
+- [x] Voice assistant — Porcupine wake word + Piper neural TTS + push-to-talk
+- [x] Voice persona system — Monday-inspired personality profile, editable at runtime
+- [x] Voice event propagation — kiosk visual feedback, iOS/macOS VoiceEventService
+- [x] Mute button + voice state UI on kiosk
+- [x] Pi recovery system — recover-pi.sh, boot-splash.html, self-healing with escalation
+- [x] Recovery partition — /boot/alfredo-recovery/ for autonomous rebuild
+- [x] Self-heal timer — L1 targeted fix → L2 restart → L3 reboot → L4 rebuild
+- [x] Boot splash — terminal-style service checklist + TTS quip on kiosk startup
 - [ ] Apple Mail integration for email context in briefings
 - [ ] Responsive widget sizing (Phase 0)
 - [ ] Pi kiosk live calendar data (Phase 4)
@@ -86,21 +94,23 @@ Pi needs: `GET /health` → 200 OK, `POST /chat` `{"prompt":"..."}` → `{"respo
 
 ## Pi kiosk — ROADOM 7" screen
 
-**Hardware:** ROADOM 7" 1024×600 IPS touchscreen, connected via HDMI-A-1 + USB to pihub.local
+**Hardware:** ROADOM 7" 1024×600 IPS touchscreen, connected via HDMI-A-1 + USB to pihub.local. UPS battery backup. USB microphone for wake word detection.
 
 **Files on Pi:** `~/alfredo-kiosk/`
 | File | Purpose |
 |------|---------|
 | `index.html` | Main kiosk dashboard (served at `http://localhost:8430/`) |
 | `settings.html` | Mac-accessible settings UI (`http://pihub.local:8430/settings.html`) |
-| `serve.py` | Python HTTP server on `:8430` — proxies health/iCloud/tailscale/presence |
+| `serve.py` | Python HTTP server on `:8430` — proxies health/iCloud/tailscale/presence/voice |
 | `presence.json` | Hosts to ping for presence detection (currently: `todds-MacBook-Pro.local`) |
+| `persona.md` | Voice personality profile — loaded by wake listener per request |
 
 **Services:**
 | Service | Port | Purpose |
 |---------|------|---------|
 | `alfredo-kiosk-web.service` | 8430 | Kiosk web server (systemd, auto-restart) |
 | `alfredo-bridge.service` | 8420 (HTTP), 8421 (WS) | Claude Code bridge |
+| `alfredo-wake.service` | — | Voice assistant (Porcupine + Piper TTS + push-to-talk) |
 | `alfredo-watchdog.timer` | — | Watchdog every 2 min |
 
 **Kiosk management:**
@@ -139,8 +149,57 @@ ssh pihub.local 'systemd-run --user --unit=alfredo-kiosk-launch WAYLAND_DISPLAY=
 
 **Autostart:** `~/.config/labwc/autostart` launches Chromium kiosk on boot (wayland-0, ozone-platform=wayland).
 
+**Voice assistant:** `alfredo-wake.service` — Porcupine wake word ("alfredo" or fallback "jarvis") + Piper neural TTS + push-to-talk via kiosk mic button.
+- Wake word requires `PICOVOICE_ACCESS_KEY` env var (free at picovoice.ai); without it, runs push-to-talk only
+- Custom keyword file: `~/alfredo-kiosk/alfredo_wake.ppn` (train at console.picovoice.ai)
+- Piper model: `~/piper-voices/en_US-lessac-medium.onnx` (natural-sounding neural TTS)
+- Persona profile: `~/alfredo-kiosk/persona.md` — loaded per request, editable without restart. Monday-inspired: sardonic, competent, dry wit, warm underneath.
+- Voice events posted to serve.py, polled by kiosk/iOS/macOS for visual feedback
+- Mute button on kiosk (upper-right) silences wake + TTS
+- Push-to-talk: kiosk mic button → POST `/proxy/voice-activate` → wake listener polls
+
+**Voice API endpoints (serve.py on :8430):**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/proxy/voice-event` | POST | Wake listener posts events (wake/listening/reply/dismissed) |
+| `/proxy/voice-event?since=X` | GET | Kiosk/app polls events + mute state |
+| `/proxy/voice-mute` | POST/GET | Toggle/check mute |
+| `/proxy/voice-activate` | POST/GET | Push-to-talk trigger/poll |
+
 **Planned / TODO:**
-- [ ] Philips Hue light control via bridge (wait for mic)
-- [ ] Voice input — ROADOM mic → Whisper → bridge WebSocket ws://localhost:8421/ws
+- [ ] Picovoice access key for wake word activation
+- [ ] Custom "alfredo" .ppn keyword training
+- [ ] Philips Hue light control via bridge
 - [ ] Real data sync — pull tasks/habits/goals from iCloud markdown files via Mac push or bridge endpoint
-- [ ] Boot screen (BootScreen.swift style) on kiosk load
+
+## Pi recovery & self-healing
+
+**Recovery from Mac** (after imaging fresh Pi OS):
+```bash
+cd ~/Projects/project\ alfredo
+bash pi-setup/recover-pi.sh          # full install over SSH
+bash pi-setup/setup-recovery-partition.sh  # populate /boot/alfredo-recovery/
+```
+
+**Self-healing** (`alfredo-self-heal.timer` — every 5 min):
+| Level | Trigger | Action |
+|-------|---------|--------|
+| L1 | Health check fails | Diagnose + fix specific component (restore file, restart service, rebuild venv, clean disk) |
+| L2 | 6 targeted fixes fail | Kill all + restart services |
+| L3 | 3 broad restarts fail | Reboot (up to 2x) |
+| L4 | 2 reboots fail | Full rebuild from `/boot/alfredo-recovery/` |
+
+**Issue tracking:** Unresolvable issues logged to `~/alfredo-kiosk/issues/` with `[heal-todo]` git tag. Find with: `ssh pihub.local 'cd ~/alfredo-kiosk && git log --grep=heal-todo'`
+
+**Boot splash:** `boot-splash.html` — shown on kiosk startup, checks all services with colored status dots, speaks a quip when done, then redirects to main kiosk.
+
+**Recovery partition files** (`/boot/alfredo-recovery/`):
+| Dir | Contents |
+|-----|----------|
+| `kiosk/` | index.html, serve.py, settings.html, editor.html, boot-splash.html |
+| `bridge/` | alfredo-bridge.py, watchdog.sh, self-heal.sh |
+| `services/` | All .service and .timer files |
+| `config/` | persona.md, calendar-feeds.json, presence.json |
+| `recover-local.sh` | Local rebuild script (runs on Pi) |
+
+**Update recovery files** after code changes: `bash pi-setup/setup-recovery-partition.sh`

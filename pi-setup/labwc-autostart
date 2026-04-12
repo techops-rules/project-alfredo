@@ -8,6 +8,13 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
     sleep 2
 done
 
+# Start URL: boot splash if available, otherwise main kiosk
+# Boot splash checks all services, shows status, then redirects to main kiosk
+START_URL="http://localhost:8430/"
+if curl -sf --max-time 2 http://localhost:8430/boot-splash.html >/dev/null 2>&1; then
+    START_URL="http://localhost:8430/boot-splash.html"
+fi
+
 # Launch Chromium in kiosk mode
 chromium \
     --kiosk \
@@ -18,4 +25,4 @@ chromium \
     --disable-session-crashed-bubble \
     --start-fullscreen \
     --autoplay-policy=no-user-gesture-required \
-    http://localhost:8430/ &
+    "$START_URL" &
