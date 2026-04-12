@@ -121,6 +121,11 @@
   .widget[data-size="compact"] { --widget-pad: 8px; --widget-header-x: 8px; --widget-header-y: 5px; --widget-title-size: 9px; --widget-body-size: 10px; --widget-caption-size: 8px; }
   .widget[data-size="regular"] { --widget-pad: 10px; --widget-header-x: 10px; --widget-header-y: 6px; --widget-title-size: 10px; --widget-body-size: 11px; --widget-caption-size: 9px; }
   .widget[data-size="expanded"] { --widget-pad: 12px; --widget-header-x: 12px; --widget-header-y: 7px; --widget-title-size: 11px; --widget-body-size: 12px; --widget-caption-size: 9px; }
+  /* Frameless widgets — no border, no header bar, no background */
+  #w-clock, #w-weather { border-color:transparent; background:transparent; }
+  #w-clock::before, #w-weather::before { display:none; }
+  #w-clock .widget-header, #w-weather .widget-header { display:none; }
+  #w-clock .widget-body, #w-weather .widget-body { padding:4px; }
 
   /* Clock */
   .clock-time { display:flex; align-items:baseline; gap:2px; cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; }
@@ -223,10 +228,8 @@
   /* Weather Timeline */
   .wx-timeline { position:relative; width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden; min-height:100px; }
   .wx-arc { position:relative; flex:0 0 55%; min-height:50px; overflow:hidden; }
-  .wx-arc-path { position:absolute; bottom:0; left:5%; right:5%; height:100%;
-    border:1px dashed rgba(97,175,239,0.12); border-bottom:none;
-    border-radius:100% 100% 0 0; pointer-events:none; }
-  .wx-horizon { position:absolute; bottom:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent 0%, rgba(97,175,239,0.15) 20%, rgba(97,175,239,0.25) 50%, rgba(97,175,239,0.15) 80%, transparent 100%); }
+  .wx-arc-path { display:none; }
+  .wx-horizon { display:none; }
   .wx-celestial { position:absolute; z-index:3; transition:left 60s linear, bottom 60s linear; }
   .wx-sun { width:20px; height:20px; border-radius:50%; background:radial-gradient(circle, #FFD700 30%, #FFA500 70%, transparent 100%);
     box-shadow:0 0 12px 4px rgba(255,184,77,0.5), 0 0 24px 8px rgba(255,165,0,0.2); }
@@ -238,15 +241,15 @@
   .wx-moon-body.full { box-shadow:0 0 12px 4px rgba(220,230,255,0.5), 0 0 24px 8px rgba(200,210,240,0.2); }
   .wx-moon-body.new { background:#3a3f4a; box-shadow:none; opacity:0.4; }
   .wx-current-info { position:absolute; z-index:4; display:flex; flex-direction:column; align-items:center; gap:1px; pointer-events:none; }
-  .wx-current-temp { font-size:16px; font-weight:700; color:var(--text-emphasis); text-shadow:0 1px 4px rgba(0,0,0,0.6); }
-  .wx-current-desc { font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-shadow:0 1px 2px rgba(0,0,0,0.6); }
-  .wx-current-hilo { font-size:8px; color:var(--text-secondary); opacity:0.7; }
+  .wx-current-temp { font-size:11px; font-weight:600; color:var(--text-primary); opacity:0.7; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
+  .wx-current-desc { font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-shadow:0 1px 2px rgba(0,0,0,0.6); opacity:0.5; }
+  .wx-current-hilo { font-size:8px; color:var(--text-secondary); opacity:0.5; }
   .wx-hours { flex:1; display:flex; align-items:center; gap:0; padding:4px 6px; position:relative; z-index:2; border-top:1px solid rgba(97,175,239,0.08); overflow:hidden; }
   .wx-hour { flex:1; text-align:center; font-size:9px; color:var(--text-secondary); min-width:0; padding:2px 1px; border-radius:3px; transition:background 0.3s; }
   .wx-hour .wx-h-icon { font-size:12px; line-height:1; }
   .wx-hour .wx-h-temp { color:var(--text-primary); font-weight:600; font-size:10px; }
   .wx-hour .wx-h-time { font-size:8px; opacity:0.6; }
-  .wx-hour.now { background:rgba(97,175,239,0.1); color:var(--text-emphasis); }
+  .wx-hour.now { color:var(--text-primary); }
   .wx-hour.now .wx-h-temp { color:var(--text-emphasis); font-weight:700; }
   .wx-hour.past { opacity:0.4; }
   .wx-rise-set { position:absolute; bottom:2px; font-size:7px; color:var(--text-secondary); opacity:0.5; letter-spacing:0.5px; z-index:2; }
@@ -1045,10 +1048,20 @@ function renderWeatherTimeline(d){
   const sunrise1=new Date(daily.sunrise?.[1]||daily.sunrise?.[0]||'');
   const now=new Date();
 
-  // Update current info
+  // Update current info — at night show moon phase + avg temp
+  const isNightNow = now < sunrise0 || now > sunset0;
   document.getElementById('wxTemp').textContent=temp+'°';
-  document.getElementById('wxDesc').textContent=desc;
-  document.getElementById('wxHiLo').textContent='H:'+hi+'° L:'+lo+'°';
+  if (isNightNow) {
+    const moon = getMoonPhase();
+    const phaseNames = ['New Moon','Waxing Crescent','First Quarter','Waxing Gibbous','Full Moon','Waning Gibbous','Last Quarter','Waning Crescent'];
+    const phaseIdx = Math.floor(moon.age / (29.53/8)) % 8;
+    document.getElementById('wxDesc').textContent=phaseNames[phaseIdx];
+    const avg = Math.round((hi+lo)/2);
+    document.getElementById('wxHiLo').textContent='avg '+avg+'° · now '+temp+'°';
+  } else {
+    document.getElementById('wxDesc').textContent=desc;
+    document.getElementById('wxHiLo').textContent='H:'+hi+'° L:'+lo+'°';
+  }
 
   // Sunrise/sunset labels
   const fmtTime=dt=>{const h=dt.getHours(),m=dt.getMinutes();return (h%12||12)+':'+(m<10?'0':'')+m+(h<12?'a':'p');};
