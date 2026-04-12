@@ -96,12 +96,31 @@
   .canvas { position: relative; z-index: 1; flex: 1; overflow: hidden; }
 
   /* Widget */
-  .widget { position: absolute; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.2s, transform 0.2s; min-width:120px; min-height:60px; }
+  .widget {
+    position: absolute; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 6px;
+    overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.2s, transform 0.2s; min-width:120px; min-height:60px;
+    --widget-pad: 10px; --widget-header-x: 10px; --widget-header-y: 6px; --widget-title-size: 10px; --widget-body-size: 11px; --widget-caption-size: 9px;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.22);
+  }
   .widget.hidden { display: none !important; }
-  .widget-header { display:flex; align-items:center; gap:8px; padding:6px 10px; background:rgba(97,175,239,0.05); border-bottom:1px solid var(--accent-border); font-size:10px; font-weight:700; color:var(--accent); letter-spacing:2px; flex-shrink:0; zoom:var(--content-zoom,1); }
-  .badge { font-size:9px; font-weight:500; color:var(--text-secondary); letter-spacing:1px; }
-  .zone { margin-left:auto; font-size:8px; color:var(--text-secondary); opacity:0.5; }
-  .widget-body { padding:10px; flex:1; overflow-y:auto; overflow-x:hidden; zoom:var(--content-zoom,1); }
+  .widget::before {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent 20%, transparent 80%, rgba(97,175,239,0.03));
+  }
+  .widget-header {
+    display:flex; align-items:center; gap:8px; padding:var(--widget-header-y) var(--widget-header-x); background:rgba(97,175,239,0.05);
+    border-bottom:1px solid var(--accent-border); font-size:var(--widget-title-size); font-weight:700; color:var(--accent);
+    letter-spacing:2px; flex-shrink:0; zoom:var(--content-zoom,1); position:relative; z-index:1;
+  }
+  .badge {
+    font-size:var(--widget-caption-size); font-weight:700; color:var(--accent); letter-spacing:1px;
+    padding:1px 6px; border-radius:999px; background:rgba(97,175,239,0.12); border:1px solid rgba(97,175,239,0.18);
+  }
+  .zone { margin-left:auto; font-size:calc(var(--widget-caption-size) - 1px); color:var(--text-secondary); opacity:0.7; letter-spacing:1px; }
+  .widget-body { padding:var(--widget-pad); flex:1; overflow-y:auto; overflow-x:hidden; zoom:var(--content-zoom,1); position:relative; z-index:1; }
+  .widget[data-size="compact"] { --widget-pad: 8px; --widget-header-x: 8px; --widget-header-y: 5px; --widget-title-size: 9px; --widget-body-size: 10px; --widget-caption-size: 8px; }
+  .widget[data-size="regular"] { --widget-pad: 10px; --widget-header-x: 10px; --widget-header-y: 6px; --widget-title-size: 10px; --widget-body-size: 11px; --widget-caption-size: 9px; }
+  .widget[data-size="expanded"] { --widget-pad: 12px; --widget-header-x: 12px; --widget-header-y: 7px; --widget-title-size: 11px; --widget-body-size: 12px; --widget-caption-size: 9px; }
 
   /* Clock */
   .clock-time { display:flex; align-items:baseline; gap:2px; cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; }
@@ -123,13 +142,15 @@
   .task-item { display:flex; align-items:center; gap:8px; padding:4px 0; cursor:pointer; }
   .task-dot { width:8px; height:8px; border-radius:50%; border:1.5px solid var(--accent-border); flex-shrink:0; transition:transform 0.1s; }
   .task-dot.done { background:var(--success); border-color:var(--success); }
-  .task-text { font-size:11px; color:var(--text-primary); }
+  .task-text { font-size:var(--widget-body-size); color:var(--text-primary); }
   .task-text.done { text-decoration:line-through; color:var(--text-secondary); }
   .task-blank { display:flex; align-items:center; gap:8px; padding:4px 0; opacity:0.3; cursor:pointer; }
   .task-blank .task-dot { border-style:dashed; }
-  .task-blank .task-text { color:var(--text-secondary); font-style:italic; }
+  .task-blank .task-text { color:var(--text-secondary); font-style:italic; font-size:var(--widget-body-size); }
   .widget-stale .zone::after { content:' · STALE'; color:var(--warning); font-size:9px; letter-spacing:1px; }
   .widget-stale { opacity:0.6; }
+  .widget[data-size="compact"] .task-item,
+  .widget[data-size="compact"] .task-blank { gap:6px; padding:2px 0; }
 
   /* Time-aware widget states */
   .widget.time-hidden { display:none !important; }
@@ -149,19 +170,25 @@
   .term-dot.on { background:var(--success); }
   .term-dot.off { background:var(--text-secondary); opacity:0.3; }
   .term-label { font-size:9px; font-weight:500; color:var(--text-secondary); }
-  .term-output { padding:6px 8px; flex:1; overflow-y:auto; font-size:10px; line-height:1.6; }
+  .term-output { padding:8px 9px; flex:1; overflow-y:auto; font-size:10px; line-height:1.55; background:linear-gradient(180deg, rgba(8,14,24,0.15), transparent 40%); }
   .term-line { color:var(--text-primary); }
   .term-line.sys { color:var(--text-secondary); }
+  .term-line.good { color:var(--success); }
+  .term-line.warn { color:var(--warning); }
+  .term-line.reply { color:var(--text-emphasis); }
+  .term-line.user { color:var(--accent); }
   .term-input { display:flex; align-items:center; gap:6px; padding:6px 10px; border-top:1px solid var(--accent-border); background:rgba(8,14,24,0.5); flex-shrink:0; }
   .term-prompt { font-size:12px; font-weight:700; color:var(--accent); }
   .term-cursor-blink { animation:slowblink 2.5s ease-in-out infinite; color:var(--accent); opacity:0.5; }
   @keyframes slowblink { 0%,40%{opacity:0.5} 50%{opacity:0.1} 60%,100%{opacity:0.5} }
+  .widget[data-size="compact"] .term-status { padding:4px 8px; }
+  .widget[data-size="compact"] .term-output { font-size:9px; padding:6px 7px; }
 
   /* Calendar */
   .cal-event { display:flex; gap:8px; padding:4px 0; align-items:center; }
-  .cal-time { font-size:10px; color:var(--text-secondary); width:50px; flex-shrink:0; }
+  .cal-time { font-size:calc(var(--widget-body-size) - 1px); color:var(--text-secondary); width:50px; flex-shrink:0; }
   .cal-bar { width:2px; height:16px; background:var(--accent); border-radius:1px; flex-shrink:0; }
-  .cal-title { font-size:10px; color:var(--text-primary); }
+  .cal-title { font-size:var(--widget-body-size); color:var(--text-primary); }
   .cal-event.past .cal-time, .cal-event.past .cal-title { opacity:0.4; }
   .cal-event.past .cal-bar { opacity:0.3; }
   .cal-event.live .cal-bar { background:var(--accent); box-shadow:0 0 6px var(--accent); }
@@ -174,11 +201,15 @@
 
   /* TODAY.EXE dots */
   .today-rows { display:flex; flex-direction:column; gap:6px; }
-  .today-row { display:flex; align-items:center; gap:8px; }
+  .today-row { display:flex; align-items:center; gap:8px; min-width:0; }
   .today-label { font-size:9px; letter-spacing:1px; color:var(--text-secondary); width:65px; flex-shrink:0; }
   .today-dots { display:flex; gap:4px; flex:1; }
   .today-dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); transition:all 0.3s; }
   .today-dot.lit { background:var(--success,#4ade80); border-color:var(--success,#4ade80); box-shadow:0 0 4px var(--success,#4ade80); }
+  .widget[data-size="expanded"] .today-rows { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px 14px; }
+  .widget[data-size="compact"] .today-rows { gap:4px; }
+  .widget[data-size="compact"] .today-label { width:54px; font-size:8px; }
+  .widget[data-size="compact"] .today-dot { width:7px; height:7px; }
 
   /* Weather Timeline */
   .wx-timeline { position:relative; width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden; min-height:100px; }
@@ -249,14 +280,14 @@
   .hl-urgency.high { background:var(--accent); box-shadow:0 0 4px var(--accent); }
   .hl-urgency.med { background:var(--accent); opacity:0.45; }
   .hl-urgency.event { background:transparent; border:1.5px solid var(--accent); opacity:0.6; }
-  .hl-text { font-size:11px; color:var(--text-primary); flex:1; }
+  .hl-text { font-size:var(--widget-body-size); color:var(--text-primary); flex:1; }
   .hl-text.done { text-decoration:line-through; color:var(--text-secondary); opacity:0.28; }
   .hl-due { font-size:9px; color:var(--text-secondary); white-space:nowrap; flex-shrink:0; }
   .hl-badge { font-size:8px; font-weight:700; letter-spacing:1px; padding:1px 5px; border-radius:3px; border:1px solid rgba(124,110,255,0.4); color:#7c6eff; flex-shrink:0; }
 
   /* Scratchpad */
   .scratch-body { display:flex; flex-direction:column; gap:2px; height:100%; overflow-y:auto; }
-  .scratch-line { font-size:10px; color:var(--text-primary); padding:2px 0; }
+  .scratch-line { font-size:var(--widget-body-size); color:var(--text-primary); padding:2px 0; }
   .scratch-add { display:flex; align-items:center; gap:6px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--accent-border); cursor:pointer; opacity:0.4; }
   .scratch-add:active { opacity:0.8; }
   .scratch-add span { font-size:10px; color:var(--text-secondary); font-style:italic; }
@@ -297,7 +328,46 @@
   .wd-item:last-child { border-bottom:none; }
 
   /* Voice btn */
-  .voice-btn { position:absolute; bottom:40px; right:16px; width:40px; height:40px; border-radius:50%; background:rgba(97,175,239,0.07); border:1px solid var(--accent-border); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; font-size:16px; opacity:0.4; }
+  .voice-btn { position:absolute; bottom:40px; right:16px; width:40px; height:40px; border-radius:50%; background:rgba(97,175,239,0.07); border:1px solid var(--accent-border); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; font-size:16px; opacity:0.4; transition: all 0.3s ease; }
+  .voice-btn.active { opacity:1; background:rgba(97,175,239,0.2); border-color:var(--accent); animation: voice-pulse 1.5s ease-in-out infinite; }
+  .voice-btn.muted { opacity:0.8; background:rgba(224,108,117,0.15); border-color:var(--danger); animation:none; }
+  .mute-btn { position:fixed; top:8px; right:8px; width:80px; height:36px; border-radius:8px; background:rgba(152,195,121,0.12); border:1px solid rgba(152,195,121,0.3); display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; z-index:250; font-size:12px; font-family:var(--font); font-weight:700; letter-spacing:1px; color:var(--success); transition: all 0.3s ease; }
+  .mute-btn.muted { background:rgba(224,108,117,0.15); border-color:var(--danger); color:var(--danger); }
+  @keyframes voice-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(97,175,239,0.4)} 50%{box-shadow:0 0 20px 8px rgba(97,175,239,0.15)} }
+
+  /* Voice overlay toast */
+  .voice-toast {
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: rgba(8,14,24,0.95); border: 1px solid var(--accent-border);
+    border-radius: 12px; padding: 12px 20px; z-index: 200;
+    display: flex; align-items: center; gap: 12px;
+    opacity: 0; transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+    pointer-events: none; max-width: 600px;
+    backdrop-filter: blur(10px);
+  }
+  .voice-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .voice-toast .vt-icon { font-size: 20px; flex-shrink: 0; }
+  .voice-toast .vt-text { font-size: 13px; color: var(--text-emphasis); line-height: 1.4; }
+  .voice-toast .vt-label { font-size: 9px; font-weight: 700; color: var(--accent); letter-spacing: 2px; margin-bottom: 2px; }
+  .voice-toast.listening { border-color: var(--warning); }
+  .voice-toast.listening .vt-label { color: var(--warning); }
+  .voice-toast.thinking { border-color: var(--accent); }
+  .voice-toast.thinking .vt-label { color: var(--accent); }
+  .voice-toast.dismissed { border-color: var(--text-secondary); }
+  .voice-toast.dismissed .vt-label { color: var(--text-secondary); }
+  .voice-toast .vt-dots { display: inline-block; }
+  .voice-toast .vt-dots::after { content: ''; animation: dots 1.5s steps(4,end) infinite; }
+  @keyframes dots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} }
+
+  /* Persistent voice state bar — top of screen */
+  .voice-bar {
+    position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 300;
+    background: transparent; transition: background 0.3s ease;
+  }
+  .voice-bar.listening { background: var(--warning); animation: vbar-pulse 1s ease-in-out infinite; }
+  .voice-bar.thinking { background: var(--accent); animation: vbar-scan 1.5s ease-in-out infinite; }
+  @keyframes vbar-pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+  @keyframes vbar-scan { 0%{background:linear-gradient(90deg,transparent,var(--accent),transparent);background-size:200%;background-position:0%} 100%{background:linear-gradient(90deg,transparent,var(--accent),transparent);background-size:200%;background-position:100%} }
 
   /* Modal */
   .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:100; align-items:flex-end; justify-content:center; padding-bottom:50px; }
@@ -335,7 +405,11 @@
   body.meeting-ending .canvas { animation: meeting-pulse 2s ease-in-out infinite; }
 
   /* Mode indicator in status bar */
-  .mode-indicator { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--accent); opacity: 0.7; margin-right: 8px; }
+  .mode-indicator {
+    display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px;
+    border:1px solid var(--accent-border); background:rgba(97,175,239,0.08);
+    font-size: 9px; font-weight: 700; letter-spacing: 1.2px; color: var(--accent); margin-right: 8px;
+  }
 </style>
 </head>
 <body>
@@ -394,13 +468,13 @@
     <div class="widget-body" id="calendarBody"></div>
   </div>
 
-  <!-- CLAUDE.TTY -->
+  <!-- ALFREDO.TTY -->
   <div class="widget" id="w-tty" style="left:340px;top:352px;width:310px;height:185px">
-    <div class="widget-header">CLAUDE.TTY <span class="badge" id="termBadge">OFF</span><span class="zone">system</span></div>
+    <div class="widget-header">ALFREDO.TTY <span class="badge" id="termBadge">OFF</span><span class="zone">system</span></div>
     <div class="term-status"><div class="term-dot off" id="termDot"></div><span class="term-label" id="termLabel">checking...</span></div>
     <div class="term-output" id="termOutput">
-      <div class="term-line sys">CLAUDE.TTY v0.3</div>
-      <div class="term-line sys">bridge → claude code on this pi</div>
+      <div class="term-line sys">ALFREDO.TTY v0.51</div>
+      <div class="term-line sys">ambient terminal ready</div>
     </div>
     <div class="term-input">
       <span class="term-prompt">&gt;</span>
@@ -462,7 +536,16 @@
   </div>
 
   <!-- Voice -->
-  <div class="voice-btn" id="voiceBtn" title="voice — mic coming soon">🎙</div>
+  <div class="voice-bar" id="voiceBar"></div>
+  <div class="mute-btn" id="muteBtn" title="mute alfredo">🔇</div>
+  <div class="voice-btn" id="voiceBtn" title="voice input">🎙</div>
+  <div class="voice-toast" id="voiceToast">
+    <span class="vt-icon">🎙</span>
+    <div>
+      <div class="vt-label" id="vtLabel">ALFREDO</div>
+      <div class="vt-text" id="vtText"></div>
+    </div>
+  </div>
 </div>
 
 <!-- Status bar -->
@@ -474,9 +557,10 @@
   <div class="status-item"><div class="status-dot" id="sd-ts"></div>TAILSCALE</div>
   <div class="status-item" style="gap:6px"><div class="status-dot" id="sd-sync"></div><span id="sync-lbl" style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">SYNC</span></div>
   <div class="status-item" style="gap:6px"><div class="status-dot" id="sd-presence"></div><span style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">NEARBY</span></div>
+  <div class="status-item" style="gap:6px"><div class="status-dot" id="sd-mic"></div><span style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">MIC</span></div>
   <div class="spacer"></div>
   <span class="mode-indicator" id="modeIndicator">WORK</span>
-  <span style="font-size:10px;color:var(--text-secondary);opacity:0.5;margin-right:6px">v0.48.0</span>
+  <span style="font-size:10px;color:var(--text-secondary);opacity:0.5;margin-right:6px">v0.51.0</span>
   <button class="hbg-btn" id="hbgToggle">☰</button>
 </div>
 
@@ -572,6 +656,58 @@ document.getElementById('clock').addEventListener('click',()=>{
   if(tapCount>=3){tapCount=0;document.getElementById('exitOverlay').classList.add('show');fetch('/exit-kiosk',{method:'POST'}).catch(()=>{});setTimeout(()=>window.close(),1500);}
 });
 
+// ── Widget sizing + terminal feed ────────────────────────────
+const termOutput = document.getElementById('termOutput');
+const TERM_MAX_LINES = 48;
+let _termLines = [];
+let _termBridgeState = null;
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function classifyWidgetSize(el) {
+  const rect = el.getBoundingClientRect();
+  if (rect.width < 260 || rect.height < 150) return 'compact';
+  if (rect.width >= 430 && rect.height >= 200) return 'expanded';
+  return 'regular';
+}
+
+function applyWidgetSizeClass(el) {
+  if (!el) return;
+  el.dataset.size = classifyWidgetSize(el);
+}
+
+function refreshWidgetSizing() {
+  document.querySelectorAll('.widget').forEach(applyWidgetSizeClass);
+}
+
+const widgetSizeObserver = new ResizeObserver(entries => {
+  for (const entry of entries) applyWidgetSizeClass(entry.target);
+});
+document.querySelectorAll('.widget').forEach(el => {
+  applyWidgetSizeClass(el);
+  widgetSizeObserver.observe(el);
+});
+
+function pushTermLine(text, kind='sys') {
+  const normalized = String(text || '').trim();
+  if (!normalized || !termOutput) return;
+  const stamped = '[' + new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) + '] ' + normalized;
+  const last = _termLines[_termLines.length - 1];
+  if (last && last.raw === stamped && last.kind === kind) return;
+  _termLines.push({raw: stamped, kind});
+  if (_termLines.length > TERM_MAX_LINES) _termLines = _termLines.slice(-TERM_MAX_LINES);
+  termOutput.innerHTML = _termLines.map(line => '<div class="term-line ' + line.kind + '">' + escapeHtml(line.raw) + '</div>').join('');
+  termOutput.scrollTop = termOutput.scrollHeight;
+}
+
+pushTermLine('ambient terminal online', 'sys');
+pushTermLine('voice + layout surface ready', 'sys');
+
 // ── Tasks ───────────────────────────────────────────────────
 function loadData(key,def){try{return JSON.parse(localStorage.getItem(key))||def;}catch{return def;}}
 function saveData(key,val){localStorage.setItem(key,JSON.stringify(val));}
@@ -599,9 +735,13 @@ function fetchSuggestedTasks(force){
         updateTodayBar();
         taskFetchFailed = false;
         setTaskStale(false);
+        pushTermLine('tasks refreshed from bridge', 'good');
       } else { taskFetchFailed = true; }
     })
-    .catch(() => { taskFetchFailed = true; });
+    .catch(() => {
+      taskFetchFailed = true;
+      pushTermLine('task refresh failed // using local cache', 'warn');
+    });
 }
 fetchSuggestedTasks();
 
@@ -1217,16 +1357,28 @@ async function checkStatus() {
       document.getElementById('termDot').className = 'term-dot on';
       document.getElementById('termLabel').textContent = 'pihub.local \u2714 ws:' + j.ws_port;
       document.getElementById('termBadge').textContent = 'ON';
+      if (_termBridgeState !== 'on') {
+        pushTermLine('bridge live // ws:' + j.ws_port, 'good');
+        _termBridgeState = 'on';
+      }
     } else {
       setDot('sd-bridge','off'); setDot('sd-ws','warn');
       document.getElementById('termDot').className = 'term-dot off';
       document.getElementById('termBadge').textContent = 'ERR';
+      if (_termBridgeState !== 'err') {
+        pushTermLine('bridge reachable but unhealthy', 'warn');
+        _termBridgeState = 'err';
+      }
     }
   } catch {
     setDot('sd-bridge','off'); setDot('sd-ws','off');
     document.getElementById('termDot').className = 'term-dot off';
     document.getElementById('termLabel').textContent = 'bridge offline';
     document.getElementById('termBadge').textContent = 'OFF';
+    if (_termBridgeState !== 'off') {
+      pushTermLine('bridge offline', 'warn');
+      _termBridgeState = 'off';
+    }
   }
 
   try {
@@ -1390,6 +1542,7 @@ function applyMode(mode) {
 
   // Apply layout for this mode
   applyModeLayout(mode);
+  pushTermLine('layout -> ' + mode.toUpperCase(), 'sys');
 
   // Update mode indicator
   const ind = document.getElementById('modeIndicator');
@@ -1454,10 +1607,10 @@ const modeLayouts = {
     'w-work':    {left:'16px',  top:'185px', width:'494px', height:'165px',show:true},
     'w-life':    {left:'522px', top:'185px', width:'486px', height:'165px',show:true},
     'w-cal':     {left:'16px',  top:'362px', width:'494px', height:'195px',show:true},
-    'w-today':   {left:'522px', top:'362px', width:'486px', height:'195px',show:true},
+    'w-today':   {left:'522px', top:'362px', width:'236px', height:'195px',show:true},
     'w-stats':   {show:false},
     'w-scratch': {show:false},
-    'w-tty':     {show:false},
+    'w-tty':     {left:'772px', top:'362px', width:'236px', height:'195px',show:true},
     'w-meeting': {show:false},
   },
   // Meeting mode: immersive meeting view
@@ -1527,10 +1680,10 @@ const workVariants = {
     'w-work':    {left:'16px',  top:'178px', width:'494px', height:'180px',show:true},
     'w-life':    {left:'522px', top:'178px', width:'486px', height:'180px',show:true},
     'w-cal':     {left:'16px',  top:'370px', width:'494px', height:'190px',show:true},
-    'w-today':   {left:'522px', top:'370px', width:'486px', height:'190px',show:true},
+    'w-today':   {left:'522px', top:'370px', width:'236px', height:'190px',show:true},
     'w-stats':   {show:false},
     'w-scratch': {show:false},
-    'w-tty':     {show:false},
+    'w-tty':     {left:'772px', top:'370px', width:'236px', height:'190px',show:true},
     'w-meeting': {show:false},
   },
   'work-lg': {
@@ -1540,10 +1693,10 @@ const workVariants = {
     'w-work':    {left:'16px',  top:'170px', width:'494px', height:'190px',show:true},
     'w-life':    {left:'522px', top:'170px', width:'486px', height:'190px',show:true},
     'w-cal':     {left:'16px',  top:'372px', width:'494px', height:'188px',show:true},
-    'w-today':   {left:'522px', top:'372px', width:'486px', height:'188px',show:true},
+    'w-today':   {left:'522px', top:'372px', width:'236px', height:'188px',show:true},
     'w-stats':   {show:false},
     'w-scratch': {show:false},
-    'w-tty':     {show:false},
+    'w-tty':     {left:'772px', top:'372px', width:'236px', height:'188px',show:true},
     'w-meeting': {show:false},
   },
 };
@@ -1586,6 +1739,7 @@ function applyModeLayout(mode) {
       if (el) el.classList.remove('compact');
     });
   }
+  refreshWidgetSizing();
 }
 
 // Legacy compat: applyLayout still works for settings sync
@@ -1634,6 +1788,7 @@ function applyFontSize(px){
   document.body.style.zoom = '';
   // Re-apply current mode layout (picks correct work variant)
   if (_currentMode === 'work') applyModeLayout('work');
+  refreshWidgetSizing();
   saveData('fontSize', px);
 }
 let currentFs = parseInt(loadData('fontSize', 13)) || 13;
@@ -1695,12 +1850,143 @@ function applyAccent(hex){
 const savedAccent=loadData('kioskSettings',{}).accent;
 if(savedAccent) applyAccent(savedAccent);
 
-// ── Voice placeholder ───────────────────────────────────────
-document.getElementById('voiceBtn').addEventListener('click',()=>{
-  const out=document.getElementById('termOutput');
-  const line=document.createElement('div'); line.className='term-line sys';
-  line.textContent='# voice input — mic coming soon';
-  out.appendChild(line); out.scrollTop=out.scrollHeight;
+// ── Voice events — poll for wake word / command / reply ─────
+let _voiceSince = Date.now() / 1000;
+let _voiceToastTimer = null;
+let _voiceState = 'idle'; // idle, wake, listening, thinking, reply, dismissed
+const voiceToast = document.getElementById('voiceToast');
+const vtLabel = document.getElementById('vtLabel');
+const vtText = document.getElementById('vtText');
+const voiceBtn = document.getElementById('voiceBtn');
+const voiceBar = document.getElementById('voiceBar');
+const sdMic = document.getElementById('sd-mic');
+
+function setVoiceState(state) {
+  _voiceState = state;
+  // Voice bar — persistent top indicator
+  voiceBar.className = 'voice-bar' + (state === 'listening' || state === 'wake' ? ' listening' : state === 'thinking' || state === 'command' ? ' thinking' : '');
+  // Voice button glow
+  if (state === 'idle' || state === 'dismissed') {
+    voiceBtn.classList.remove('active');
+  } else {
+    voiceBtn.classList.add('active');
+  }
+}
+
+function showVoiceToast(label, text, cssClass, duration) {
+  vtLabel.textContent = label;
+  vtText.innerHTML = text;
+  voiceToast.className = 'voice-toast show' + (cssClass ? ' ' + cssClass : '');
+  clearTimeout(_voiceToastTimer);
+  if (duration > 0) {
+    _voiceToastTimer = setTimeout(() => {
+      voiceToast.classList.remove('show');
+      setVoiceState('idle');
+    }, duration);
+  }
+}
+
+function dismissVoice() {
+  voiceToast.classList.remove('show');
+  setVoiceState('idle');
+  clearTimeout(_voiceToastTimer);
+}
+
+async function pollVoiceEvents() {
+  try {
+    const r = await fetch('/proxy/voice-event?since=' + _voiceSince, {signal: AbortSignal.timeout(3000)});
+    const d = await r.json();
+    if (typeof d.muted === 'boolean' && d.muted !== _voiceMuted) updateMuteUI(d.muted);
+    if (!_voiceMuted && sdMic && sdMic.className !== 'status-dot warn') sdMic.className = 'status-dot on';
+    if (d.events && d.events.length > 0) {
+      for (const ev of d.events) {
+        _voiceSince = Math.max(_voiceSince, ev.timestamp + 0.001);
+        switch (ev.type) {
+          case 'wake':
+            setVoiceState('wake');
+            showVoiceToast('ALFREDO', ev.text || 'Wake word detected', '', 0); // no auto-dismiss
+            pushTermLine(ev.text || 'wake word detected', 'sys');
+            break;
+          case 'listening':
+            setVoiceState('listening');
+            showVoiceToast('LISTENING', '<span class="vt-dots"></span>', 'listening', 0);
+            pushTermLine('listening for command', 'sys');
+            break;
+          case 'command':
+            setVoiceState('thinking');
+            showVoiceToast('THINKING', '<span class="vt-dots"></span>', 'thinking', 0);
+            pushTermLine('> ' + (ev.text || 'voice command'), 'user');
+            break;
+          case 'reply':
+            setVoiceState('reply');
+            showVoiceToast('ALFREDO', ev.reply || ev.text || '...', '', 10000);
+            pushTermLine(ev.reply || ev.text || '...', 'reply');
+            break;
+          case 'idle':
+            setVoiceState('idle');
+            showVoiceToast('ALFREDO', ev.text || '...', '', 5000);
+            pushTermLine(ev.text || 'idle', 'sys');
+            break;
+          case 'dismissed':
+            dismissVoice();
+            showVoiceToast('ALFREDO', ev.text || 'fine, shutting up.', 'dismissed', 3000);
+            pushTermLine(ev.text || 'dismissed', 'warn');
+            break;
+        }
+      }
+    }
+  } catch (e) {
+    if (sdMic) sdMic.className = 'status-dot off';
+  }
+}
+setInterval(pollVoiceEvents, 1500); // slightly faster polling
+pollVoiceEvents();
+
+let _voiceMuted = false;
+const muteBtn = document.getElementById('muteBtn');
+
+function updateMuteUI(muted) {
+  _voiceMuted = muted;
+  muteBtn.className = 'mute-btn' + (muted ? ' muted' : '');
+  muteBtn.innerHTML = muted ? '🔇 MUTED' : '🎙 LIVE';
+  muteBtn.title = muted ? 'double-tap to unmute' : 'double-tap to mute';
+  voiceBtn.className = 'voice-btn' + (muted ? ' muted' : '');
+  if (sdMic) sdMic.className = 'status-dot ' + (muted ? 'warn' : 'on');
+}
+
+let _muteTapTime = 0;
+muteBtn.addEventListener('click', async () => {
+  const now = Date.now();
+  if (now - _muteTapTime < 500) {
+    // Double-tap — toggle mute
+    _muteTapTime = 0;
+    try {
+      const r = await fetch('/proxy/voice-mute', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({muted: !_voiceMuted})});
+      const d = await r.json();
+      updateMuteUI(d.muted);
+      showVoiceToast(d.muted ? 'MUTED' : 'UNMUTED', d.muted ? 'alfredo is silenced. double-tap to unmute.' : 'alfredo is listening again.', d.muted ? 'dismissed' : '', 3000);
+    } catch(e) {}
+  } else {
+    _muteTapTime = now;
+  }
+});
+
+// Check initial mute state
+fetch('/proxy/voice-mute').then(r=>r.json()).then(d=>updateMuteUI(d.muted)).catch(()=>{});
+
+document.getElementById('voiceBtn').addEventListener('click', () => {
+  if (_voiceMuted) {
+    showVoiceToast('MUTED', 'alfredo is muted. double-tap 🔇 to unmute.', 'dismissed', 3000);
+  } else if (_voiceState !== 'idle') {
+    // Tap while active = dismiss
+    fetch('/proxy/voice-event', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({type:'dismiss'})}).catch(()=>{});
+    dismissVoice();
+  } else {
+    // Push-to-talk: activate voice
+    setVoiceState('listening');
+    showVoiceToast('LISTENING', 'speak now...', 'listening', 0);
+    fetch('/proxy/voice-activate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({active: true})}).catch(()=>{});
+  }
 });
 
 // ── Modal ───────────────────────────────────────────────────

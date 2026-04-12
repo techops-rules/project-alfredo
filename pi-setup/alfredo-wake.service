@@ -5,12 +5,13 @@ Wants=alfredo-bridge.service
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/alfredo-kiosk
-ExecStart=/usr/bin/python3 /home/pi/alfredo-kiosk/alfredo-wake.py
+User=todd
+WorkingDirectory=/home/todd/alfredo-kiosk
+ExecStart=/usr/bin/python3 /home/todd/alfredo-kiosk/alfredo-wake.py
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/home/todd/.local/bin:/usr/local/bin:/usr/bin:/bin
 
 [Install]
 WantedBy=multi-user.target

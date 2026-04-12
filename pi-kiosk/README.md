@@ -6,9 +6,19 @@ Web dashboard running on pihub.local, displayed on a ROADOM 7" 1024×600 touchsc
 
 | File | Purpose |
 |------|---------|
-| `index.html` | Main kiosk dashboard UI |
+| `index.html` | Main kiosk dashboard UI (voice toast, mute button, push-to-talk) |
 | `settings.html` | Settings/layout editor — open from Mac at `http://pihub.local:8430/settings.html` |
-| `serve.py` | Python HTTP server on :8430, proxies health/iCloud/tailscale/presence checks |
+| `serve.py` | Python HTTP server on :8430, proxies health/iCloud/tailscale/presence/voice |
+
+## Voice assistant
+
+The kiosk integrates with `alfredo-wake.service` for voice interaction:
+
+- **Mute button** (upper-right): double-tap to toggle. Shows "MIC LIVE" or "MUTED"
+- **Push-to-talk**: mic button sends POST to `/proxy/voice-activate`
+- **Voice toast**: overlay shows wake ack, listening state, thinking state, and reply text
+- **Voice bar**: 3px bar at top — yellow pulse when listening, blue scan when thinking
+- **Persona**: `~/alfredo-kiosk/persona.md` — Monday-inspired personality, editable without restart
 
 ## Deploy to Pi
 

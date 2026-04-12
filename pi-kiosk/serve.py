@@ -17,6 +17,16 @@ except Exception:
 
 last_presence = {"seen": 0, "present": False}
 
+# Voice event queue — wake listener POSTs events, kiosk polls them
+voice_events = []  # list of {type, text, reply, timestamp}
+VOICE_EVENT_MAX = 20
+
+# Mute state — when True, wake listener should not process voice
+voice_muted = False
+
+# Push-to-talk activation — set True from kiosk/phone, cleared by wake listener
+voice_push_active = False
+
 def check_presence():
     if not PRESENCE_HOSTS:
         return {"present": None, "absent_mins": 0, "note": "no hosts configured"}
@@ -298,6 +308,32 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             # Trigger immediate fetch
             threading.Thread(target=fetch_ical_feeds, daemon=True).start()
             self._json({"ok": True, "feeds": len(feeds)})
+        elif self.path == "/proxy/voice-mute":
+            global voice_muted
+            body = self._read_json_body()
+            if body is None: return
+            voice_muted = body.get("muted", not voice_muted)
+            self._json({"muted": voice_muted})
+        elif self.path == "/proxy/voice-activate":
+            global voice_push_active
+            body = self._read_json_body()
+            if body is None: return
+            voice_push_active = body.get("active", True)
+            self._json({"active": voice_push_active})
+        elif self.path == "/proxy/voice-event":
+            # Wake listener posts voice events here
+            body = self._read_json_body()
+            if body is None: return
+            event = {
+                "type": body.get("type", "wake"),  # wake, command, reply, listening
+                "text": body.get("text", ""),
+                "reply": body.get("reply", ""),
+                "timestamp": time.time(),
+            }
+            voice_events.append(event)
+            if len(voice_events) > VOICE_EVENT_MAX:
+                voice_events.pop(0)
+            self._json({"ok": True})
         else:
             self.send_response(404); self.end_headers()
 
@@ -379,6 +415,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json({"feeds": load_ical_feeds()})
         elif self.path == "/proxy/suggest-tasks":
             self._json(self._suggest_tasks())
+        elif self.path.startswith("/proxy/voice-event"):
+            # Return events since timestamp, or all recent
+            since = 0
+            if "?" in self.path:
+                params = dict(p.split("=") for p in self.path.split("?")[1].split("&") if "=" in p)
+                since = float(params.get("since", "0"))
+            events = [e for e in voice_events if e["timestamp"] > since]
+            self._json({"events": events, "muted": voice_muted})
+        elif self.path == "/proxy/voice-mute":
+            self._json({"muted": voice_muted})
+        elif self.path == "/proxy/voice-activate":
+            self._json({"active": voice_push_active})
         else:
             super().do_GET()
 
