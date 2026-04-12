@@ -160,19 +160,27 @@ function updateRow(id, state, detail) {
   }
 }
 
+// Timeout-safe fetch — no AbortSignal.timeout (not supported on all Chromium builds)
+function fetchWithTimeout(url, ms) {
+  return Promise.race([
+    fetch(url).then(r => r),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+  ]);
+}
+
 async function checkHTTP(path, okMsg, optional) {
   try {
-    const r = await fetch(`http://localhost:8430${path}`, { signal: AbortSignal.timeout(5000) });
+    const r = await fetchWithTimeout(`http://localhost:8430${path}`, 5000);
     if (r.ok) return { state: 'ok', detail: okMsg || `HTTP ${r.status}` };
     return optional ? { state: 'warn', detail: `HTTP ${r.status}` } : { state: 'fail', detail: `HTTP ${r.status}` };
   } catch (e) {
-    return optional ? { state: 'warn', detail: 'not available' } : { state: 'fail', detail: e.message || 'connection refused' };
+    return optional ? { state: 'warn', detail: 'not available' } : { state: 'fail', detail: String(e.message || 'error').slice(0, 40) };
   }
 }
 
 async function checkCalendar() {
   try {
-    const r = await fetch('http://localhost:8430/proxy/calendar', { signal: AbortSignal.timeout(8000) });
+    const r = await fetchWithTimeout('http://localhost:8430/proxy/calendar', 6000);
     if (!r.ok) return { state: 'warn', detail: `HTTP ${r.status}` };
     const d = await r.json();
     const n = (d.events || []).length;
@@ -182,21 +190,21 @@ async function checkCalendar() {
 
 async function checkWeather() {
   try {
-    const r = await fetch('http://localhost:8430/proxy/weather', { signal: AbortSignal.timeout(8000) });
-    if (!r.ok) return { state: 'warn', detail: `HTTP ${r.status}` };
+    const r = await fetchWithTimeout('http://localhost:8430/proxy/weather', 6000);
+    if (!r.ok) return { state: 'warn', detail: 'not configured' };
     const d = await r.json();
     const temp = d.current_weather?.temperature;
-    return temp != null ? { state: 'ok', detail: `${temp}°C — open-meteo` } : { state: 'ok', detail: 'connected' };
-  } catch (e) { return { state: 'warn', detail: 'API unreachable' }; }
+    return temp != null ? { state: 'ok', detail: `${temp}°C` } : { state: 'ok', detail: 'connected' };
+  } catch (e) { return { state: 'warn', detail: 'not available' }; }
 }
 
 async function checkVoice() {
   try {
-    const r = await fetch('http://localhost:8430/proxy/voice-event?since=0', { signal: AbortSignal.timeout(5000) });
+    const r = await fetchWithTimeout('http://localhost:8430/proxy/voice-event?since=0', 5000);
     if (!r.ok) return { state: 'warn', detail: 'endpoint unavailable' };
     const d = await r.json();
     return { state: 'ok', detail: d.muted ? 'online (muted)' : 'listening' };
-  } catch (e) { return { state: 'warn', detail: 'wake service starting...' }; }
+  } catch (e) { return { state: 'warn', detail: 'starting...' }; }
 }
 
 function speak(text) {
@@ -302,8 +310,22 @@ async function runChecks() {
   window.location.replace('http://localhost:8430/index.html');
 }
 
-// Start after brief pause
-setTimeout(runChecks, 600);
+// FAILSAFE: no matter what happens, redirect to kiosk after 90 seconds
+// This catches any JS errors, hung fetches, or unexpected failures
+setTimeout(function() {
+  window.location.replace('http://localhost:8430/index.html');
+}, 90000);
+
+// Start checks after brief pause
+setTimeout(function() {
+  runChecks().catch(function(e) {
+    // If runChecks itself throws, show error and redirect
+    document.getElementById('msg').textContent = 'Error: ' + String(e).slice(0, 50);
+    setTimeout(function() {
+      window.location.replace('http://localhost:8430/index.html');
+    }, 5000);
+  });
+}, 600);
 </script>
 </body>
 </html>
