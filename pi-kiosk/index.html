@@ -121,6 +121,8 @@
   .widget[data-size="compact"] { --widget-pad: 8px; --widget-header-x: 8px; --widget-header-y: 5px; --widget-title-size: 9px; --widget-body-size: 10px; --widget-caption-size: 8px; }
   .widget[data-size="regular"] { --widget-pad: 10px; --widget-header-x: 10px; --widget-header-y: 6px; --widget-title-size: 10px; --widget-body-size: 11px; --widget-caption-size: 9px; }
   .widget[data-size="expanded"] { --widget-pad: 12px; --widget-header-x: 12px; --widget-header-y: 7px; --widget-title-size: 11px; --widget-body-size: 12px; --widget-caption-size: 9px; }
+  /* Hide cursor on kiosk display */
+  html, body, * { cursor:none !important; }
   /* Frameless widgets — no border, no header bar, no background */
   #w-clock, #w-weather { border-color:transparent; background:transparent; }
   #w-clock::before, #w-weather::before { display:none; }
