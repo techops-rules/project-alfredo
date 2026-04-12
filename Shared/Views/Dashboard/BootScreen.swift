@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BootScreen: View {
     let onComplete: () -> Void
+    let updateNotes: [String]
 
     @Environment(\.theme) private var theme
     @State private var lines: [BootLine] = []
@@ -45,6 +46,11 @@ struct BootScreen: View {
         ("  canvas: 2800x1200 world",                    0.94, .normal),
         ("  viewport: ready",                            0.96, .normal),
     ]
+
+    init(updateNotes: [String] = [], onComplete: @escaping () -> Void) {
+        self.onComplete = onComplete
+        self.updateNotes = updateNotes
+    }
 
     var body: some View {
         ZStack {
@@ -235,6 +241,19 @@ struct BootScreen: View {
                 progress = 0.88
             }
 
+            if !updateNotes.isEmpty {
+                let updateLines = buildUpdateLines()
+                for (index, entry) in updateLines.enumerated() {
+                    let delay = 0.72 + (Double(index) * 0.08)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                        withAnimation(.easeOut(duration: 0.05)) {
+                            lines.append(BootLine(text: entry.0, style: entry.2))
+                            progress = min(0.895, max(progress, entry.1))
+                        }
+                    }
+                }
+            }
+
             // Phase 3: Post-connection lines
             let postSequence = Self.bootSequencePost
             for entry in postSequence {
@@ -271,6 +290,19 @@ struct BootScreen: View {
                 }
             }
         }
+    }
+
+    private func buildUpdateLines() -> [(String, Double, BootLineStyle)] {
+        var entries: [(String, Double, BootLineStyle)] = [
+            ("", 0.885, .dim),
+            ("[UPD] Applying recent updates", 0.887, .system)
+        ]
+
+        for note in updateNotes.prefix(3) {
+            entries.append(("  \(note)", 0.889, .accent))
+        }
+
+        return entries
     }
 }
 

@@ -19,6 +19,10 @@
   - explicit "Talk to Alfredo" entry points on iOS/macOS
   - kiosk direct-session start/stop, timeout, history, and context snapshot plumbing
   - direct turns are read-only and use schedule/task/project/memory context
+- Codex completed a follow-up deploy/recovery pass on 2026-04-12:
+  - Pi services on `pihub.local` were synced and restarted successfully after restoring runtime-only files removed by an overly aggressive `rsync --delete`
+  - future Pi deploys should preserve runtime-owned files in `~/alfredo-kiosk/` instead of treating that directory like a pure git mirror
+  - iPhone boot splash now includes a short update banner so fresh app runs visibly show the Direct Mode rollout
 
 ## Open Threads
 - Voice path: ROADOM mic / wake listener -> kiosk voice event queue -> kiosk overlay + native polling -> Alfredo/Codex agent handoff.
@@ -26,6 +30,7 @@
 - Real native-to-kiosk sync is still a major follow-up after the voice path settles.
 - Current UI pass compiles; remaining work is product refinement, not syntax rescue.
 - Direct Mode Slice 2 is still open: reminder/task capture, fuzzy-time resolution, optional Apple Reminders escalation, and location/travel timing.
+- The Pi is healthy again, but wake word still depends on `PICOVOICE_ACCESS_KEY`, and TTS still falls back until `piper` plus the voice model are installed on-device.
 
 ## Parked
 - `WebSocketSession` cleanup race
@@ -50,7 +55,7 @@
 ## Next Step
 - When work resumes, check the current build outcome first.
 - If the UI pass compiles cleanly, continue with:
-  - live Pi validation of the new Whisper -> direct-mode voice path
+  - live spoken validation of the redeployed Whisper -> direct-mode voice path
   - Direct Mode Slice 2 capture/actions
   - kiosk task/calendar sync
   - richer Pi terminal content

@@ -85,6 +85,13 @@ A first cross-surface layout polish pass is now in progress in the working tree:
 - `alfredo-wake.py` now supports explicit direct-mode start/stop phrases, session timeout/extension, session IDs, kiosk-side conversation history, and read-only context-aware direct turns routed through the agent bridge.
 - Slice 1 is intentionally read-only: no reminder/task creation yet, no location/travel routing yet, and no Apple Reminders escalation yet.
 
+### Latest deploy + iPhone visibility pass (2026-04-12)
+
+- Pi kiosk services were redeployed and restarted successfully on `pihub.local`: `alfredo-kiosk-web`, `alfredo-bridge`, and `alfredo-wake` are back up with Direct Mode support.
+- Important deploy caveat: `rsync --delete` against `~/alfredo-kiosk/` is unsafe because that directory contains runtime-only files not tracked in git (`persona.md`, APNS helper, boot splash assets, cached calendar data, and local service copies). Future deploys should either sync into a clean release directory or exclude runtime-owned files.
+- iPhone boot now surfaces a short "recent updates" banner during the splash sequence so fresh builds make it obvious that Direct Mode and kiosk-agent wiring changed.
+- Native/macOS compatibility remains clean after the deploy recovery; the current branch still builds for `alfredo-macOS` and `alfredo-iOS`.
+
 ### Coordination notes
 
 Voice pipeline is stable and deployed. Files can be edited freely — no in-flight ownership lock. For voice behavior changes, update `persona.md` (personality) or `alfredo-wake.py` (mechanics). For kiosk UI, edit `pi-kiosk/index.html`. For native widgets, edit `Shared/Views/Dashboard/`.
@@ -182,6 +189,8 @@ Voice system complete and deployed as of 2026-04-12. Push-to-talk working, Piper
 Follow-up from Codex on 2026-04-12: the mic handoff now includes local Whisper transcription and agent-mode `/chat` requests, so push-to-talk reaches the Codex system prompt rather than a generic one-shot bridge prompt.
 
 Direct Mode Slice 1 also landed on 2026-04-12: kiosk/native now have explicit multi-turn direct conversation scaffolding with shared session state and read-only context assembly for schedule, tasks, projects, and memory.
+
+Latest follow-up from Codex on 2026-04-12: Pi services were redeployed after a runtime-file restore, and the iPhone splash screen now announces the current update batch so test installs visibly reflect the Direct Mode rollout.
 
 Next focus: **Direct Mode Slice 2** or broader cross-surface UX polish, depending on priority.
 If continuing Direct Mode, the next batch is:
