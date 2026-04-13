@@ -232,29 +232,45 @@
 
   /* Weather Timeline */
   .wx-timeline { position:relative; width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden; min-height:100px; }
-  .wx-arc { position:relative; flex:0 0 55%; min-height:50px; overflow:hidden; }
+  .wx-arc { position:relative; flex:0 0 60%; min-height:66px; overflow:hidden; padding:10px 12px 4px; }
   .wx-arc-path { display:none; }
   .wx-horizon { display:none; }
-  .wx-celestial { position:absolute; z-index:3; transition:left 60s linear, bottom 60s linear; }
-  .wx-sun { width:44px; height:44px; border-radius:50%; background:radial-gradient(circle, #FFD700 30%, #FFA500 70%, transparent 100%);
-    box-shadow:0 0 22px 8px rgba(255,184,77,0.5), 0 0 44px 16px rgba(255,165,0,0.22); }
-  .wx-sun.zenith { box-shadow:0 0 28px 10px rgba(255,184,77,0.72), 0 0 56px 22px rgba(255,165,0,0.36); }
-  .wx-sun.horizon-glow { box-shadow:0 0 18px 7px rgba(255,140,50,0.42), 0 0 34px 14px rgba(255,100,30,0.18); }
-  .wx-moon-body { width:38px; height:38px; border-radius:50%; background:#E0E4F0; position:relative; overflow:hidden;
-    box-shadow:0 0 16px 5px rgba(200,210,240,0.32); }
-  .wx-moon-shadow { position:absolute; top:-1px; width:38px; height:40px; border-radius:50%; background:var(--bg); }
-  .wx-moon-body.full { box-shadow:0 0 16px 5px rgba(220,230,255,0.52), 0 0 30px 10px rgba(200,210,240,0.22); }
+  .wx-celestial { position:absolute; z-index:2; transition:left 60s linear, bottom 60s linear; }
+  .wx-sun { width:58px; height:58px; border-radius:50%; background:radial-gradient(circle, #FFE27A 18%, #FFD34A 42%, #FFB347 72%, rgba(255,179,71,0.05) 100%);
+    box-shadow:0 0 28px 10px rgba(255,184,77,0.56), 0 0 52px 20px rgba(255,165,0,0.2); }
+  .wx-sun.zenith { box-shadow:0 0 34px 12px rgba(255,184,77,0.72), 0 0 68px 26px rgba(255,165,0,0.34); }
+  .wx-sun.horizon-glow { box-shadow:0 0 22px 8px rgba(255,140,50,0.46), 0 0 42px 16px rgba(255,100,30,0.18); }
+  .wx-moon-body { width:50px; height:50px; border-radius:50%; background:#E0E4F0; position:relative; overflow:hidden;
+    box-shadow:0 0 18px 6px rgba(200,210,240,0.32); }
+  .wx-moon-shadow { position:absolute; top:-1px; width:50px; height:52px; border-radius:50%; background:var(--bg); }
+  .wx-moon-body.full { box-shadow:0 0 18px 6px rgba(220,230,255,0.52), 0 0 34px 12px rgba(200,210,240,0.22); }
   .wx-moon-body.new { background:#3a3f4a; box-shadow:none; opacity:0.4; }
-  .wx-current-info { position:absolute; z-index:4; display:flex; flex-direction:column; align-items:center; gap:1px; pointer-events:none; }
-  .wx-current-temp { font-size:18px; font-weight:700; color:var(--text-emphasis); opacity:0.85; text-shadow:0 1px 6px rgba(0,0,0,0.7); }
-  .wx-current-desc { font-size:10px; color:var(--text-secondary); letter-spacing:1px; text-shadow:0 1px 2px rgba(0,0,0,0.6); opacity:0.6; }
-  .wx-current-hilo { font-size:10px; color:var(--text-secondary); opacity:0.5; }
-  .wx-hours { flex:1; display:flex; align-items:center; gap:2px; padding:4px 8px; position:relative; z-index:2; border-top:1px solid rgba(97,175,239,0.08); overflow:hidden; }
-  .wx-hour { flex:1; text-align:center; font-size:10px; color:var(--text-secondary); min-width:0; padding:3px 2px; border-radius:3px; }
+  .wx-current-info { position:absolute; top:10px; left:12px; z-index:4; display:flex; flex-direction:column; gap:4px; pointer-events:none; min-width:210px; }
+  .wx-current-main { display:flex; align-items:flex-start; gap:10px; }
+  .wx-current-temp { font-size:34px; line-height:0.95; font-weight:700; color:var(--text-emphasis); text-shadow:0 2px 8px rgba(0,0,0,0.72); }
+  .wx-current-copy { display:flex; flex-direction:column; gap:3px; padding-top:4px; }
+  .wx-current-desc { font-size:12px; font-weight:700; color:var(--text-emphasis); letter-spacing:1.4px; text-shadow:0 1px 2px rgba(0,0,0,0.6); }
+  .wx-current-hilo { font-size:10px; color:var(--text-secondary); opacity:0.92; }
+  .wx-current-meta { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .wx-meta-pill { font-size:9px; color:var(--text-secondary); letter-spacing:1px; padding:2px 6px; border-radius:999px; border:1px solid rgba(97,175,239,0.14); background:rgba(8,14,24,0.32); backdrop-filter:blur(4px); }
+  .wx-story { position:absolute; right:14px; top:26px; z-index:4; width:210px; display:flex; flex-direction:column; gap:5px; pointer-events:none; }
+  .wx-story-line { font-size:10px; line-height:1.45; color:var(--text-primary); text-shadow:0 1px 2px rgba(0,0,0,0.6); }
+  .wx-story-line.secondary { color:var(--text-secondary); }
+  .wx-sky-cover { position:absolute; inset:0; z-index:3; pointer-events:none; }
+  .wx-cloud { position:absolute; height:18px; border-radius:999px; background:linear-gradient(180deg, rgba(221,229,242,0.95), rgba(190,200,218,0.76)); box-shadow:0 8px 18px rgba(0,0,0,0.12); }
+  .wx-cloud::before, .wx-cloud::after { content:''; position:absolute; bottom:6px; border-radius:50%; background:inherit; }
+  .wx-cloud::before { width:18px; height:18px; left:8px; }
+  .wx-cloud::after { width:24px; height:24px; right:10px; }
+  .wx-cloud.heavy { opacity:0.96; }
+  .wx-cloud.medium { opacity:0.82; }
+  .wx-cloud.light { opacity:0.64; }
+  .wx-cloud.sun-mask { z-index:4; }
+  .wx-hours { flex:1; display:flex; align-items:center; gap:4px; padding:8px 10px 6px; position:relative; z-index:2; border-top:1px solid rgba(97,175,239,0.08); overflow:hidden; }
+  .wx-hour { flex:1; text-align:center; font-size:10px; color:var(--text-secondary); min-width:0; padding:5px 2px 4px; border-radius:6px; background:rgba(8,14,24,0.18); }
   .wx-hour .wx-h-icon { font-size:14px; line-height:1; }
   .wx-hour .wx-h-temp { color:var(--text-primary); font-weight:700; font-size:13px; }
   .wx-hour .wx-h-time { font-size:9px; opacity:0.5; }
-  .wx-hour.now { color:var(--text-secondary); }
+  .wx-hour.now { color:var(--text-secondary); border:1px solid rgba(97,175,239,0.18); background:rgba(97,175,239,0.08); }
   .wx-hour.now .wx-h-temp { color:var(--text-primary); }
   .wx-hour.past { opacity:0.4; }
   .wx-rise-set { position:absolute; bottom:2px; font-size:7px; color:var(--text-secondary); opacity:0.5; letter-spacing:0.5px; z-index:2; }
@@ -451,10 +467,24 @@
           <div class="wx-arc-path"></div>
           <div class="wx-horizon"></div>
           <div class="wx-celestial" id="wxCelestial"></div>
+          <div class="wx-sky-cover" id="wxSkyCover"></div>
           <div class="wx-current-info" id="wxCurrentInfo">
-            <span class="wx-current-temp" id="wxTemp">--°</span>
-            <span class="wx-current-desc" id="wxDesc">loading</span>
-            <span class="wx-current-hilo" id="wxHiLo"></span>
+            <div class="wx-current-main">
+              <span class="wx-current-temp" id="wxTemp">--°</span>
+              <div class="wx-current-copy">
+                <span class="wx-current-desc" id="wxDesc">loading</span>
+                <span class="wx-current-hilo" id="wxHiLo"></span>
+              </div>
+            </div>
+            <div class="wx-current-meta">
+              <span class="wx-meta-pill" id="wxPlace">Allentown</span>
+              <span class="wx-meta-pill" id="wxClouds">clouds --%</span>
+              <span class="wx-meta-pill" id="wxWind">wind -- mph</span>
+            </div>
+          </div>
+          <div class="wx-story" id="wxStory">
+            <div class="wx-story-line" id="wxStoryToday">Loading today's outlook...</div>
+            <div class="wx-story-line secondary" id="wxStoryTomorrow">Loading tomorrow...</div>
           </div>
         </div>
         <div class="wx-hours" id="wxHours">
@@ -1004,7 +1034,9 @@ function renderCalendar(events){
 }
 
 // ── Weather Timeline (Open-Meteo, no API key) ──────────────
-const WX_LAT=47.61,WX_LON=-122.33; // Seattle area
+const WX_LAT=40.6023,WX_LON=-75.4714; // Allentown, PA
+const WX_TZ='America/New_York';
+const WX_PLACE='Allentown';
 const WX_CODES={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌦',61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌦',82:'⛈',95:'⛈',96:'⛈',99:'⛈'};
 const WX_DESC={0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
 
@@ -1027,10 +1059,10 @@ function getMoonPhase(){
 let _wxData=null;
 function fetchWeather(){
   const url='https://api.open-meteo.com/v1/forecast?latitude='+WX_LAT+'&longitude='+WX_LON
-    +'&current=temperature_2m,weather_code,wind_speed_10m'
-    +'&hourly=temperature_2m,weather_code'
+    +'&current=temperature_2m,weather_code,wind_speed_10m,cloud_cover,precipitation'
+    +'&hourly=temperature_2m,weather_code,cloud_cover,precipitation_probability'
     +'&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,weather_code'
-    +'&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=America%2FLos_Angeles&forecast_days=2';
+    +'&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone='+encodeURIComponent(WX_TZ)+'&forecast_days=2';
   fetch(url).then(r=>r.json()).then(d=>{
     _wxData=d;
     renderWeatherTimeline(d);
@@ -1045,6 +1077,9 @@ function renderWeatherTimeline(d){
   const temp=Math.round(c.temperature_2m||0);
   const code=c.weather_code||0;
   const desc=WX_DESC[code]||'';
+  const cloudCover=Math.round(c.cloud_cover||0);
+  const precip=Number(c.precipitation||0);
+  const wind=Math.round(c.wind_speed_10m||0);
   const hi=Math.round((d.daily||{}).temperature_2m_max?.[0]||0);
   const lo=Math.round((d.daily||{}).temperature_2m_min?.[0]||0);
   const daily=d.daily||{};
@@ -1056,6 +1091,18 @@ function renderWeatherTimeline(d){
   // Update current info — at night show moon phase + avg temp
   const isNightNow = now < sunrise0 || now > sunset0;
   document.getElementById('wxTemp').textContent=temp+'°';
+  document.getElementById('wxPlace').textContent=WX_PLACE;
+  document.getElementById('wxClouds').textContent='clouds '+cloudCover+'%';
+  document.getElementById('wxWind').textContent='wind '+wind+' mph';
+  const story = buildWeatherStory({
+    now,
+    currentCode: code,
+    currentDesc: desc,
+    hourly: d.hourly||{},
+    daily
+  });
+  document.getElementById('wxStoryToday').textContent = story.today;
+  document.getElementById('wxStoryTomorrow').textContent = story.tomorrow;
   if (isNightNow) {
     const moon = getMoonPhase();
     const phaseNames = ['New Moon','Waxing Crescent','First Quarter','Waxing Gibbous','Full Moon','Waning Gibbous','Last Quarter','Waning Crescent'];
@@ -1065,7 +1112,7 @@ function renderWeatherTimeline(d){
     document.getElementById('wxHiLo').textContent='avg '+avg+'° · now '+temp+'°';
   } else {
     document.getElementById('wxDesc').textContent=desc;
-    document.getElementById('wxHiLo').textContent='H:'+hi+'° L:'+lo+'°';
+    document.getElementById('wxHiLo').textContent='H '+hi+'° · L '+lo+'°' + (precip > 0 ? ' · precip '+precip.toFixed(2)+' mm' : '');
   }
 
   // Sunrise/sunset labels
@@ -1099,7 +1146,7 @@ function renderWeatherTimeline(d){
   const xPos=progress*usableW;
   const dx=xPos-cx;
   const yNorm=Math.sqrt(Math.max(0, r*r - dx*dx))/r; // 0 at edges, 1 at zenith
-  const bodySize=isDay?32:28;
+  const bodySize=isDay?58:50;
 
   const celEl=document.getElementById('wxCelestial');
   celEl.style.left=(pad+xPos-bodySize/2)+'px';
@@ -1115,17 +1162,19 @@ function renderWeatherTimeline(d){
     let bodyClass='';
     if(illum>0.95) bodyClass='full';
     else if(illum<0.05) bodyClass='new';
-    // Shadow offset: 0 at full, ±13px at new. Waxing = shadow on right, waning = shadow on left
-    const shadowOffset=moon.isWaxing ? (1-illum)*14 : -(1-illum)*14;
+    // Shadow offset: 0 at full, ±18px at new. Waxing = shadow on right, waning = shadow on left
+    const shadowOffset=moon.isWaxing ? (1-illum)*18 : -(1-illum)*18;
     celEl.innerHTML='<div class="wx-moon-body '+bodyClass+'"><div class="wx-moon-shadow" style="left:'+shadowOffset+'px"></div></div>';
   }
 
-  // Position current info label below celestial body
-  const infoEl=document.getElementById('wxCurrentInfo');
-  infoEl.style.left=(pad+xPos)+'px';
-  const celBottom = 4+yNorm*(arcH-bodySize-8);
-  infoEl.style.bottom = Math.max(2, celBottom - 20) + 'px';
-  infoEl.style.transform='translateX(-50%)';
+  renderSkyCover({
+    cloudCover,
+    code,
+    isDay,
+    xPos: pad + xPos,
+    arcWidth: arcW,
+    arcHeight: arcH
+  });
 
   // Build hourly strip — fewer, bigger: now + every 2h for next 10h (6 slots)
   const nowHr=now.getHours();
@@ -1150,7 +1199,67 @@ function renderWeatherTimeline(d){
   frag.innerHTML=hoursHTML;
   while(frag.firstChild) wxHoursEl.insertBefore(frag.firstChild, riseSpan);
 
-  applyWeatherFx(code);
+  applyWeatherFx({ code, cloudCover, precip, isDay });
+}
+
+function describeCode(code){
+  if ([61,63,65,80,81,82].includes(code)) return 'rain';
+  if ([51,53,55].includes(code)) return 'drizzle';
+  if ([71,73,75].includes(code)) return 'snow';
+  if ([45,48].includes(code)) return 'fog';
+  if (code === 3) return 'overcast';
+  if (code === 2) return 'clouds';
+  if (code === 1) return 'sun';
+  if (code === 0) return 'clear skies';
+  return (WX_DESC[code] || 'mixed conditions').toLowerCase();
+}
+
+function timeBucketLabel(hour){
+  if (hour < 12) return 'this morning';
+  if (hour < 17) return 'this afternoon';
+  if (hour < 21) return 'this evening';
+  return 'tonight';
+}
+
+function sentenceCase(text){
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
+
+function buildWeatherStory({ now, currentCode, currentDesc, hourly, daily }){
+  const hrCodes = hourly.weather_code || [];
+  const todayRemaining = [];
+  const tomorrowCodes = [];
+  const tomorrowMax = Math.round((daily.temperature_2m_max||[])[1] || (daily.temperature_2m_max||[])[0] || 0);
+  const tomorrowCode = (daily.weather_code||[])[1] ?? (daily.weather_code||[])[0] ?? 0;
+
+  (hourly.time || []).forEach((ts, idx) => {
+    const dt = new Date(ts);
+    if (Number.isNaN(dt.getTime())) return;
+    const sameDay = dt.toDateString() === now.toDateString();
+    if (sameDay && dt >= now) {
+      todayRemaining.push({ hour: dt.getHours(), code: hrCodes[idx] ?? currentCode });
+    } else {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      if (dt.toDateString() === tomorrow.toDateString()) {
+        tomorrowCodes.push(hrCodes[idx] ?? tomorrowCode);
+      }
+    }
+  });
+
+  let followUp = '';
+  const nextPrecip = todayRemaining.find((entry) => [51,53,55,61,63,65,80,81,82,95,96,99].includes(entry.code));
+  if (nextPrecip) {
+    followUp = ' with ' + describeCode(nextPrecip.code) + ' ' + timeBucketLabel(nextPrecip.hour);
+  }
+  const today = sentenceCase((currentDesc || 'Current conditions') + ' conditions today' + followUp + '.');
+
+  let tomorrowPhrase = describeCode(tomorrowCode);
+  if (tomorrowCode === 0 || tomorrowCode === 1) tomorrowPhrase = 'sun';
+  else if (tomorrowCode === 2 || tomorrowCode === 3) tomorrowPhrase = 'clouds';
+  const tomorrow = sentenceCase(tomorrowPhrase + ' tomorrow with a high of ' + tomorrowMax + '°.');
+
+  return { today, tomorrow };
 }
 
 // Update celestial position every 60s without full re-fetch
@@ -1160,7 +1269,7 @@ setInterval(fetchWeather,600000); // re-fetch every 10 min
 
 // ── Weather animations ─────────────────────────────────────
 let _wxFxTimer=null;
-function applyWeatherFx(code){
+function applyWeatherFx({ code, cloudCover, precip, isDay }){
   const body=document.getElementById('weatherBody');
   if(!body) return;
   body.style.position='relative';
@@ -1169,14 +1278,49 @@ function applyWeatherFx(code){
   const fx=document.createElement('div');
   fx.className='wx-fx';
   body.prepend(fx);
+  const rainy = precip > 0.02 || [51,53,55,61,63,65,80,81,82,95,96,99].includes(code);
+  const snowy = [71,73,75].includes(code);
+  const foggy = [45,48].includes(code);
+
   if(code>=95){ spawnRain(fx,20); spawnLightning(fx); }
-  else if(code>=80){ spawnRain(fx,12); }
-  else if(code>=71){ spawnSnow(fx,14); }
-  else if(code>=61){ spawnRain(fx,18); }
-  else if(code>=51){ spawnRain(fx,6); }
-  else if(code>=45){ spawnFog(fx); }
-  else if(code<=1){ spawnSunGlow(fx); }
-  // 2-3 (cloudy) = no animation, just the emoji
+  else if(rainy && code>=80){ spawnRain(fx,12); }
+  else if(snowy){ spawnSnow(fx,14); }
+  else if(rainy && code>=61){ spawnRain(fx,18); }
+  else if(rainy && code>=51){ spawnRain(fx,6); }
+  else if(foggy){ spawnFog(fx); }
+  else if(isDay && cloudCover < 35 && code <= 1){ spawnSunGlow(fx); }
+}
+
+function renderSkyCover({ cloudCover, code, isDay, xPos, arcWidth, arcHeight }){
+  const coverEl=document.getElementById('wxSkyCover');
+  if(!coverEl) return;
+  coverEl.innerHTML='';
+
+  const clouds=[];
+  const normalizedX=Math.max(48, Math.min(arcWidth - 80, xPos));
+  const baseTop=isDay ? 22 : 28;
+
+  if(cloudCover >= 20 || [2,3,45,48,51,53,55,61,63,65,71,73,75,80,81,82,95,96,99].includes(code)){
+    clouds.push({ left: normalizedX - 42, top: baseTop, width: cloudCover >= 85 ? 120 : 92, size: cloudCover >= 85 ? 'heavy' : 'medium', mask: true });
+  }
+  if(cloudCover >= 45 || code === 2 || code === 3){
+    clouds.push({ left: 36, top: 18, width: 86, size: cloudCover >= 75 ? 'medium' : 'light' });
+  }
+  if(cloudCover >= 60 || code === 3){
+    clouds.push({ left: arcWidth - 150, top: 30, width: 108, size: cloudCover >= 90 ? 'heavy' : 'medium' });
+  }
+  if(cloudCover >= 85 || code === 3){
+    clouds.push({ left: arcWidth * 0.35, top: arcHeight - 8, width: 140, size: 'heavy' });
+  }
+
+  clouds.forEach((cloud) => {
+    const el=document.createElement('div');
+    el.className='wx-cloud ' + cloud.size + (cloud.mask ? ' sun-mask' : '');
+    el.style.left=Math.round(cloud.left)+'px';
+    el.style.top=Math.round(cloud.top)+'px';
+    el.style.width=Math.round(cloud.width)+'px';
+    coverEl.appendChild(el);
+  });
 }
 function spawnRain(fx,count){
   function addDrop(){
