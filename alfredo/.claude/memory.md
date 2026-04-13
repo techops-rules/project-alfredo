@@ -23,6 +23,10 @@
   - Pi services on `pihub.local` were synced and restarted successfully after restoring runtime-only files removed by an overly aggressive `rsync --delete`
   - future Pi deploys should preserve runtime-owned files in `~/alfredo-kiosk/` instead of treating that directory like a pure git mirror
   - iPhone boot splash now includes a short update banner so fresh app runs visibly show the Direct Mode rollout
+- Codex implemented the kiosk realtime voice stack on 2026-04-13:
+  - `serve.py` now brokers short-lived Realtime sessions and dispatches Alfredo context/action tools
+  - `index.html` now opens a WebRTC voice session, handles tool calls, and updates kiosk task/waiting state immediately from action results
+  - realtime actions currently persist into kiosk local state first, then sync back into `/proxy/direct-context`
 
 ## Open Threads
 - Voice path: ROADOM mic / wake listener -> kiosk voice event queue -> kiosk overlay + native polling -> Alfredo/Codex agent handoff.
@@ -31,6 +35,7 @@
 - Current UI pass compiles; remaining work is product refinement, not syntax rescue.
 - Direct Mode Slice 2 is still open: reminder/task capture, fuzzy-time resolution, optional Apple Reminders escalation, and location/travel timing.
 - The Pi is healthy again, but wake word still depends on `PICOVOICE_ACCESS_KEY`, and TTS still falls back until `piper` plus the voice model are installed on-device.
+- Realtime voice code is ready, but `OPENAI_API_KEY` is not configured on `pihub.local`, so the realtime path will report unavailable there until ops adds that env var.
 
 ## Parked
 - `WebSocketSession` cleanup race
@@ -55,7 +60,7 @@
 ## Next Step
 - When work resumes, check the current build outcome first.
 - If the UI pass compiles cleanly, continue with:
-  - live spoken validation of the redeployed Whisper -> direct-mode voice path
-  - Direct Mode Slice 2 capture/actions
-  - kiosk task/calendar sync
-  - richer Pi terminal content
+  - live spoken validation of kiosk realtime voice after `OPENAI_API_KEY` is configured on the Pi
+  - native/iCloud-backed persistence for realtime-created tasks/reminders
+  - location/travel actions
+  - kiosk task/calendar/project sync beyond local state

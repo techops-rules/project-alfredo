@@ -92,6 +92,14 @@ A first cross-surface layout polish pass is now in progress in the working tree:
 - iPhone boot now surfaces a short "recent updates" banner during the splash sequence so fresh builds make it obvious that Direct Mode and kiosk-agent wiring changed.
 - Native/macOS compatibility remains clean after the deploy recovery; the current branch still builds for `alfredo-macOS` and `alfredo-iOS`.
 
+### Latest realtime voice pass (2026-04-13)
+
+- Kiosk now has a realtime voice broker in `pi-kiosk/serve.py` and a browser-side WebRTC voice session in `pi-kiosk/index.html`.
+- Realtime sessions mint short-lived client secrets server-side, keep OpenAI secrets off the browser, and expose Alfredo tools for today/tomorrow summaries, open tasks, memory, response candidates, task creation, follow-ups, and reminders.
+- Kiosk direct actions are resolved server-side but currently applied into kiosk local task/waiting state client-side, then synced back into `/proxy/direct-context`.
+- This means kiosk realtime actions work against current kiosk state immediately, but they are not yet writing into the native/iCloud markdown task board.
+- Realtime voice still requires `OPENAI_API_KEY` on the Pi. Until that is configured, the new kiosk realtime path will report unavailable and the legacy wake service remains the only working voice runtime.
+
 ### Coordination notes
 
 Voice pipeline is stable and deployed. Files can be edited freely — no in-flight ownership lock. For voice behavior changes, update `persona.md` (personality) or `alfredo-wake.py` (mechanics). For kiosk UI, edit `pi-kiosk/index.html`. For native widgets, edit `Shared/Views/Dashboard/`.
@@ -191,6 +199,8 @@ Follow-up from Codex on 2026-04-12: the mic handoff now includes local Whisper t
 Direct Mode Slice 1 also landed on 2026-04-12: kiosk/native now have explicit multi-turn direct conversation scaffolding with shared session state and read-only context assembly for schedule, tasks, projects, and memory.
 
 Latest follow-up from Codex on 2026-04-12: Pi services were redeployed after a runtime-file restore, and the iPhone splash screen now announces the current update batch so test installs visibly reflect the Direct Mode rollout.
+
+Latest follow-up from Codex on 2026-04-13: kiosk realtime voice transport is now implemented locally with WebRTC + tool dispatch. The main remaining runtime blocker is operational, not code: `OPENAI_API_KEY` is not configured on `pihub.local` yet, so realtime cannot connect there until that env var is added.
 
 Next focus: **Direct Mode Slice 2** or broader cross-surface UX polish, depending on priority.
 If continuing Direct Mode, the next batch is:

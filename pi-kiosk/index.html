@@ -764,6 +764,7 @@ function saveData(key,val){localStorage.setItem(key,JSON.stringify(val));}
 let workTasks=loadData('workTasks',[]);
 let lifeTasks=loadData('lifeTasks',[{text:'Set up Pi screen',done:true},{text:'Organize desk cables',done:false}]);
 let scratchLines=loadData('scratch',['// jot things here']);
+let projectCards=loadData('projectCards',[]);
 let currentCalendarEvents = [];
 let _directContextSyncTimer = null;
 
@@ -779,6 +780,9 @@ function syncDirectContext(){
     body: JSON.stringify({
       workTasks,
       lifeTasks,
+      waitingItems,
+      deferredItems,
+      projects: projectCards,
       scratch: scratchLines,
       calendar: currentCalendarEvents
     })
@@ -1471,6 +1475,7 @@ function renderWdCounts(){
   }
   setWdCount('waitingCount',waitingItems.length);
   setWdCount('deferredCount',deferredItems.length);
+  queueDirectContextSync();
 }
 renderWdCounts();
 
@@ -1542,7 +1547,7 @@ function setTaskStatus(status){
   saveData(_tdKey,_tdArr);
   const isWork=_tdKey==='workTasks';
   renderTasks(isWork?'workTasks':'lifeTasks',isWork?'workBadge':'lifeBadge',_tdArr,_tdKey);
-  updateTodayBar(); renderWdCounts(); closeTd();
+  updateTodayBar(); renderWdCounts(); queueDirectContextSync(); closeTd();
 }
 (function(){
   const sh=document.getElementById('tdSheet');
@@ -2145,6 +2150,396 @@ function dismissVoice() {
   clearTimeout(_voiceToastTimer);
 }
 
+const REALTIME_STOP_PHRASES = [
+  'stop',
+  'that\'s enough',
+  'thank you',
+  'got it',
+  'goodbye',
+  'exit direct mode'
+];
+
+function normalizeSpeech(text) {
+  return String(text || '').trim().toLowerCase();
+}
+
+function isRealtimeStopPhrase(text) {
+  const normalized = normalizeSpeech(text);
+  return REALTIME_STOP_PHRASES.some((phrase) => normalized.includes(phrase));
+}
+
+function extractRealtimeText(payload) {
+  if (!payload) return '';
+  if (typeof payload.transcript === 'string' && payload.transcript.trim()) return payload.transcript.trim();
+  if (typeof payload.text === 'string' && payload.text.trim()) return payload.text.trim();
+  const content = payload.item && Array.isArray(payload.item.content) ? payload.item.content : [];
+  for (const part of content) {
+    if (typeof part.text === 'string' && part.text.trim()) return part.text.trim();
+    if (typeof part.transcript === 'string' && part.transcript.trim()) return part.transcript.trim();
+  }
+  return '';
+}
+
+function collectRealtimeStateSnapshot() {
+  return {
+    workTasks,
+    lifeTasks,
+    waitingItems,
+    deferredItems,
+    projects: projectCards,
+    scratch: scratchLines,
+    calendar: currentCalendarEvents,
+  };
+}
+
+function appendTaskToLocalList(listName, task) {
+  const nextTask = {
+    text: task.text || 'Untitled task',
+    done: !!task.done,
+    status: task.status || 'todo',
+  };
+  if (task.urgency) nextTask.urgency = task.urgency;
+  if (task.reminderWhen) nextTask.reminderWhen = task.reminderWhen;
+  if (listName === 'lifeTasks') {
+    lifeTasks.push(nextTask);
+    saveData('lifeTasks', lifeTasks);
+    renderTasks('lifeTasks', 'lifeBadge', lifeTasks, 'lifeTasks');
+  } else {
+    workTasks.push(nextTask);
+    saveData('workTasks', workTasks);
+    renderTasks('workTasks', 'workBadge', workTasks, 'workTasks');
+  }
+}
+
+function appendWaitingItem(item) {
+  const nextItem = { text: item.text || 'Follow up' };
+  if (item.person) nextItem.person = item.person;
+  if (!waitingItems.find((entry) => entry.text === nextItem.text)) {
+    waitingItems.push(nextItem);
+    saveData('waitingItems', waitingItems);
+    renderWdCounts();
+  }
+}
+
+function applyRealtimeClientAction(action) {
+  if (!action || !action.kind) return;
+  if (action.kind === 'append_task' && action.task) {
+    appendTaskToLocalList(action.list, action.task);
+    updateTodayBar();
+    queueDirectContextSync();
+  } else if (action.kind === 'append_waiting' && action.item) {
+    appendWaitingItem(action.item);
+    queueDirectContextSync();
+  }
+}
+
+class RealtimeVoiceSession {
+  constructor() {
+    this.pc = null;
+    this.dc = null;
+    this.localStream = null;
+    this.audioEl = null;
+    this.sessionId = null;
+    this.idleTimeoutMs = 5 * 60 * 1000;
+    this.idleTimer = null;
+    this.serverSession = null;
+    this.isClosing = false;
+  }
+
+  get active() {
+    return !!this.pc;
+  }
+
+  resetIdleTimer() {
+    clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => {
+      this.end('idle timeout');
+    }, this.idleTimeoutMs);
+  }
+
+  async postVoiceEvent(type, payload = {}) {
+    try {
+      await fetch('/proxy/voice-event', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          type,
+          mode: 'direct',
+          session_id: this.sessionId,
+          session_state: payload.session_state,
+          text: payload.text || '',
+          reply: payload.reply || '',
+          surface: 'kiosk',
+          origin: 'realtime-browser',
+        })
+      });
+    } catch (e) {}
+  }
+
+  sendEvent(event) {
+    if (this.dc && this.dc.readyState === 'open') {
+      this.dc.send(JSON.stringify(event));
+    }
+  }
+
+  async start(trigger = 'push-to-talk') {
+    if (this.active || _voiceMuted) return;
+    this.isClosing = false;
+    _voiceMode = 'direct';
+    setVoiceState('thinking');
+    showVoiceToast('DIRECT MODE', 'connecting realtime voice…', 'thinking', 0);
+    pushTermLine('direct mode starting // realtime voice', 'sys');
+
+    let sessionData;
+    try {
+      const response = await fetch('/proxy/realtime/session', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          conversationMode: 'direct',
+          surface: 'kiosk',
+          trigger,
+        })
+      });
+      sessionData = await response.json();
+      if (!response.ok) throw new Error(sessionData.error || 'session broker unavailable');
+    } catch (error) {
+      setVoiceState('idle');
+      showVoiceToast('DIRECT MODE', escapeHtml(error.message || 'realtime unavailable'), 'dismissed', 5000);
+      pushTermLine('realtime unavailable // ' + (error.message || 'unknown error'), 'warn');
+      return;
+    }
+
+    this.sessionId = sessionData.meta && sessionData.meta.sessionId ? sessionData.meta.sessionId : crypto.randomUUID();
+    this.idleTimeoutMs = ((sessionData.meta && sessionData.meta.idleTimeout) || 300) * 1000;
+    this.serverSession = sessionData.session || null;
+
+    try {
+      const key = (sessionData.client_secret && sessionData.client_secret.value) || sessionData.value;
+      if (!key) throw new Error('missing realtime client secret');
+
+      this.audioEl = document.createElement('audio');
+      this.audioEl.autoplay = true;
+
+      this.pc = new RTCPeerConnection();
+      this.pc.ontrack = (event) => {
+        if (this.audioEl) this.audioEl.srcObject = event.streams[0];
+      };
+      this.pc.onconnectionstatechange = () => {
+        if (!this.pc) return;
+        if (this.pc.connectionState === 'failed' || this.pc.connectionState === 'closed' || this.pc.connectionState === 'disconnected') {
+          this.fail('realtime connection lost');
+        }
+      };
+
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
+      this.localStream.getTracks().forEach((track) => this.pc.addTrack(track, this.localStream));
+
+      this.dc = this.pc.createDataChannel('oai-events');
+      this.dc.addEventListener('open', () => {
+        setVoiceState('listening');
+        showVoiceToast('DIRECT MODE', 'Go ahead.', '', 3000);
+        pushTermLine('direct mode active // realtime live', 'good');
+        this.postVoiceEvent('session', { text: 'direct mode active', session_state: 'listening' });
+        this.resetIdleTimer();
+        if (this.serverSession) {
+          this.sendEvent({ type: 'session.update', session: this.serverSession });
+        }
+        this.sendEvent({
+          type: 'response.create',
+          response: {
+            instructions: 'Greet very briefly and say direct mode is active.'
+          }
+        });
+      });
+      this.dc.addEventListener('message', (event) => {
+        this.handleServerEvent(event);
+      });
+
+      const offer = await this.pc.createOffer();
+      await this.pc.setLocalDescription(offer);
+      const sdpResponse = await fetch('https://api.openai.com/v1/realtime/calls', {
+        method: 'POST',
+        body: offer.sdp,
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/sdp',
+        }
+      });
+      if (!sdpResponse.ok) {
+        const text = await sdpResponse.text();
+        throw new Error(text || 'realtime SDP negotiation failed');
+      }
+      await this.pc.setRemoteDescription({
+        type: 'answer',
+        sdp: await sdpResponse.text(),
+      });
+    } catch (error) {
+      this.fail(error.message || 'failed to start realtime voice');
+    }
+  }
+
+  async handleServerEvent(rawEvent) {
+    let event;
+    try {
+      event = JSON.parse(rawEvent.data);
+    } catch (error) {
+      return;
+    }
+    this.resetIdleTimer();
+
+    if (event.type === 'input_audio_buffer.speech_started') {
+      setVoiceState('listening');
+      showVoiceToast('DIRECT MODE', '<span class="vt-dots"></span>', 'listening', 0);
+      return;
+    }
+
+    if (event.type === 'input_audio_buffer.speech_stopped') {
+      setVoiceState('thinking');
+      showVoiceToast('DIRECT MODE', '<span class="vt-dots"></span>', 'thinking', 0);
+      return;
+    }
+
+    if (event.type === 'conversation.item.input_audio_transcription.completed') {
+      const transcript = extractRealtimeText(event);
+      if (!transcript) return;
+      pushTermLine('> ' + transcript, 'user');
+      this.postVoiceEvent('command', { text: transcript, session_state: 'thinking' });
+      if (isRealtimeStopPhrase(transcript)) {
+        this.end('direct mode closed');
+      }
+      return;
+    }
+
+    if (event.type === 'response.function_call_arguments.done') {
+      await this.handleToolCall(event);
+      return;
+    }
+
+    if (event.type === 'response.output_item.done' && event.item && event.item.type === 'function_call') {
+      await this.handleToolCall({
+        name: event.item.name,
+        arguments: event.item.arguments,
+        call_id: event.item.call_id,
+      });
+      return;
+    }
+
+    if (event.type === 'response.audio_transcript.done') {
+      const reply = extractRealtimeText(event) || (event.transcript || '').trim();
+      if (!reply) return;
+      setVoiceState('speaking');
+      showVoiceToast('DIRECT MODE', escapeHtml(reply), '', 9000);
+      pushTermLine(reply, 'reply');
+      this.postVoiceEvent('reply', { reply, session_state: 'speaking' });
+      setTimeout(() => {
+        if (this.active && !this.isClosing) setVoiceState('listening');
+      }, 900);
+      return;
+    }
+
+    if (event.type === 'error') {
+      const message = event.error && event.error.message ? event.error.message : 'realtime error';
+      this.fail(message);
+    }
+  }
+
+  async handleToolCall(event) {
+    const tool = event.name || (event.item && event.item.name) || '';
+    const callId = event.call_id || (event.item && event.item.call_id);
+    if (!tool || !callId) return;
+    let args = {};
+    try {
+      args = JSON.parse(event.arguments || (event.item && event.item.arguments) || '{}');
+    } catch (error) {}
+
+    setVoiceState('thinking');
+    showVoiceToast('DIRECT MODE', '<span class="vt-dots"></span>', 'thinking', 0);
+
+    let result;
+    try {
+      const response = await fetch('/proxy/realtime/tool', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          tool,
+          arguments: args,
+          session_id: this.sessionId,
+          state_snapshot: collectRealtimeStateSnapshot(),
+        })
+      });
+      result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'tool call failed');
+    } catch (error) {
+      result = { ok: false, error: error.message || 'tool call failed' };
+    }
+
+    if (result.client_action) {
+      applyRealtimeClientAction(result.client_action);
+    }
+    if (result.assistant_confirmation) {
+      pushTermLine('saved // ' + result.assistant_confirmation, 'good');
+    }
+
+    this.sendEvent({
+      type: 'conversation.item.create',
+      item: {
+        type: 'function_call_output',
+        call_id: callId,
+        output: JSON.stringify(result),
+      }
+    });
+    this.sendEvent({ type: 'response.create' });
+  }
+
+  fail(message) {
+    if (!this.active && !this.sessionId) {
+      setVoiceState('idle');
+      showVoiceToast('DIRECT MODE', escapeHtml(message), 'dismissed', 5000);
+      pushTermLine('realtime failed // ' + message, 'warn');
+      return;
+    }
+    this.end(message || 'realtime failed');
+  }
+
+  end(reason = 'direct mode closed') {
+    if (this.isClosing) return;
+    this.isClosing = true;
+    clearTimeout(this.idleTimer);
+    this.postVoiceEvent('dismissed', { text: reason, session_state: 'closing' });
+    pushTermLine(reason, 'warn');
+    showVoiceToast('DIRECT MODE', escapeHtml(reason), 'dismissed', 2500);
+    if (this.dc) {
+      try { this.dc.close(); } catch (e) {}
+    }
+    if (this.pc) {
+      try { this.pc.getSenders().forEach((sender) => sender.track && sender.track.stop()); } catch (e) {}
+      try { this.pc.close(); } catch (e) {}
+    }
+    if (this.localStream) {
+      try { this.localStream.getTracks().forEach((track) => track.stop()); } catch (e) {}
+    }
+    this.pc = null;
+    this.dc = null;
+    this.localStream = null;
+    this.audioEl = null;
+    this.sessionId = null;
+    this.serverSession = null;
+    setTimeout(() => {
+      this.isClosing = false;
+      setVoiceState('idle');
+    }, 350);
+  }
+}
+
+const realtimeVoice = new RealtimeVoiceSession();
+
 async function pollVoiceEvents() {
   try {
     const r = await fetch('/proxy/voice-event?since=' + _voiceSince, {signal: AbortSignal.timeout(3000)});
@@ -2154,6 +2549,7 @@ async function pollVoiceEvents() {
     if (d.events && d.events.length > 0) {
       for (const ev of d.events) {
         _voiceSince = Math.max(_voiceSince, ev.timestamp + 0.001);
+        if (ev.origin === 'realtime-browser') continue;
         _voiceMode = ev.mode || 'voice';
         switch (ev.type) {
           case 'wake':
@@ -2210,6 +2606,7 @@ function updateMuteUI(muted) {
   muteBtn.innerHTML = muted ? '🔇 MUTED' : '🎙 LIVE';
   muteBtn.title = muted ? 'double-tap to unmute' : 'double-tap to mute';
   voiceBtn.className = 'voice-btn' + (muted ? ' muted' : '');
+  if (!muted && realtimeVoice.active) voiceBtn.classList.add('active');
   if (sdMic) sdMic.className = 'status-dot ' + (muted ? 'warn' : 'on');
 }
 
@@ -2253,16 +2650,17 @@ setInterval(() => enforceHiddenCursor(true), 3000);
 document.getElementById('voiceBtn').addEventListener('click', () => {
   if (_voiceMuted) {
     showVoiceToast('MUTED', 'alfredo is muted. double-tap 🔇 to unmute.', 'dismissed', 3000);
-  } else if (_voiceState !== 'idle') {
-    // Tap while active = dismiss
-    fetch('/proxy/voice-event', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({type:'dismiss'})}).catch(()=>{});
-    dismissVoice();
   } else {
-    // Push-to-talk: activate voice
-    setVoiceState('listening');
-    showVoiceToast('LISTENING', 'speak now...', 'listening', 0);
-    fetch('/proxy/voice-activate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({active: true})}).catch(()=>{});
+    if (realtimeVoice.active) {
+      realtimeVoice.end('direct mode closed');
+    } else {
+      realtimeVoice.start('push-to-talk');
+    }
   }
+});
+
+window.addEventListener('beforeunload', () => {
+  if (realtimeVoice.active) realtimeVoice.end('page closed');
 });
 
 // ── Modal ───────────────────────────────────────────────────

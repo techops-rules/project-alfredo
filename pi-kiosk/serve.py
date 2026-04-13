@@ -1,6 +1,8 @@
 import http.server, socketserver, os, subprocess, urllib.request, json, time, secrets
 from datetime import datetime, timezone, timedelta
 import re, threading
+from pathlib import Path
+from uuid import uuid4
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -31,10 +33,382 @@ voice_push_active = False
 direct_context = {
     "workTasks": [],
     "lifeTasks": [],
+    "waitingItems": [],
+    "deferredItems": [],
+    "projects": [],
     "scratch": [],
     "calendar": [],
     "updatedAt": 0,
 }
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+REALTIME_MODEL = os.environ.get("ALFREDO_REALTIME_MODEL", "gpt-realtime")
+REALTIME_VOICE = os.environ.get("ALFREDO_REALTIME_VOICE", "marin")
+REALTIME_IDLE_TIMEOUT = int(os.environ.get("ALFREDO_REALTIME_IDLE_TIMEOUT", "300"))
+PERSONA_PATH = Path(os.path.expanduser("~/alfredo-kiosk/persona.md"))
+MEMORY_PATHS = [
+    Path(os.path.expanduser("~/alfredo-kiosk/memory.md")),
+    Path(os.path.expanduser("~/.claude/projects/-Users-todd-Projects-project-alfredo/memory/MEMORY.md")),
+]
+
+REALTIME_TOOL_SCHEMAS = [
+    {
+        "type": "function",
+        "name": "get_today_summary",
+        "description": "Get Alfredo's today summary using calendar, open tasks, waiting items, and kiosk context.",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "get_tomorrow_summary",
+        "description": "Get tomorrow's schedule and likely workload summary.",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "get_open_tasks",
+        "description": "List current open work and personal tasks with waiting/deferred context.",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "get_active_projects",
+        "description": "Return active project context when available.",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "get_recent_memory",
+        "description": "Return recent Alfredo memory notes when available.",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "get_response_candidates",
+        "description": "Answer who Alfredo needs to respond to based on waiting items, followups, and nearby meetings.",
+        "parameters": {"type": "object", "properties": {}},
+    },
+    {
+        "type": "function",
+        "name": "create_task",
+        "description": "Create a new Alfredo task.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string"},
+                "scope": {"type": "string", "enum": ["work", "personal"]},
+                "urgency": {"type": "string", "enum": ["normal", "high"]},
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "create_followup",
+        "description": "Create a follow-up or waiting-on item.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string"},
+                "person": {"type": "string"},
+                "when": {"type": "string"},
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "create_reminder",
+        "description": "Create a reminder or callback task with fuzzy timing like later or tomorrow morning.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string"},
+                "when": {"type": "string"},
+                "scope": {"type": "string", "enum": ["work", "personal"]},
+            },
+            "required": ["text"],
+        },
+    },
+]
+
+
+def load_persona():
+    try:
+        return PERSONA_PATH.read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
+
+
+def load_recent_memory():
+    for path in MEMORY_PATHS:
+        try:
+            content = path.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        bullets = [line.strip() for line in content.splitlines() if line.strip().startswith("- ")]
+        if bullets:
+            return bullets[:6]
+    return []
+
+
+def current_context(snapshot=None):
+    state = dict(direct_context)
+    if snapshot:
+        state.update({
+            "workTasks": snapshot.get("workTasks", state["workTasks"]),
+            "lifeTasks": snapshot.get("lifeTasks", state["lifeTasks"]),
+            "waitingItems": snapshot.get("waitingItems", state.get("waitingItems", [])),
+            "deferredItems": snapshot.get("deferredItems", state.get("deferredItems", [])),
+            "projects": snapshot.get("projects", state.get("projects", [])),
+            "scratch": snapshot.get("scratch", state["scratch"]),
+            "calendar": snapshot.get("calendar", state["calendar"]),
+        })
+    if not state.get("calendar"):
+        state["calendar"] = get_merged_calendar().get("events", [])
+    return state
+
+
+def format_event_summary(event):
+    title = event.get("title", "(untitled)")
+    start = event.get("startTime", "")
+    location = event.get("location")
+    try:
+        dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        if dt.tzinfo is not None:
+            dt = dt.astimezone()
+        time_str = dt.strftime("%-I:%M %p").lower()
+    except Exception:
+        time_str = start or "time tbd"
+    suffix = f" @ {location}" if location else ""
+    return f"{time_str} {title}{suffix}"
+
+
+def summarize_events_for_day(events, day_offset=0):
+    target = datetime.now().astimezone().date() + timedelta(days=day_offset)
+    filtered = []
+    for event in events or []:
+        start = event.get("startTime", "")
+        try:
+            dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
+            if dt.tzinfo is not None:
+                dt = dt.astimezone()
+            if dt.date() == target:
+                filtered.append((dt, event))
+        except Exception:
+            continue
+    filtered.sort(key=lambda item: item[0])
+    return [format_event_summary(event) for _, event in filtered[:8]]
+
+
+def open_task_lines(tasks):
+    items = []
+    for task in tasks or []:
+        if task.get("done") or task.get("status") in ("waiting", "deferred"):
+            continue
+        text = task.get("text", "").strip()
+        if text:
+            items.append(text)
+    return items
+
+
+def summarize_open_tasks(state):
+    work = open_task_lines(state.get("workTasks", []))
+    life = open_task_lines(state.get("lifeTasks", []))
+    waiting = [item.get("text", "") for item in state.get("waitingItems", []) if item.get("text")]
+    deferred = [item.get("text", "") for item in state.get("deferredItems", []) if item.get("text")]
+    return {
+        "work": work[:6],
+        "personal": life[:4],
+        "waiting": waiting[:4],
+        "deferred": deferred[:4],
+    }
+
+
+def summarize_projects(state):
+    projects = state.get("projects") or []
+    if not projects:
+        return []
+    lines = []
+    for project in projects[:6]:
+        name = project.get("name", "project")
+        status = project.get("status", "")
+        percent = project.get("percent")
+        detail = " // ".join(part for part in [
+            status,
+            f"{percent}%" if percent is not None else ""
+        ] if part)
+        lines.append(f"{name}{(' // ' + detail) if detail else ''}")
+    return lines
+
+
+def infer_scope(args):
+    scope = (args.get("scope") or "").strip().lower()
+    if scope in ("work", "personal"):
+        return scope
+    text = (args.get("text") or "").lower()
+    personal_terms = ("home", "family", "mom", "dad", "wife", "kids", "doctor", "dentist")
+    return "personal" if any(term in text for term in personal_terms) else "work"
+
+
+def resolve_fuzzy_time(label):
+    raw = (label or "later").strip().lower()
+    now = datetime.now().astimezone()
+    if not raw or raw == "later":
+        if now.hour < 17:
+            target = now.replace(hour=max(now.hour + 1, 15), minute=30, second=0, microsecond=0)
+            return {"label": target.strftime("today at %-I:%M %p").lower(), "bucket": "today"}
+        target = (now + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+        return {"label": target.strftime("tomorrow at %-I:%M %p").lower(), "bucket": "tomorrow"}
+    if raw in ("tomorrow", "tomorrow morning"):
+        target = (now + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+        return {"label": target.strftime("tomorrow at %-I:%M %p").lower(), "bucket": "tomorrow"}
+    if raw in ("this afternoon", "afternoon"):
+        target = now.replace(hour=15, minute=30, second=0, microsecond=0)
+        return {"label": target.strftime("today at %-I:%M %p").lower(), "bucket": "today"}
+    return {"label": raw, "bucket": "custom"}
+
+
+def build_reminder_text(text, when_info):
+    normalized = text.strip()
+    if when_info["label"] and when_info["label"] not in normalized.lower():
+        return f"{normalized} ({when_info['label']})"
+    return normalized
+
+
+def response_candidates(state):
+    candidates = []
+    for item in state.get("waitingItems", [])[:6]:
+        text = item.get("text", "").strip()
+        if text:
+            reason = item.get("person") or "waiting item"
+            candidates.append({"text": text, "reason": reason})
+    for task in state.get("workTasks", []) + state.get("lifeTasks", []):
+        text = task.get("text", "").strip()
+        if text and re.search(r"\b(reply|respond|email|call back|follow up)\b", text, re.I):
+            candidates.append({"text": text, "reason": "action keyword"})
+    upcoming = summarize_events_for_day(state.get("calendar", []), 0)[:2]
+    for event in upcoming:
+        candidates.append({"text": event, "reason": "upcoming meeting"})
+    deduped = []
+    seen = set()
+    for item in candidates:
+        key = item["text"].lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+    return deduped[:6]
+
+
+def build_realtime_instructions():
+    persona = load_persona()
+    persona_block = f"\n\nPersona:\n{persona}\n" if persona else ""
+    return (
+        "You are Alfredo in live voice direct mode. "
+        "Be concise, warm, and decisive. Prefer tool calls over guessing. "
+        "When a task, reminder, or follow-up is created, briefly confirm the saved action in one sentence. "
+        "If timing is ambiguous but risky, ask one short follow-up. "
+        "Do not pretend to have completed actions unless a tool confirms success."
+        + persona_block
+    )
+
+
+def build_realtime_session_payload():
+    return {
+        "session": {
+            "type": "realtime",
+            "model": REALTIME_MODEL,
+            "instructions": build_realtime_instructions(),
+            "tools": REALTIME_TOOL_SCHEMAS,
+            "tool_choice": "auto",
+            "audio": {
+                "input": {
+                    "turn_detection": {
+                        "type": "server_vad",
+                        "create_response": True,
+                        "interrupt_response": True,
+                    }
+                },
+                "output": {"voice": REALTIME_VOICE},
+            },
+        }
+    }
+
+
+def dispatch_realtime_tool(tool_name, args, snapshot=None):
+    state = current_context(snapshot)
+    memory = load_recent_memory()
+
+    if tool_name == "get_today_summary":
+        return {"ok": True, "summary": {
+            "events": summarize_events_for_day(state.get("calendar", []), 0),
+            "tasks": summarize_open_tasks(state),
+        }}
+    if tool_name == "get_tomorrow_summary":
+        return {"ok": True, "summary": {
+            "events": summarize_events_for_day(state.get("calendar", []), 1),
+            "tasks": summarize_open_tasks(state),
+        }}
+    if tool_name == "get_open_tasks":
+        return {"ok": True, "tasks": summarize_open_tasks(state)}
+    if tool_name == "get_active_projects":
+        return {"ok": True, "projects": summarize_projects(state)}
+    if tool_name == "get_recent_memory":
+        return {"ok": True, "memory": memory}
+    if tool_name == "get_response_candidates":
+        return {"ok": True, "candidates": response_candidates(state)}
+    if tool_name == "create_task":
+        text = (args.get("text") or "").strip()
+        if not text:
+            return {"ok": False, "error": "missing task text"}
+        scope = infer_scope(args)
+        task = {
+            "text": text,
+            "done": False,
+            "status": "todo",
+            "urgency": "high" if args.get("urgency") == "high" else None,
+        }
+        return {
+            "ok": True,
+            "assistant_confirmation": f"I added {text}.",
+            "client_action": {"kind": "append_task", "list": "workTasks" if scope == "work" else "lifeTasks", "task": task},
+            "saved": {"type": "task", "scope": scope, "text": text},
+        }
+    if tool_name == "create_followup":
+        text = (args.get("text") or "").strip()
+        if not text:
+            return {"ok": False, "error": "missing followup text"}
+        person = (args.get("person") or "").strip()
+        item = {"text": text}
+        if person:
+            item["person"] = person
+        return {
+            "ok": True,
+            "assistant_confirmation": f"I added that follow-up.",
+            "client_action": {"kind": "append_waiting", "item": item},
+            "saved": {"type": "followup", "text": text, "person": person},
+        }
+    if tool_name == "create_reminder":
+        text = (args.get("text") or "").strip()
+        if not text:
+            return {"ok": False, "error": "missing reminder text"}
+        when_info = resolve_fuzzy_time(args.get("when"))
+        scope = infer_scope(args)
+        saved_text = build_reminder_text(text, when_info)
+        task = {
+            "text": saved_text,
+            "done": False,
+            "status": "todo",
+            "reminderWhen": when_info["label"],
+        }
+        return {
+            "ok": True,
+            "assistant_confirmation": f"I added that reminder for {when_info['label']}.",
+            "client_action": {"kind": "append_task", "list": "workTasks" if scope == "work" else "lifeTasks", "task": task},
+            "saved": {"type": "reminder", "text": text, "when": when_info["label"], "scope": scope},
+        }
+    return {"ok": False, "error": f"unknown tool: {tool_name}"}
 
 def check_presence():
     if not PRESENCE_HOSTS:
@@ -329,6 +703,46 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if body is None: return
             voice_push_active = body.get("active", True)
             self._json({"active": voice_push_active})
+        elif self.path == "/proxy/realtime/session":
+            body = self._read_json_body()
+            if body is None: return
+            if not OPENAI_API_KEY:
+                self._json({"error": "OPENAI_API_KEY is not configured on the kiosk"}, code=503)
+                return
+            session_id = body.get("sessionId") or str(uuid4())
+            payload = build_realtime_session_payload()
+            try:
+                req = urllib.request.Request(
+                    "https://api.openai.com/v1/realtime/client_secrets",
+                    data=json.dumps(payload).encode(),
+                    headers={
+                        "Authorization": f"Bearer {OPENAI_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=20) as r:
+                    data = json.loads(r.read())
+                self._json({
+                    "client_secret": data.get("client_secret") or data,
+                    "session": payload["session"],
+                    "meta": {
+                        "sessionId": session_id,
+                        "surface": body.get("surface", "kiosk"),
+                        "conversationMode": body.get("conversationMode", "direct"),
+                        "idleTimeout": REALTIME_IDLE_TIMEOUT,
+                    },
+                })
+            except Exception as ex:
+                self._json({"error": f"failed to create realtime session: {ex}"}, code=502)
+        elif self.path == "/proxy/realtime/tool":
+            body = self._read_json_body()
+            if body is None: return
+            tool_name = body.get("tool", "")
+            args = body.get("arguments", {}) or {}
+            snapshot = body.get("state_snapshot", {}) or {}
+            result = dispatch_realtime_tool(tool_name, args, snapshot=snapshot)
+            self._json(result, code=200 if result.get("ok") else 400)
         elif self.path == "/proxy/layout":
             # Editor pushes layout updates — saves to layouts.json, triggers kiosk reload
             body = self._read_json_body()
@@ -392,6 +806,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 "session_id": body.get("session_id"),
                 "surface": body.get("surface", "kiosk"),
                 "session_state": body.get("session_state"),
+                "origin": body.get("origin", "server"),
             }
             voice_events.append(event)
             if len(voice_events) > VOICE_EVENT_MAX:
@@ -402,6 +817,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if body is None: return
             direct_context["workTasks"] = body.get("workTasks", [])
             direct_context["lifeTasks"] = body.get("lifeTasks", [])
+            direct_context["waitingItems"] = body.get("waitingItems", [])
+            direct_context["deferredItems"] = body.get("deferredItems", [])
+            direct_context["projects"] = body.get("projects", [])
             direct_context["scratch"] = body.get("scratch", [])
             direct_context["calendar"] = body.get("calendar", [])
             direct_context["updatedAt"] = time.time()

@@ -15,12 +15,23 @@ Web dashboard running on pihub.local, displayed on a ROADOM 7" 1024×600 touchsc
 The kiosk integrates with `alfredo-wake.service` for voice interaction:
 
 - **Mute button** (upper-right): double-tap to toggle. Shows "MIC LIVE" or "MUTED"
-- **Push-to-talk**: mic button sends POST to `/proxy/voice-activate`
+- **Push-to-talk**: mic button now prefers a realtime WebRTC voice session; legacy `/proxy/voice-activate` remains as fallback infrastructure
 - **Transcription**: recorded mic audio is transcribed locally with Whisper `tiny.en`
 - **Agent handoff**: the transcript is sent to `alfredo-bridge` in `agent` mode so the Codex system prompt is applied
 - **Voice toast**: overlay shows wake ack, listening state, thinking state, and reply text
 - **Voice bar**: 3px bar at top — yellow pulse when listening, blue scan when thinking
 - **Persona**: `~/alfredo-kiosk/persona.md` — Monday-inspired personality, editable without restart
+
+## Realtime voice
+
+The kiosk now includes a kiosk-first realtime voice path:
+
+- **Broker endpoint**: `POST /proxy/realtime/session` mints a short-lived OpenAI Realtime session secret
+- **Transport**: browser WebRTC to the Realtime API with server-side secrets only
+- **Tools**: `POST /proxy/realtime/tool` resolves calendar/task/memory queries and scoped actions
+- **Actions**: create task, create follow-up, create reminder
+- **Current requirement**: set `OPENAI_API_KEY` on the Pi before realtime voice can connect
+- **Fallback**: if realtime setup fails, the wake service remains installed and healthy, but the kiosk button no longer auto-falls back to Whisper/TTS
 
 ## Direct Mode
 
