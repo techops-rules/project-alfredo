@@ -320,12 +320,16 @@ def build_realtime_session_payload():
             "type": "realtime",
             "model": REALTIME_MODEL,
             "instructions": build_realtime_instructions(),
+            "output_modalities": ["audio"],
             "tools": REALTIME_TOOL_SCHEMAS,
             "tool_choice": "auto",
             "audio": {
                 "input": {
                     "turn_detection": {
                         "type": "server_vad",
+                        "threshold": 0.72,
+                        "prefix_padding_ms": 240,
+                        "silence_duration_ms": 650,
                         "create_response": True,
                         "interrupt_response": True,
                     }
@@ -827,12 +831,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_response(404); self.end_headers()
 
-    def _suggest_tasks(self):
-        """Call Claude bridge to generate today's work task list from calendar context."""
+    def _suggest_tasks(self, scope="work"):
+        """Call Claude bridge to generate today's task list from all available context.
+        scope: 'work' or 'life' — generates different task types."""
         try:
             cal = get_merged_calendar()
             now = datetime.now(timezone.utc)
-            today_str = now.strftime("%A, %B %-d, %Y")
+            local_now = datetime.now()
+            today_str = local_now.strftime("%A, %B %-d, %Y")
+            hour = local_now.hour
+            is_weekend = local_now.weekday() >= 5
+
+            # Calendar context
             events_summary = []
             for e in cal.get("events", []):
                 title = e.get("title", "")
@@ -848,13 +858,71 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     events_summary.append(f"- (all day): {title}")
             cal_text = "\n".join(events_summary) if events_summary else "(no events today)"
 
-            prompt = (
-                f"Today is {today_str}. Here are my calendar events:\n{cal_text}\n\n"
-                "Based on this context, suggest a focused work task list for today. "
-                "Return ONLY a JSON array of objects with 'text' (string) and 'done' (false). "
-                "5-8 tasks max. Tasks should be specific, actionable, and realistic. "
-                "No explanation, no markdown, just the JSON array."
-            )
+            # Existing tasks context (what's already on the board)
+            existing_work = [t.get("text","") for t in direct_context.get("workTasks",[]) if not t.get("done")][:8]
+            existing_life = [t.get("text","") for t in direct_context.get("lifeTasks",[]) if not t.get("done")][:8]
+            waiting = [t.get("text","") for t in direct_context.get("waitingItems",[]) if not t.get("done")][:5]
+
+            existing_text = ""
+            if existing_work:
+                existing_text += "\nCurrent work tasks:\n" + "\n".join(f"- {t}" for t in existing_work)
+            if existing_life:
+                existing_text += "\nCurrent life tasks:\n" + "\n".join(f"- {t}" for t in existing_life)
+            if waiting:
+                existing_text += "\nWaiting on:\n" + "\n".join(f"- {t}" for t in waiting)
+
+            # Scratch pad context
+            scratch = direct_context.get("scratch", [])
+            scratch_text = ""
+            if scratch and any(s.strip() and s.strip() != "// jot things here" for s in scratch):
+                scratch_text = "\nScratch pad notes:\n" + "\n".join(f"- {s}" for s in scratch[:10] if s.strip())
+
+            # Time-of-day context
+            if hour < 9:
+                time_ctx = "It's early morning — good time for planning and high-priority items."
+            elif hour < 12:
+                time_ctx = "It's mid-morning — peak productivity window."
+            elif hour < 14:
+                time_ctx = "It's around lunch — consider lighter tasks or review."
+            elif hour < 17:
+                time_ctx = "It's afternoon — focus on completing open items before end of day."
+            else:
+                time_ctx = "It's evening — wrap up, plan for tomorrow, life admin."
+
+            weekend_ctx = " It's the weekend — lean toward personal priorities." if is_weekend else ""
+
+            if scope == "work":
+                prompt = (
+                    f"You are Alfredo, Todd's chief of staff. Today is {today_str}. {time_ctx}{weekend_ctx}\n\n"
+                    f"Calendar:\n{cal_text}\n"
+                    f"{existing_text}{scratch_text}\n\n"
+                    "Generate Todd's WORK task list for today. You're his chief of staff — think about:\n"
+                    "- What meetings need prep? What follow-ups are due?\n"
+                    "- What's the most important thing to move forward today?\n"
+                    "- Any deadlines approaching? Anything overdue from existing tasks?\n"
+                    "- Don't duplicate existing tasks unless they need to be re-prioritized.\n"
+                    "- Keep tasks specific and actionable (not vague like 'work on project').\n\n"
+                    "Return ONLY a JSON array: [{\"text\": \"...\", \"done\": false, \"priority\": \"high|med|low\"}]\n"
+                    "8-12 tasks. No explanation, no markdown, just JSON."
+                )
+            else:
+                prompt = (
+                    f"You are Alfredo, Todd's chief of staff. Today is {today_str}. {time_ctx}{weekend_ctx}\n\n"
+                    f"Calendar:\n{cal_text}\n"
+                    f"{existing_text}{scratch_text}\n\n"
+                    "Generate Todd's LIFE / PERSONAL task list. As his chief of staff, think about:\n"
+                    "- Household maintenance, errands, chores that are likely due\n"
+                    "- Health: exercise, meal prep, appointments\n"
+                    "- Relationships: check-ins, plans with friends/family\n"
+                    "- Personal growth: reading, hobbies, side projects\n"
+                    "- Admin: bills, subscriptions, groceries, car maintenance\n"
+                    "- Seasonal/weather-appropriate suggestions (Seattle area)\n"
+                    "- Don't duplicate existing life tasks.\n"
+                    "- Mix practical must-dos with one or two 'treat yourself' items.\n\n"
+                    "Return ONLY a JSON array: [{\"text\": \"...\", \"done\": false, \"priority\": \"high|med|low\"}]\n"
+                    "6-10 tasks. No explanation, no markdown, just JSON."
+                )
+
             req_data = json.dumps({"prompt": prompt}).encode()
             req = urllib.request.Request(
                 "http://localhost:8420/chat",
@@ -862,20 +930,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 headers={"Content-Type": "application/json"},
                 method="POST"
             )
-            with urllib.request.urlopen(req, timeout=20) as r:
+            with urllib.request.urlopen(req, timeout=30) as r:
                 result = json.loads(r.read())
             response_text = result.get("response", "")
-            # Extract JSON array from response
             match = re.search(r'\[.*\]', response_text, re.DOTALL)
             if match:
                 tasks = json.loads(match.group(0))
-                # Validate structure
-                tasks = [{"text": str(t.get("text", "")), "done": bool(t.get("done", False))}
+                tasks = [{"text": str(t.get("text", "")), "done": bool(t.get("done", False)),
+                           "priority": t.get("priority", "med")}
                          for t in tasks if t.get("text")]
-                return {"ok": True, "tasks": tasks, "source": "claude"}
+                return {"ok": True, "tasks": tasks, "source": "claude", "scope": scope}
         except Exception as ex:
-            print(f"[suggest-tasks] error: {ex}")
-        return {"ok": False, "tasks": [], "source": "error"}
+            print(f"[suggest-tasks:{scope}] error: {ex}")
+        return {"ok": False, "tasks": [], "source": "error", "scope": scope}
 
     def do_GET(self):
         if self.path == "/proxy/layout":
@@ -910,8 +977,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json(get_merged_calendar())
         elif self.path == "/proxy/calendar-feeds":
             self._json({"feeds": load_ical_feeds()})
-        elif self.path == "/proxy/suggest-tasks":
-            self._json(self._suggest_tasks())
+        elif self.path.startswith("/proxy/suggest-tasks"):
+            scope = "work"
+            if "?" in self.path:
+                params = dict(p.split("=") for p in self.path.split("?")[1].split("&") if "=" in p)
+                scope = params.get("scope", "work")
+            self._json(self._suggest_tasks(scope))
         elif self.path.startswith("/proxy/voice-event"):
             # Return events since timestamp, or all recent
             since = 0

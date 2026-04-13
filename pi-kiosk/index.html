@@ -158,14 +158,19 @@
 
   /* Tasks */
   .task-list { display:flex; flex-direction:column; gap:2px; height:100%; overflow-y:auto; }
-  .task-item { display:flex; align-items:center; gap:8px; padding:4px 0; cursor:pointer; }
-  .task-dot { width:8px; height:8px; border-radius:50%; border:1.5px solid var(--accent-border); flex-shrink:0; transition:transform 0.1s; }
+  .task-item { display:flex; align-items:center; gap:8px; padding:4px 0; cursor:pointer; transition:transform 0.2s, opacity 0.2s; touch-action:pan-y; }
+  .task-item.task-high .task-dot { border-color:var(--warning); }
+  .task-item.task-high .task-text { color:var(--text-emphasis); }
+  .task-dot { width:8px; height:8px; border-radius:50%; border:1.5px solid var(--accent-border); flex-shrink:0; transition:transform 0.1s; cursor:pointer; }
+  .task-dot:active { transform:scale(1.3); }
   .task-dot.done { background:var(--success); border-color:var(--success); }
   .task-text { font-size:var(--widget-body-size); color:var(--text-primary); }
-  .task-text.done { text-decoration:line-through; color:var(--text-secondary); }
+  .task-text.done { text-decoration:line-through; color:var(--text-secondary); opacity:0.5; }
   .task-blank { display:flex; align-items:center; gap:8px; padding:4px 0; opacity:0.3; cursor:pointer; }
   .task-blank .task-dot { border-style:dashed; }
   .task-blank .task-text { color:var(--text-secondary); font-style:italic; font-size:var(--widget-body-size); }
+  .task-expand { font-size:9px; color:var(--text-secondary); opacity:0.4; padding:4px 0; cursor:pointer; text-align:center; letter-spacing:1px; }
+  .task-expand:hover { opacity:0.7; }
   .widget-stale .zone::after { content:' · STALE'; color:var(--warning); font-size:9px; letter-spacing:1px; }
   .widget-stale { opacity:0.6; }
   .widget[data-size="compact"] .task-item,
@@ -245,7 +250,7 @@
   .wx-moon-shadow { position:absolute; top:-1px; width:50px; height:52px; border-radius:50%; background:var(--bg); }
   .wx-moon-body.full { box-shadow:0 0 18px 6px rgba(220,230,255,0.52), 0 0 34px 12px rgba(200,210,240,0.22); }
   .wx-moon-body.new { background:#3a3f4a; box-shadow:none; opacity:0.4; }
-  .wx-current-info { position:absolute; top:10px; left:12px; z-index:4; display:flex; flex-direction:column; gap:4px; pointer-events:none; min-width:210px; }
+  .wx-current-info { position:absolute; top:10px; left:12px; z-index:4; display:flex; flex-direction:column; gap:4px; pointer-events:none; min-width:220px; max-width:250px; }
   .wx-current-main { display:flex; align-items:flex-start; gap:10px; }
   .wx-current-temp { font-size:34px; line-height:0.95; font-weight:700; color:var(--text-emphasis); text-shadow:0 2px 8px rgba(0,0,0,0.72); }
   .wx-current-copy { display:flex; flex-direction:column; gap:3px; padding-top:4px; }
@@ -253,14 +258,14 @@
   .wx-current-hilo { font-size:10px; color:var(--text-secondary); opacity:0.92; }
   .wx-current-meta { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
   .wx-meta-pill { font-size:9px; color:var(--text-secondary); letter-spacing:1px; padding:2px 6px; border-radius:999px; border:1px solid rgba(97,175,239,0.14); background:rgba(8,14,24,0.32); backdrop-filter:blur(4px); }
-  .wx-story { position:absolute; right:14px; top:26px; z-index:4; width:210px; display:flex; flex-direction:column; gap:5px; pointer-events:none; }
-  .wx-story-line { font-size:10px; line-height:1.45; color:var(--text-primary); text-shadow:0 1px 2px rgba(0,0,0,0.6); }
+  .wx-story { position:absolute; right:12px; top:24px; z-index:4; width:190px; display:flex; flex-direction:column; gap:5px; pointer-events:none; padding:6px 8px; border-radius:12px; background:linear-gradient(180deg, rgba(8,14,24,0.34), rgba(8,14,24,0.14)); backdrop-filter:blur(6px); }
+  .wx-story-line { font-size:10px; line-height:1.4; color:var(--text-primary); text-shadow:0 1px 2px rgba(0,0,0,0.6); }
   .wx-story-line.secondary { color:var(--text-secondary); }
   .wx-sky-cover { position:absolute; inset:0; z-index:3; pointer-events:none; }
-  .wx-cloud { position:absolute; height:18px; border-radius:999px; background:linear-gradient(180deg, rgba(221,229,242,0.95), rgba(190,200,218,0.76)); box-shadow:0 8px 18px rgba(0,0,0,0.12); }
+  .wx-cloud { position:absolute; height:14px; border-radius:999px; background:linear-gradient(180deg, rgba(221,229,242,0.92), rgba(190,200,218,0.72)); box-shadow:0 6px 12px rgba(0,0,0,0.1); }
   .wx-cloud::before, .wx-cloud::after { content:''; position:absolute; bottom:6px; border-radius:50%; background:inherit; }
-  .wx-cloud::before { width:18px; height:18px; left:8px; }
-  .wx-cloud::after { width:24px; height:24px; right:10px; }
+  .wx-cloud::before { width:14px; height:14px; left:7px; bottom:4px; }
+  .wx-cloud::after { width:18px; height:18px; right:8px; bottom:4px; }
   .wx-cloud.heavy { opacity:0.96; }
   .wx-cloud.medium { opacity:0.82; }
   .wx-cloud.light { opacity:0.64; }
@@ -364,6 +369,9 @@
   .voice-btn.muted { opacity:0.8; background:rgba(224,108,117,0.15); border-color:var(--danger); animation:none; }
   .mute-btn { position:fixed; bottom:32px; right:8px; width:60px; height:24px; border-radius:4px; background:rgba(152,195,121,0.08); border:1px solid rgba(152,195,121,0.2); display:flex; align-items:center; justify-content:center; gap:4px; cursor:none; z-index:250; font-size:9px; font-family:var(--font); font-weight:700; letter-spacing:1px; color:var(--success); opacity:0.5; transition: all 0.3s ease; }
   .mute-btn.muted { background:rgba(224,108,117,0.15); border-color:var(--danger); color:var(--danger); }
+  .wake-hotspot { position:absolute; right:0; bottom:0; width:148px; height:104px; z-index:12; cursor:none; -webkit-tap-highlight-color:transparent; background:linear-gradient(135deg, rgba(97,175,239,0), rgba(97,175,239,0.03)); opacity:0.01; }
+  .wake-hotspot.armed { opacity:1; background:linear-gradient(135deg, rgba(97,175,239,0.02), rgba(97,175,239,0.12)); box-shadow:inset 0 0 0 1px rgba(97,175,239,0.18); animation:wake-hotspot-pulse 0.45s ease-out; }
+  @keyframes wake-hotspot-pulse { 0% { opacity:0.95; transform:scale(0.98); } 100% { opacity:0.01; transform:scale(1); } }
   @keyframes voice-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(97,175,239,0.4)} 50%{box-shadow:0 0 20px 8px rgba(97,175,239,0.15)} }
 
   /* Voice overlay toast */
@@ -584,6 +592,7 @@
   <div class="voice-bar" id="voiceBar"></div>
   <div class="mute-btn" id="muteBtn" title="mute alfredo">🔇</div>
   <div class="voice-btn" id="voiceBtn" title="voice input">🎙</div>
+  <div class="wake-hotspot" id="wakeHotspot" title="double tap to wake alfredo"></div>
   <div class="voice-toast" id="voiceToast">
     <span class="vt-icon">🎙</span>
     <div>
@@ -758,6 +767,9 @@ pushTermLine('ambient terminal online', 'sys');
 pushTermLine('voice + layout surface ready', 'sys');
 
 // ── Tasks ───────────────────────────────────────────────────
+function fetchWithTimeout(url, ms) {
+  return Promise.race([fetch(url), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+}
 function loadData(key,def){try{return JSON.parse(localStorage.getItem(key))||def;}catch{return def;}}
 function saveData(key,val){localStorage.setItem(key,JSON.stringify(val));}
 
@@ -793,53 +805,139 @@ function syncDirectContext(){
 // Fetch if bridge is up; fall back to localStorage. Retries on reconnect.
 let taskFetchFailed = false; // track if last attempt failed so we retry on reconnect
 
-function fetchSuggestedTasks(force){
+function fetchSuggestedTasks(force, scope='work'){
   const today = new Date().toDateString();
-  const lastFetch = localStorage.getItem('workTasksDate');
-  if (!force && lastFetch === today && workTasks.length > 0) return; // already fresh
-  fetch('/proxy/suggest-tasks', {signal: AbortSignal.timeout(15000)})
+  const dateKey = scope + 'TasksDate';
+  const lastFetch = localStorage.getItem(dateKey);
+  const tasks = scope === 'work' ? workTasks : lifeTasks;
+  if (!force && lastFetch === today && tasks.length > 0) return;
+
+  fetchWithTimeout('/proxy/suggest-tasks?scope=' + scope, 20000)
     .then(r => r.json())
     .then(d => {
       if (d.ok && d.tasks && d.tasks.length > 0) {
-        workTasks = d.tasks;
-        saveData('workTasks', workTasks);
-        localStorage.setItem('workTasksDate', today);
-        renderTasks('workTasks','workBadge', workTasks,'workTasks');
+        // Merge: keep user's completed tasks, add new suggestions
+        const existingDone = tasks.filter(t => t.done);
+        const newTasks = [...d.tasks, ...existingDone];
+        if (scope === 'work') { workTasks = newTasks; saveData('workTasks', workTasks); }
+        else { lifeTasks = newTasks; saveData('lifeTasks', lifeTasks); }
+        localStorage.setItem(dateKey, today);
+        renderTasks(scope + 'Tasks', scope === 'work' ? 'workBadge' : 'lifeBadge', scope === 'work' ? workTasks : lifeTasks, scope + 'Tasks');
         updateTodayBar();
         taskFetchFailed = false;
         setTaskStale(false);
-        pushTermLine('tasks refreshed from bridge', 'good');
+        pushTermLine(scope + ' tasks refreshed from bridge', 'good');
       } else { taskFetchFailed = true; }
     })
     .catch(() => {
       taskFetchFailed = true;
-      pushTermLine('task refresh failed // using local cache', 'warn');
+      pushTermLine(scope + ' task refresh failed // using local cache', 'warn');
     });
 }
-fetchSuggestedTasks();
+fetchSuggestedTasks(false, 'work');
+fetchSuggestedTasks(false, 'life');
 
-function renderTasks(cid,bid,tasks,key){
-  const el=document.getElementById(cid);
-  // Only show tasks not moved to waiting/deferred; undone first, done after; cap at 5
-  const active=tasks.filter(t=>t.status!=='waiting'&&t.status!=='deferred');
-  const undone=active.filter(t=>!t.done);
-  const done=active.filter(t=>t.done);
-  const toShow=[...undone,...done].slice(0,5);
-  const badge=document.getElementById(bid);
-  badge.innerHTML=toShow.length>0?renderDotProgress(toShow.length,toShow.filter(t=>t.done).length):'';
-  el.innerHTML='';
-  toShow.forEach(t=>{
-    const row=document.createElement('div'); row.className='task-item';
-    const dot=document.createElement('div'); dot.className='task-dot'+(t.done?' done':'');
-    const span=document.createElement('span'); span.className='task-text'+(t.done?' done':''); span.textContent=t.text;
-    row.appendChild(dot); row.appendChild(span);
-    row.addEventListener('click',()=>openTaskDetail(t,tasks,key));
+// Track expanded state per widget
+const taskExpanded = { workTasks: false, lifeTasks: false };
+const TASK_COLLAPSED_LIMIT = 5;
+
+// Completed tasks archive
+let completedArchive = loadData('completedArchive', []);
+function archiveTask(task) {
+  completedArchive.push({ ...task, completedAt: Date.now() });
+  // Keep last 100
+  if (completedArchive.length > 100) completedArchive = completedArchive.slice(-100);
+  saveData('completedArchive', completedArchive);
+}
+
+function renderTasks(cid, bid, tasks, key) {
+  const el = document.getElementById(cid);
+  const active = tasks.filter(t => t.status !== 'waiting' && t.status !== 'deferred');
+  // Sort: high priority first, then undone before done
+  const priorityOrder = { high: 0, med: 1, low: 2 };
+  const undone = active.filter(t => !t.done).sort((a, b) => (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1));
+  const done = active.filter(t => t.done);
+  const allItems = [...undone, ...done];
+  const expanded = taskExpanded[key];
+  const toShow = expanded ? allItems : allItems.slice(0, TASK_COLLAPSED_LIMIT);
+  const hasMore = allItems.length > TASK_COLLAPSED_LIMIT;
+
+  const badge = document.getElementById(bid);
+  badge.innerHTML = allItems.length > 0 ? renderDotProgress(allItems.length, done.length) : '';
+  el.innerHTML = '';
+
+  toShow.forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'task-item' + (t.priority === 'high' ? ' task-high' : '');
+    const dot = document.createElement('div');
+    dot.className = 'task-dot' + (t.done ? ' done' : '');
+    const span = document.createElement('span');
+    span.className = 'task-text' + (t.done ? ' done' : '');
+    span.textContent = t.text;
+    row.appendChild(dot);
+    row.appendChild(span);
+
+    // Circle click: toggle done + archive
+    dot.addEventListener('click', e => {
+      e.stopPropagation();
+      t.done = !t.done;
+      if (t.done) archiveTask(t);
+      saveData(key, tasks);
+      renderTasks(cid, bid, tasks, key);
+      updateTodayBar();
+      queueDirectContextSync();
+    });
+
+    // Swipe to complete/archive
+    let startX = 0, swiping = false;
+    row.addEventListener('touchstart', e => { startX = e.touches[0].clientX; swiping = true; }, { passive: true });
+    row.addEventListener('touchmove', e => {
+      if (!swiping) return;
+      const dx = e.touches[0].clientX - startX;
+      if (dx > 30) { row.style.transform = `translateX(${Math.min(dx, 120)}px)`; row.style.opacity = Math.max(0.3, 1 - dx / 200); }
+      if (dx < -30) { row.style.transform = `translateX(${Math.max(dx, -120)}px)`; row.style.opacity = Math.max(0.3, 1 + dx / 200); }
+    }, { passive: true });
+    row.addEventListener('touchend', e => {
+      if (!swiping) return;
+      swiping = false;
+      const dx = e.changedTouches[0].clientX - startX;
+      if (dx > 80) {
+        // Swipe right: complete
+        row.style.transform = 'translateX(200px)'; row.style.opacity = '0';
+        setTimeout(() => { t.done = true; archiveTask(t); saveData(key, tasks); renderTasks(cid, bid, tasks, key); updateTodayBar(); queueDirectContextSync(); }, 200);
+      } else if (dx < -80) {
+        // Swipe left: remove from list
+        row.style.transform = 'translateX(-200px)'; row.style.opacity = '0';
+        setTimeout(() => { const idx = tasks.indexOf(t); if (idx >= 0) tasks.splice(idx, 1); archiveTask(t); saveData(key, tasks); renderTasks(cid, bid, tasks, key); updateTodayBar(); queueDirectContextSync(); }, 200);
+      } else {
+        row.style.transform = ''; row.style.opacity = '';
+      }
+    });
+
+    // Text click: detail view
+    span.addEventListener('click', e => { e.stopPropagation(); openTaskDetail(t, tasks, key); });
     el.appendChild(row);
   });
-  // Blank dot always at bottom for adding new items
-  const blank=document.createElement('div'); blank.className='task-blank';
-  blank.innerHTML='<div class="task-dot"></div><span class="task-text">add item...</span>';
-  blank.addEventListener('click',()=>openModal('ADD TO '+(key==='workTasks'?'WORK.TODO':'LIFE.TODO'),val=>{if(val){tasks.push({text:val,done:false});saveData(key,tasks);renderTasks(cid,bid,tasks,key);updateTodayBar();queueDirectContextSync();}}));
+
+  // Expand/collapse button if more than 5
+  if (hasMore) {
+    const toggle = document.createElement('div');
+    toggle.className = 'task-expand';
+    toggle.textContent = expanded ? '▲ show less' : `▼ ${allItems.length - TASK_COLLAPSED_LIMIT} more`;
+    toggle.addEventListener('click', () => {
+      taskExpanded[key] = !taskExpanded[key];
+      renderTasks(cid, bid, tasks, key);
+    });
+    el.appendChild(toggle);
+  }
+
+  // Quick add at bottom
+  const blank = document.createElement('div');
+  blank.className = 'task-blank';
+  blank.innerHTML = '<div class="task-dot"></div><span class="task-text" style="opacity:0.3">+ add</span>';
+  blank.addEventListener('click', () => openModal('ADD TO ' + (key === 'workTasks' ? 'WORK.TODO' : 'LIFE.TODO'), val => {
+    if (val) { tasks.unshift({ text: val, done: false, priority: 'med' }); saveData(key, tasks); renderTasks(cid, bid, tasks, key); updateTodayBar(); queueDirectContextSync(); }
+  }));
   el.appendChild(blank);
   queueDirectContextSync();
 }
@@ -1301,20 +1399,21 @@ function renderSkyCover({ cloudCover, code, isDay, xPos, arcWidth, arcHeight }){
   coverEl.innerHTML='';
 
   const clouds=[];
-  const normalizedX=Math.max(48, Math.min(arcWidth - 80, xPos));
-  const baseTop=isDay ? 22 : 28;
+  const normalizedX=Math.max(70, Math.min(arcWidth - 92, xPos));
+  const baseTop=isDay ? 26 : 30;
+  const maskWidth = cloudCover >= 90 ? 94 : cloudCover >= 70 ? 80 : 64;
 
   if(cloudCover >= 20 || [2,3,45,48,51,53,55,61,63,65,71,73,75,80,81,82,95,96,99].includes(code)){
-    clouds.push({ left: normalizedX - 42, top: baseTop, width: cloudCover >= 85 ? 120 : 92, size: cloudCover >= 85 ? 'heavy' : 'medium', mask: true });
+    clouds.push({ left: normalizedX - Math.round(maskWidth * 0.45), top: baseTop, width: maskWidth, size: cloudCover >= 85 ? 'heavy' : 'medium', mask: true });
   }
   if(cloudCover >= 45 || code === 2 || code === 3){
-    clouds.push({ left: 36, top: 18, width: 86, size: cloudCover >= 75 ? 'medium' : 'light' });
+    clouds.push({ left: 44, top: 22, width: 68, size: cloudCover >= 75 ? 'medium' : 'light' });
   }
   if(cloudCover >= 60 || code === 3){
-    clouds.push({ left: arcWidth - 150, top: 30, width: 108, size: cloudCover >= 90 ? 'heavy' : 'medium' });
+    clouds.push({ left: arcWidth - 128, top: 32, width: 82, size: cloudCover >= 90 ? 'heavy' : 'medium' });
   }
   if(cloudCover >= 85 || code === 3){
-    clouds.push({ left: arcWidth * 0.35, top: arcHeight - 8, width: 140, size: 'heavy' });
+    clouds.push({ left: arcWidth * 0.42, top: arcHeight - 6, width: 96, size: 'heavy' });
   }
 
   clouds.forEach((cloud) => {
@@ -1673,7 +1772,7 @@ setInterval(() => {
   // Day rollover — new day means fresh tasks + calendar
   if (today !== lastCheckedDay) {
     lastCheckedDay = today;
-    fetchSuggestedTasks(true); // force refresh
+    fetchSuggestedTasks(true,'work'); fetchSuggestedTasks(true,'life'); // force refresh
     fetchCalendar();
     setTaskStale(false);
   }
@@ -1682,7 +1781,7 @@ setInterval(() => {
   const bridgeDot = document.getElementById('sd-bridge');
   const bridgeUp = bridgeDot && bridgeDot.classList.contains('on');
   if (bridgeUp && bridgeWasDown && taskFetchFailed) {
-    fetchSuggestedTasks(true); // bridge recovered, retry
+    fetchSuggestedTasks(true,'work'); fetchSuggestedTasks(true,'life'); // bridge recovered, retry
   }
   bridgeWasDown = !bridgeUp;
 
@@ -2066,11 +2165,33 @@ document.addEventListener('click',e=>{ if(!document.getElementById('hbgPanel').c
 
 // System buttons
 document.getElementById('btnRefresh').addEventListener('click',()=>{ closeHbg(); location.reload(); });
+function showRebootOverlay(){
+  document.body.innerHTML = '<div id="rebootOverlay" style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:var(--font);color:var(--warning);font-size:14px;letter-spacing:2px;flex-direction:column;gap:10px">REBOOTING...<div style="font-size:10px;color:var(--text-secondary);letter-spacing:1px">waiting for kiosk to come back</div></div>';
+  let attempts = 0;
+  const poll = setInterval(async () => {
+    attempts += 1;
+    try {
+      const response = await fetch('/proxy/health', { cache: 'no-store' });
+      if (response.ok) {
+        clearInterval(poll);
+        location.reload();
+        return;
+      }
+    } catch (error) {}
+    if (attempts > 120) {
+      clearInterval(poll);
+      const overlay = document.getElementById('rebootOverlay');
+      if (overlay) {
+        overlay.innerHTML = 'REBOOT MAY BE DONE<div style="font-size:10px;color:var(--text-secondary);letter-spacing:1px">tap refresh if this screen lingers</div>';
+      }
+    }
+  }, 3000);
+}
 document.getElementById('btnReboot').addEventListener('click',()=>{
   if(!confirm('Reboot Pi?')) return;
   closeHbg();
   fetch('/proxy/reboot',{method:'POST'}).catch(()=>{});
-  document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:var(--font);color:var(--warning);font-size:14px;letter-spacing:2px">REBOOTING...</div>';
+  showRebootOverlay();
 });
 
 // ── Settings sync from settings page ───────────────────────
@@ -2113,7 +2234,10 @@ const vtLabel = document.getElementById('vtLabel');
 const vtText = document.getElementById('vtText');
 const voiceBtn = document.getElementById('voiceBtn');
 const voiceBar = document.getElementById('voiceBar');
+const wakeHotspot = document.getElementById('wakeHotspot');
 const sdMic = document.getElementById('sd-mic');
+let _wakeTapTime = 0;
+let _wakeTapTimer = null;
 
 function setVoiceState(state) {
   _voiceState = state;
@@ -2148,6 +2272,41 @@ function dismissVoice() {
   voiceToast.classList.remove('show');
   setVoiceState('idle');
   clearTimeout(_voiceToastTimer);
+}
+
+function pulseWakeHotspot() {
+  wakeHotspot.classList.remove('armed');
+  void wakeHotspot.offsetWidth;
+  wakeHotspot.classList.add('armed');
+  setTimeout(() => wakeHotspot.classList.remove('armed'), 500);
+}
+
+function handleWakeHotspotTap() {
+  const now = Date.now();
+  if (now - _wakeTapTime < 400) {
+    clearTimeout(_wakeTapTimer);
+    _wakeTapTimer = null;
+    _wakeTapTime = 0;
+    pulseWakeHotspot();
+    if (_voiceMuted) {
+      showVoiceToast('MUTED', 'alfredo is muted. double-tap 🔇 to unmute first.', 'dismissed', 3200);
+      return;
+    }
+    if (realtimeVoice.active) {
+      showVoiceToast('DIRECT MODE', 'already listening.', '', 1800);
+      return;
+    }
+    showVoiceToast('DIRECT MODE', 'corner wake engaged.', '', 1800);
+    pushTermLine('direct mode starting // corner wake', 'sys');
+    realtimeVoice.start('corner-double-tap');
+    return;
+  }
+  _wakeTapTime = now;
+  clearTimeout(_wakeTapTimer);
+  _wakeTapTimer = setTimeout(() => {
+    _wakeTapTime = 0;
+    _wakeTapTimer = null;
+  }, 450);
 }
 
 const REALTIME_STOP_PHRASES = [
@@ -2233,6 +2392,51 @@ function applyRealtimeClientAction(action) {
   }
 }
 
+function formatRealtimeErrorMessage(message) {
+  const raw = String(message || '').trim();
+  const normalized = raw.toLowerCase();
+  if (!raw) return 'Realtime voice fell over. Amazing. Try again.';
+  if (
+    normalized.includes('quota') ||
+    normalized.includes('billing') ||
+    normalized.includes('rate limit') ||
+    normalized.includes('insufficient_quota') ||
+    normalized.includes('exceeded your current quota')
+  ) {
+    return 'Oh look, you ran out of money again. Shocking. The OpenAI API billing limit is blocking voice right now.';
+  }
+  if (normalized.includes('api key') || normalized.includes('client secret')) {
+    return 'The realtime key setup is busted, which is exactly the sort of elegant sabotage we did not need.';
+  }
+  if (normalized.includes('permission') || normalized.includes('notallowederror') || normalized.includes('microphone')) {
+    return 'The mic permission fell apart. Give the kiosk microphone access and try again.';
+  }
+  if (normalized.includes('connection lost') || normalized.includes('network') || normalized.includes('fetch')) {
+    return 'The realtime connection dropped out. Very professional. Try again in a second.';
+  }
+  return raw;
+}
+
+function extractAssistantReply(event) {
+  if (!event) return '';
+  if (typeof event.transcript === 'string' && event.transcript.trim()) return event.transcript.trim();
+  if (typeof event.text === 'string' && event.text.trim()) return event.text.trim();
+
+  const outputs = [];
+  if (Array.isArray(event.output)) outputs.push(...event.output);
+  if (event.response && Array.isArray(event.response.output)) outputs.push(...event.response.output);
+  if (event.item) outputs.push(event.item);
+
+  for (const output of outputs) {
+    const content = Array.isArray(output.content) ? output.content : [];
+    for (const part of content) {
+      if (typeof part.transcript === 'string' && part.transcript.trim()) return part.transcript.trim();
+      if (typeof part.text === 'string' && part.text.trim()) return part.text.trim();
+    }
+  }
+  return '';
+}
+
 class RealtimeVoiceSession {
   constructor() {
     this.pc = null;
@@ -2304,9 +2508,10 @@ class RealtimeVoiceSession {
       sessionData = await response.json();
       if (!response.ok) throw new Error(sessionData.error || 'session broker unavailable');
     } catch (error) {
+      const friendly = formatRealtimeErrorMessage(error.message || 'realtime unavailable');
       setVoiceState('idle');
-      showVoiceToast('DIRECT MODE', escapeHtml(error.message || 'realtime unavailable'), 'dismissed', 5000);
-      pushTermLine('realtime unavailable // ' + (error.message || 'unknown error'), 'warn');
+      showVoiceToast('DIRECT MODE', escapeHtml(friendly), 'dismissed', 7000);
+      pushTermLine('realtime unavailable // ' + friendly, 'warn');
       return;
     }
 
@@ -2320,10 +2525,17 @@ class RealtimeVoiceSession {
 
       this.audioEl = document.createElement('audio');
       this.audioEl.autoplay = true;
+      this.audioEl.playsInline = true;
+      this.audioEl.style.display = 'none';
+      this.audioEl.volume = 1;
+      document.body.appendChild(this.audioEl);
 
       this.pc = new RTCPeerConnection();
       this.pc.ontrack = (event) => {
-        if (this.audioEl) this.audioEl.srcObject = event.streams[0];
+        if (!this.audioEl) return;
+        this.audioEl.srcObject = event.streams[0];
+        const playPromise = this.audioEl.play();
+        if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
       };
       this.pc.onconnectionstatechange = () => {
         if (!this.pc) return;
@@ -2432,7 +2644,7 @@ class RealtimeVoiceSession {
     }
 
     if (event.type === 'response.audio_transcript.done') {
-      const reply = extractRealtimeText(event) || (event.transcript || '').trim();
+      const reply = extractAssistantReply(event);
       if (!reply) return;
       setVoiceState('speaking');
       showVoiceToast('DIRECT MODE', escapeHtml(reply), '', 9000);
@@ -2441,6 +2653,26 @@ class RealtimeVoiceSession {
       setTimeout(() => {
         if (this.active && !this.isClosing) setVoiceState('listening');
       }, 900);
+      return;
+    }
+
+    if (event.type === 'response.output_item.done' && event.item && event.item.type === 'message') {
+      const reply = extractAssistantReply(event);
+      if (!reply) return;
+      setVoiceState('speaking');
+      showVoiceToast('DIRECT MODE', escapeHtml(reply), '', 9000);
+      pushTermLine(reply, 'reply');
+      this.postVoiceEvent('reply', { reply, session_state: 'speaking' });
+      return;
+    }
+
+    if (event.type === 'response.done') {
+      const reply = extractAssistantReply(event);
+      if (!reply) return;
+      setVoiceState('speaking');
+      showVoiceToast('DIRECT MODE', escapeHtml(reply), '', 9000);
+      pushTermLine(reply, 'reply');
+      this.postVoiceEvent('reply', { reply, session_state: 'speaking' });
       return;
     }
 
@@ -2499,13 +2731,14 @@ class RealtimeVoiceSession {
   }
 
   fail(message) {
+    const friendly = formatRealtimeErrorMessage(message);
     if (!this.active && !this.sessionId) {
       setVoiceState('idle');
-      showVoiceToast('DIRECT MODE', escapeHtml(message), 'dismissed', 5000);
-      pushTermLine('realtime failed // ' + message, 'warn');
+      showVoiceToast('DIRECT MODE', escapeHtml(friendly), 'dismissed', 7000);
+      pushTermLine('realtime failed // ' + friendly, 'warn');
       return;
     }
-    this.end(message || 'realtime failed');
+    this.end(friendly || 'realtime failed');
   }
 
   end(reason = 'direct mode closed') {
@@ -2524,6 +2757,11 @@ class RealtimeVoiceSession {
     }
     if (this.localStream) {
       try { this.localStream.getTracks().forEach((track) => track.stop()); } catch (e) {}
+    }
+    if (this.audioEl) {
+      try { this.audioEl.pause(); } catch (e) {}
+      try { this.audioEl.srcObject = null; } catch (e) {}
+      try { this.audioEl.remove(); } catch (e) {}
     }
     this.pc = null;
     this.dc = null;
@@ -2657,6 +2895,11 @@ document.getElementById('voiceBtn').addEventListener('click', () => {
       realtimeVoice.start('push-to-talk');
     }
   }
+});
+
+wakeHotspot.addEventListener('pointerup', (event) => {
+  event.preventDefault();
+  handleWakeHotspotTap();
 });
 
 window.addEventListener('beforeunload', () => {
