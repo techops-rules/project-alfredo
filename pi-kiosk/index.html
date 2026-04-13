@@ -138,7 +138,7 @@
   .clock-time .sec { font-size:18px; color:var(--accent); opacity:0.6; }
   .clock-time .ampm { font-size:12px; color:var(--text-secondary); margin-left:4px; }
   .clock-date { font-size:11px; font-weight:500; color:var(--accent); letter-spacing:2px; margin-top:4px; }
-  .clock-24h { font-size:9px; color:var(--text-secondary); opacity:0.35; margin-top:2px; letter-spacing:1px; }
+  .clock-24h { font-size:14px; color:var(--text-secondary); opacity:0.4; margin-top:4px; letter-spacing:2px; font-weight:500; }
   .clock-time.flash .hm { color:#ff6b35; }
   /* Floating fun fact — sits on empty canvas space, not inside a widget */
   #funfact-float {
@@ -246,14 +246,14 @@
   .wx-moon-body.full { box-shadow:0 0 16px 5px rgba(220,230,255,0.52), 0 0 30px 10px rgba(200,210,240,0.22); }
   .wx-moon-body.new { background:#3a3f4a; box-shadow:none; opacity:0.4; }
   .wx-current-info { position:absolute; z-index:4; display:flex; flex-direction:column; align-items:center; gap:1px; pointer-events:none; }
-  .wx-current-temp { font-size:11px; font-weight:600; color:var(--text-primary); opacity:0.7; text-shadow:0 1px 4px rgba(0,0,0,0.6); }
-  .wx-current-desc { font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-shadow:0 1px 2px rgba(0,0,0,0.6); opacity:0.5; }
-  .wx-current-hilo { font-size:8px; color:var(--text-secondary); opacity:0.5; }
-  .wx-hours { flex:1; display:flex; align-items:center; gap:0; padding:4px 6px; position:relative; z-index:2; border-top:1px solid rgba(97,175,239,0.08); overflow:hidden; }
-  .wx-hour { flex:1; text-align:center; font-size:9px; color:var(--text-secondary); min-width:0; padding:2px 1px; border-radius:3px; transition:background 0.3s; }
-  .wx-hour .wx-h-icon { font-size:12px; line-height:1; }
-  .wx-hour .wx-h-temp { color:var(--text-primary); font-weight:600; font-size:10px; }
-  .wx-hour .wx-h-time { font-size:8px; opacity:0.6; }
+  .wx-current-temp { font-size:18px; font-weight:700; color:var(--text-emphasis); opacity:0.85; text-shadow:0 1px 6px rgba(0,0,0,0.7); }
+  .wx-current-desc { font-size:10px; color:var(--text-secondary); letter-spacing:1px; text-shadow:0 1px 2px rgba(0,0,0,0.6); opacity:0.6; }
+  .wx-current-hilo { font-size:10px; color:var(--text-secondary); opacity:0.5; }
+  .wx-hours { flex:1; display:flex; align-items:center; gap:2px; padding:4px 8px; position:relative; z-index:2; border-top:1px solid rgba(97,175,239,0.08); overflow:hidden; }
+  .wx-hour { flex:1; text-align:center; font-size:10px; color:var(--text-secondary); min-width:0; padding:3px 2px; border-radius:3px; }
+  .wx-hour .wx-h-icon { font-size:14px; line-height:1; }
+  .wx-hour .wx-h-temp { color:var(--text-primary); font-weight:700; font-size:13px; }
+  .wx-hour .wx-h-time { font-size:9px; opacity:0.5; }
   .wx-hour.now { color:var(--text-secondary); }
   .wx-hour.now .wx-h-temp { color:var(--text-primary); }
   .wx-hour.past { opacity:0.4; }
@@ -1099,7 +1099,7 @@ function renderWeatherTimeline(d){
   const xPos=progress*usableW;
   const dx=xPos-cx;
   const yNorm=Math.sqrt(Math.max(0, r*r - dx*dx))/r; // 0 at edges, 1 at zenith
-  const bodySize=isDay?44:38;
+  const bodySize=isDay?32:28;
 
   const celEl=document.getElementById('wxCelestial');
   celEl.style.left=(pad+xPos-bodySize/2)+'px';
@@ -1116,7 +1116,7 @@ function renderWeatherTimeline(d){
     if(illum>0.95) bodyClass='full';
     else if(illum<0.05) bodyClass='new';
     // Shadow offset: 0 at full, ±13px at new. Waxing = shadow on right, waning = shadow on left
-    const shadowOffset=moon.isWaxing ? (1-illum)*13 : -(1-illum)*13;
+    const shadowOffset=moon.isWaxing ? (1-illum)*14 : -(1-illum)*14;
     celEl.innerHTML='<div class="wx-moon-body '+bodyClass+'"><div class="wx-moon-shadow" style="left:'+shadowOffset+'px"></div></div>';
   }
 
@@ -1127,18 +1127,17 @@ function renderWeatherTimeline(d){
   infoEl.style.bottom = Math.max(2, celBottom - 20) + 'px';
   infoEl.style.transform='translateX(-50%)';
 
-  // Build hourly strip
+  // Build hourly strip — fewer, bigger: now + every 2h for next 10h (6 slots)
   const nowHr=now.getHours();
   const hrs=(d.hourly||{}).temperature_2m||[];
   const hrCodes=(d.hourly||{}).weather_code||[];
-  // Show 2 hours back + current + 8 hours forward
-  const startHr=Math.max(0,nowHr-2);
-  const endHr=Math.min(hrs.length,nowHr+9);
   let hoursHTML='';
-  for(let i=startHr;i<endHr;i++){
+  for(let offset=0;offset<=10;offset+=2){
+    const i=nowHr+offset;
+    if(i>=hrs.length) break;
     const h=i%24;
-    const hLabel=h===0?'12a':h<12?h+'a':h===12?'12p':(h-12)+'p';
-    const cls=i===nowHr?'now':i<nowHr?'past':'';
+    const hLabel=offset===0?'NOW':h===0?'12a':h<12?h+'a':h===12?'12p':(h-12)+'p';
+    const cls=offset===0?'now':'';
     const icon=WX_CODES[hrCodes[i]]||'';
     hoursHTML+='<div class="wx-hour '+cls+'"><div class="wx-h-icon">'+icon+'</div><div class="wx-h-temp">'+Math.round(hrs[i])+'°</div><div class="wx-h-time">'+hLabel+'</div></div>';
   }
