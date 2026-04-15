@@ -100,6 +100,13 @@ A first cross-surface layout polish pass is now in progress in the working tree:
 - This means kiosk realtime actions work against current kiosk state immediately, but they are not yet writing into the native/iCloud markdown task board.
 - Realtime voice still requires `OPENAI_API_KEY` on the Pi. Until that is configured, the new kiosk realtime path will report unavailable and the legacy wake service remains the only working voice runtime.
 
+### Latest wake fallback pass (2026-04-13)
+
+- `pi-setup/alfredo-wake.py` now prefers Picovoice when `PICOVOICE_ACCESS_KEY` is present, otherwise falls back to `openWakeWord` using the built-in `hey_jarvis` model before giving up to push-to-talk only.
+- `pi-setup/alfredo-wake.service` now reads `/etc/alfredo/alfredo-kiosk.env`, matching the kiosk web service secret/config pattern.
+- `openwakeword` plus `onnxruntime` were installed into the Pi user's Python environment and a direct `Model(vad_threshold=0.5)` init test succeeded on `pihub.local`.
+- Remaining wake-word validation is behavioral, not plumbing: we still need a live far-field test in the room to tune threshold and verify TV/background-noise tolerance.
+
 ### Coordination notes
 
 Voice pipeline is stable and deployed. Files can be edited freely — no in-flight ownership lock. For voice behavior changes, update `persona.md` (personality) or `alfredo-wake.py` (mechanics). For kiosk UI, edit `pi-kiosk/index.html`. For native widgets, edit `Shared/Views/Dashboard/`.
@@ -200,7 +207,7 @@ Direct Mode Slice 1 also landed on 2026-04-12: kiosk/native now have explicit mu
 
 Latest follow-up from Codex on 2026-04-12: Pi services were redeployed after a runtime-file restore, and the iPhone splash screen now announces the current update batch so test installs visibly reflect the Direct Mode rollout.
 
-Latest follow-up from Codex on 2026-04-13: kiosk realtime voice transport is now implemented locally with WebRTC + tool dispatch. The main remaining runtime blocker is operational, not code: `OPENAI_API_KEY` is not configured on `pihub.local` yet, so realtime cannot connect there until that env var is added.
+Latest follow-up from Codex on 2026-04-13: kiosk realtime voice is now active on `pihub.local`, the top-right Alfredo mic button uses double-tap to wake and single-tap to drop into text-only mode, and `ALFREDO.TTY` now expands into a centered live conversation panel with scrolling transcript history while Direct Mode is active. `openWakeWord` was reworked to use exact buffered 1280-sample frames and the post-restart Pi logs are now clean after initialization, so wake detection is back to a runtime-tuning problem rather than an inference-crash problem. Smart-light control is scaffolded through configurable `ALFREDO_HUE_CONTROL_URL` / `ALFREDO_GOVEE_CONTROL_URL` bridge endpoints, but those providers are not configured yet.
 
 Next focus: **Direct Mode Slice 2** or broader cross-surface UX polish, depending on priority.
 If continuing Direct Mode, the next batch is:
@@ -209,6 +216,8 @@ If continuing Direct Mode, the next batch is:
 2. fuzzy-time resolution like "later"
 3. optional Apple Reminders escalation
 4. location/travel timing
+5. tune `openWakeWord` threshold/noise behavior in the real room
+6. configure actual Hue/Govee bridge endpoints if smart-light control should go live
 
 ### Inspect next
 

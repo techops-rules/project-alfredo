@@ -133,6 +133,7 @@ step "Installing kiosk autostart"
 mkdir -p "$HOME/.config/labwc"
 cp "$BRIDGE_DIR/labwc-autostart" "$HOME/.config/labwc/autostart"
 chmod +x "$HOME/.config/labwc/autostart"
+cp "$BRIDGE_DIR/labwc-environment" "$HOME/.config/labwc/environment"
 
 # ── 11. Verify ───────────────────────────────────────────
 step "Verifying setup"

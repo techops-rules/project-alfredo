@@ -21,6 +21,7 @@ The kiosk integrates with `alfredo-wake.service` for voice interaction:
 - **Voice toast**: overlay shows wake ack, listening state, thinking state, and reply text
 - **Voice bar**: 3px bar at top — yellow pulse when listening, blue scan when thinking
 - **Persona**: `~/alfredo-kiosk/persona.md` — Monday-inspired personality, editable without restart
+- **Wake word fallback**: `alfredo-wake` now prefers Picovoice when `PICOVOICE_ACCESS_KEY` is set, otherwise falls back to `openWakeWord` with the built-in `hey jarvis` model; if neither path is available, it stays in push-to-talk mode
 
 ## Realtime voice
 

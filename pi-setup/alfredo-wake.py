@@ -27,6 +27,7 @@ import wave
 import uuid
 from urllib.request import Request, urlopen
 
+import numpy as np
 import pyaudio
 
 LOG = logging.getLogger("alfredo-wake")
@@ -40,6 +41,9 @@ PICOVOICE_KEY = os.environ.get("PICOVOICE_ACCESS_KEY", "")
 # Custom .ppn file for "alfredo" — train at console.picovoice.ai
 CUSTOM_KEYWORD_PATH = os.path.expanduser("~/alfredo-kiosk/alfredo_wake.ppn")
 FALLBACK_KEYWORD = "jarvis"  # built-in keyword if no custom .ppn
+OPENWAKEWORD_MODEL = os.environ.get("OPENWAKEWORD_MODEL", "hey jarvis")
+OPENWAKEWORD_THRESHOLD = float(os.environ.get("OPENWAKEWORD_THRESHOLD", "0.50"))
+OPENWAKEWORD_VAD_THRESHOLD = float(os.environ.get("OPENWAKEWORD_VAD_THRESHOLD", "0.40"))
 
 # ── Piper TTS ───────────────────────────────────────────────
 # Download a voice: piper --download-dir ~/piper-voices -m en_US-lessac-medium
@@ -293,8 +297,12 @@ class AlfredoVoice:
         self.tts = TTS()
         self.last_wake = 0
         self.porcupine = None
+        self.openwakeword = None
+        self.openwakeword_target = None
+        self.openwakeword_buffer = np.array([], dtype=np.int16)
+        self.openwakeword_frame_length = 1280
         self.whisper_model = None
-        self._init_porcupine()
+        self._init_wake_engine()
 
         # VAD for recording (not wake detection)
         import webrtcvad
@@ -303,30 +311,102 @@ class AlfredoVoice:
         self.direct_expires_at = 0
         self.direct_history = []
 
-    def _init_porcupine(self):
-        """Initialize Porcupine wake word engine."""
-        if not PICOVOICE_KEY:
-            LOG.warning("No PICOVOICE_ACCESS_KEY — wake word disabled, push-to-talk only")
-            return
+    def _init_wake_engine(self):
+        """Initialize wake detection, preferring Porcupine and falling back to openWakeWord."""
+        if PICOVOICE_KEY:
+            try:
+                import pvporcupine
+                if os.path.exists(CUSTOM_KEYWORD_PATH):
+                    LOG.info("Using custom wake word: %s", CUSTOM_KEYWORD_PATH)
+                    self.porcupine = pvporcupine.create(
+                        access_key=PICOVOICE_KEY,
+                        keyword_paths=[CUSTOM_KEYWORD_PATH],
+                    )
+                else:
+                    LOG.info("Using built-in wake word: %s", FALLBACK_KEYWORD)
+                    self.porcupine = pvporcupine.create(
+                        access_key=PICOVOICE_KEY,
+                        keywords=[FALLBACK_KEYWORD],
+                    )
+                LOG.info(
+                    "Porcupine initialized (frame_length=%d, sample_rate=%d)",
+                    self.porcupine.frame_length,
+                    self.porcupine.sample_rate,
+                )
+                return
+            except Exception as e:
+                LOG.error("Porcupine init failed: %s — trying openWakeWord fallback", e)
+        else:
+            LOG.warning("No PICOVOICE_ACCESS_KEY — trying openWakeWord fallback")
 
+        self._init_openwakeword()
+
+    def _init_openwakeword(self):
+        """Initialize openWakeWord fallback detector."""
         try:
-            import pvporcupine
-            if os.path.exists(CUSTOM_KEYWORD_PATH):
-                LOG.info("Using custom wake word: %s", CUSTOM_KEYWORD_PATH)
-                self.porcupine = pvporcupine.create(
-                    access_key=PICOVOICE_KEY,
-                    keyword_paths=[CUSTOM_KEYWORD_PATH],
-                )
-            else:
-                LOG.info("Using built-in wake word: %s", FALLBACK_KEYWORD)
-                self.porcupine = pvporcupine.create(
-                    access_key=PICOVOICE_KEY,
-                    keywords=[FALLBACK_KEYWORD],
-                )
-            LOG.info("Porcupine initialized (frame_length=%d, sample_rate=%d)",
-                     self.porcupine.frame_length, self.porcupine.sample_rate)
+            from openwakeword.model import Model
+
+            self.openwakeword = Model(vad_threshold=OPENWAKEWORD_VAD_THRESHOLD)
+            self.openwakeword_target = OPENWAKEWORD_MODEL.lower().strip()
+            self.openwakeword_buffer = np.array([], dtype=np.int16)
+            loaded_models = ", ".join(sorted(self.openwakeword.models.keys()))
+            LOG.info(
+                "openWakeWord initialized (target=%s, threshold=%.2f, vad_threshold=%.2f, models=%s)",
+                OPENWAKEWORD_MODEL,
+                OPENWAKEWORD_THRESHOLD,
+                OPENWAKEWORD_VAD_THRESHOLD,
+                loaded_models,
+            )
         except Exception as e:
-            LOG.error("Porcupine init failed: %s — push-to-talk only", e)
+            LOG.error("openWakeWord init failed: %s — push-to-talk only", e)
+            self.openwakeword = None
+            self.openwakeword_target = None
+
+    def _openwakeword_detected(self, data_bytes):
+        """Return True when openWakeWord fires on the current frame."""
+        if not self.openwakeword:
+            return False
+        try:
+            pcm16 = downsample(data_bytes, MIC_RATE, 16000)
+            samples = np.frombuffer(pcm16, dtype=np.int16)
+            if samples.size == 0:
+                return False
+
+            self.openwakeword_buffer = np.concatenate((self.openwakeword_buffer, samples))
+            while self.openwakeword_buffer.size >= self.openwakeword_frame_length:
+                frame = np.ascontiguousarray(
+                    self.openwakeword_buffer[: self.openwakeword_frame_length],
+                    dtype=np.int16,
+                )
+                self.openwakeword_buffer = self.openwakeword_buffer[self.openwakeword_frame_length :]
+                scores = self.openwakeword.predict(frame)
+                if not scores:
+                    continue
+
+                target = self.openwakeword_target or ""
+                candidates = []
+                for name, score in scores.items():
+                    normalized = str(name).lower().replace("_", " ").strip()
+                    if target and target in normalized:
+                        candidates.append((name, float(score)))
+                if not candidates and target == "hey jarvis":
+                    for name, score in scores.items():
+                        normalized = str(name).lower().replace("_", " ").strip()
+                        if "jarvis" in normalized:
+                            candidates.append((name, float(score)))
+                if not candidates:
+                    candidates = [(name, float(score)) for name, score in scores.items()]
+
+                best_name, best_score = max(candidates, key=lambda item: item[1])
+                if best_score >= OPENWAKEWORD_THRESHOLD:
+                    LOG.info("openWakeWord detected %s (score=%.3f)", best_name, best_score)
+                    self.openwakeword_buffer = np.array([], dtype=np.int16)
+                    return True
+            return False
+        except Exception as e:
+            LOG.warning("openWakeWord inference failed: %s", e)
+            self.openwakeword_buffer = np.array([], dtype=np.int16)
+            return False
 
     def find_input_device(self):
         info = self.pa.get_host_api_info_by_index(0)
@@ -664,14 +744,20 @@ class AlfredoVoice:
             frames_per_buffer=1024,
         )
 
-        porcupine_rate = self.porcupine.sample_rate if self.porcupine else 16000
-        porcupine_frame = self.porcupine.frame_length if self.porcupine else 512
-        # How many mic samples to read per Porcupine frame
-        mic_samples_per_frame = int(MIC_RATE * porcupine_frame / porcupine_rate)
+        detector_rate = self.porcupine.sample_rate if self.porcupine else 16000
+        detector_frame = self.porcupine.frame_length if self.porcupine else 1280  # 80 ms @ 16kHz
+        mic_samples_per_frame = int(MIC_RATE * detector_frame / detector_rate)
 
-        mode = "porcupine" if self.porcupine else "push-to-talk only"
-        keyword = "custom" if os.path.exists(CUSTOM_KEYWORD_PATH) else FALLBACK_KEYWORD
-        LOG.info("Ready — mode: %s, keyword: %s", mode, keyword if self.porcupine else "n/a")
+        if self.porcupine:
+            mode = "porcupine"
+            keyword = "custom" if os.path.exists(CUSTOM_KEYWORD_PATH) else FALLBACK_KEYWORD
+        elif self.openwakeword:
+            mode = "openwakeword"
+            keyword = OPENWAKEWORD_MODEL
+        else:
+            mode = "push-to-talk only"
+            keyword = "n/a"
+        LOG.info("Ready — mode: %s, keyword: %s", mode, keyword)
         LOG.info("Push-to-talk always available via kiosk mic button")
 
         try:
@@ -686,22 +772,23 @@ class AlfredoVoice:
                     self.handle_wake(stream)
                     continue
 
-                if not self.porcupine:
+                if not self.porcupine and not self.openwakeword:
                     # No wake word engine — just poll push-to-talk
                     time.sleep(0.5)
                     continue
 
-                # Read audio for Porcupine
+                # Read audio for wake detection
                 data = stream.read(mic_samples_per_frame, exception_on_overflow=False)
 
-                # Resample to Porcupine's expected rate
-                pcm = resample_for_porcupine(
-                    data, MIC_RATE, porcupine_rate, porcupine_frame
-                )
-
-                result = self.porcupine.process(pcm)
-                if result >= 0:
-                    LOG.info("Wake word detected (keyword_index=%d)", result)
+                if self.porcupine:
+                    pcm = resample_for_porcupine(
+                        data, MIC_RATE, detector_rate, detector_frame
+                    )
+                    result = self.porcupine.process(pcm)
+                    if result >= 0:
+                        LOG.info("Wake word detected (keyword_index=%d)", result)
+                        self.handle_wake(stream)
+                elif self._openwakeword_detected(data):
                     self.handle_wake(stream)
 
         except KeyboardInterrupt:

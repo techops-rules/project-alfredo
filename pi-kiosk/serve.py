@@ -45,6 +45,8 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 REALTIME_MODEL = os.environ.get("ALFREDO_REALTIME_MODEL", "gpt-realtime")
 REALTIME_VOICE = os.environ.get("ALFREDO_REALTIME_VOICE", "marin")
 REALTIME_IDLE_TIMEOUT = int(os.environ.get("ALFREDO_REALTIME_IDLE_TIMEOUT", "300"))
+HUE_CONTROL_URL = os.environ.get("ALFREDO_HUE_CONTROL_URL", "")
+GOVEE_CONTROL_URL = os.environ.get("ALFREDO_GOVEE_CONTROL_URL", "")
 PERSONA_PATH = Path(os.path.expanduser("~/alfredo-kiosk/persona.md"))
 MEMORY_PATHS = [
     Path(os.path.expanduser("~/alfredo-kiosk/memory.md")),
@@ -128,6 +130,23 @@ REALTIME_TOOL_SCHEMAS = [
                 "scope": {"type": "string", "enum": ["work", "personal"]},
             },
             "required": ["text"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "control_smart_lights",
+        "description": "Control configured Hue or Govee lights through Alfredo's local automation bridge.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "provider": {"type": "string", "enum": ["hue", "govee"]},
+                "target": {"type": "string"},
+                "power": {"type": "string", "enum": ["on", "off"]},
+                "brightness": {"type": "integer", "minimum": 1, "maximum": 100},
+                "scene": {"type": "string"},
+                "color": {"type": "string"},
+            },
+            "required": ["provider"],
         },
     },
 ]
@@ -308,6 +327,7 @@ def build_realtime_instructions():
         "You are Alfredo in live voice direct mode. "
         "Be concise, warm, and decisive. Prefer tool calls over guessing. "
         "When a task, reminder, or follow-up is created, briefly confirm the saved action in one sentence. "
+        "Use the smart light control tool when Todd explicitly asks about Hue or Govee lights and the bridge is configured. "
         "If timing is ambiguous but risky, ask one short follow-up. "
         "Do not pretend to have completed actions unless a tool confirms success."
         + persona_block
@@ -327,9 +347,9 @@ def build_realtime_session_payload():
                 "input": {
                     "turn_detection": {
                         "type": "server_vad",
-                        "threshold": 0.72,
-                        "prefix_padding_ms": 240,
-                        "silence_duration_ms": 650,
+                        "threshold": 0.56,
+                        "prefix_padding_ms": 360,
+                        "silence_duration_ms": 520,
                         "create_response": True,
                         "interrupt_response": True,
                     }
@@ -412,6 +432,41 @@ def dispatch_realtime_tool(tool_name, args, snapshot=None):
             "client_action": {"kind": "append_task", "list": "workTasks" if scope == "work" else "lifeTasks", "task": task},
             "saved": {"type": "reminder", "text": text, "when": when_info["label"], "scope": scope},
         }
+    if tool_name == "control_smart_lights":
+        provider = (args.get("provider") or "").strip().lower()
+        target = (args.get("target") or "default").strip()
+        endpoint = HUE_CONTROL_URL if provider == "hue" else GOVEE_CONTROL_URL if provider == "govee" else ""
+        if not provider:
+            return {"ok": False, "error": "missing light provider"}
+        if not endpoint:
+            return {"ok": False, "error": f"{provider} lights are not configured on this kiosk yet"}
+        payload = {
+            "provider": provider,
+            "target": target,
+            "power": args.get("power"),
+            "brightness": args.get("brightness"),
+            "scene": args.get("scene"),
+            "color": args.get("color"),
+        }
+        try:
+            req = urllib.request.Request(
+                endpoint,
+                data=json.dumps(payload).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                body = response.read().decode().strip()
+                data = json.loads(body) if body else {}
+            summary = data.get("summary") or f"{provider} lights updated"
+            return {
+                "ok": True,
+                "assistant_confirmation": summary,
+                "saved": {"type": "light_control", "provider": provider, "target": target, "payload": payload},
+                "bridge_result": data,
+            }
+        except Exception as ex:
+            return {"ok": False, "error": f"{provider} bridge failed: {ex}"}
     return {"ok": False, "error": f"unknown tool: {tool_name}"}
 
 def check_presence():

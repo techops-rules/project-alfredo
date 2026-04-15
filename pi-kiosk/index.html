@@ -49,10 +49,35 @@
     width: 28px; height: 22px; border-radius: 4px;
     border: 1px solid var(--accent-border); background: transparent;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
-    letter-spacing: 0; margin-left: 8px;
+    letter-spacing: 0; margin-left: 8px; touch-action: manipulation;
     -webkit-tap-highlight-color: transparent; flex-shrink: 0;
   }
   .hbg-btn:active { background: rgba(97,175,239,0.1); }
+  .alfredo-btn {
+    font-family: var(--font); font-size: 9px; font-weight: 700; color: var(--accent);
+    height: 22px; border-radius: 4px; border: 1px solid var(--accent-border);
+    background: rgba(97,175,239,0.08); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    letter-spacing: 1.2px; padding: 0 12px; min-width: 60px; touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .alfredo-btn:active { background: rgba(97,175,239,0.18); }
+  .alfredo-btn.live {
+    background: rgba(152,195,121,0.16);
+    border-color: rgba(152,195,121,0.5);
+    color: var(--success);
+  }
+  .alfredo-btn.stop {
+    background: rgba(224,108,117,0.16);
+    border-color: rgba(224,108,117,0.5);
+    color: var(--danger);
+  }
+  .alfredo-btn.muted {
+    background: rgba(229,192,123,0.16);
+    border-color: rgba(229,192,123,0.5);
+    color: var(--warning);
+  }
 
   /* Hamburger panel */
   .hbg-panel {
@@ -98,7 +123,8 @@
   /* Widget */
   .widget {
     position: absolute; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 6px;
-    overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.2s, transform 0.2s; min-width:120px; min-height:60px;
+    overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.16,1,0.3,1), left 0.35s cubic-bezier(0.16,1,0.3,1), top 0.35s cubic-bezier(0.16,1,0.3,1), width 0.35s cubic-bezier(0.16,1,0.3,1), height 0.35s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease, filter 0.35s ease;
+    min-width:120px; min-height:60px;
     --widget-pad: 10px; --widget-header-x: 10px; --widget-header-y: 6px; --widget-title-size: 10px; --widget-body-size: 11px; --widget-caption-size: 9px;
     box-shadow: 0 10px 28px rgba(0,0,0,0.22);
   }
@@ -133,6 +159,7 @@
   #w-clock .widget-body, #w-weather .widget-body { padding:4px; }
 
   /* Clock */
+  .clock-digital { display:block; }
   .clock-time { display:flex; align-items:baseline; gap:2px; cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; }
   .clock-time .hm { font-size:38px; font-weight:700; color:var(--text-emphasis); }
   .clock-time .sec { font-size:18px; color:var(--accent); opacity:0.6; }
@@ -140,6 +167,23 @@
   .clock-date { font-size:11px; font-weight:500; color:var(--accent); letter-spacing:2px; margin-top:4px; }
   .clock-24h { font-size:14px; color:var(--text-secondary); opacity:0.4; margin-top:4px; letter-spacing:2px; font-weight:500; }
   .clock-time.flash .hm { color:#ff6b35; }
+  .clock-analog { display:none; align-items:center; justify-content:center; height:100%; }
+  .analog-face {
+    width:160px; height:160px; border-radius:50%;
+    border:2px solid rgba(97,175,239,0.45);
+    background:radial-gradient(circle at 40% 35%, rgba(255,255,255,0.08), rgba(10,15,26,0.65) 62%);
+    box-shadow:0 12px 32px rgba(0,0,0,0.35), inset 0 0 24px rgba(97,175,239,0.12);
+    position:relative;
+  }
+  .analog-tick { position:absolute; left:50%; top:8px; width:2px; height:10px; background:rgba(232,234,237,0.65); transform-origin:50% 72px; }
+  .analog-tick.major { width:3px; height:14px; background:rgba(232,234,237,0.9); }
+  .analog-center { position:absolute; left:50%; top:50%; width:10px; height:10px; margin-left:-5px; margin-top:-5px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px rgba(97,175,239,0.8); z-index:5; }
+  .analog-hand { position:absolute; left:50%; top:50%; transform-origin:50% 100%; border-radius:999px; }
+  .analog-hour { width:5px; height:44px; margin-left:-2.5px; margin-top:-44px; background:rgba(232,234,237,0.86); }
+  .analog-min { width:3px; height:62px; margin-left:-1.5px; margin-top:-62px; background:rgba(232,234,237,0.92); }
+  .analog-sec { width:2px; height:70px; margin-left:-1px; margin-top:-70px; background:rgba(224,108,117,0.95); }
+  body.mode-night .clock-digital { display:none; }
+  body.mode-night .clock-analog { display:flex; }
   /* Floating fun fact — sits on empty canvas space, not inside a widget */
   #funfact-float {
     position:absolute; z-index:2; pointer-events:none;
@@ -194,6 +238,15 @@
   .term-dot.on { background:var(--success); }
   .term-dot.off { background:var(--text-secondary); opacity:0.3; }
   .term-label { font-size:9px; font-weight:500; color:var(--text-secondary); }
+  .term-voice {
+    margin-left:auto;
+    font-size:8px;
+    font-weight:700;
+    letter-spacing:1px;
+    color:var(--accent);
+    text-transform:uppercase;
+    opacity:0.9;
+  }
   .term-output { padding:8px 9px; flex:1; overflow-y:auto; font-size:10px; line-height:1.55; background:linear-gradient(180deg, rgba(8,14,24,0.15), transparent 40%); }
   .term-line { color:var(--text-primary); }
   .term-line.sys { color:var(--text-secondary); }
@@ -207,6 +260,52 @@
   @keyframes slowblink { 0%,40%{opacity:0.5} 50%{opacity:0.1} 60%,100%{opacity:0.5} }
   .widget[data-size="compact"] .term-status { padding:4px 8px; }
   .widget[data-size="compact"] .term-output { font-size:9px; padding:6px 7px; }
+  body.voice-engaged .canvas::after {
+    content:'';
+    position:absolute;
+    inset:0;
+    background:radial-gradient(circle at center, rgba(7,12,20,0.05), rgba(7,12,20,0.48));
+    pointer-events:none;
+    z-index:3;
+    opacity:1;
+    transition:opacity 0.35s ease;
+  }
+  body.voice-engaged .widget:not(#w-tty) { opacity:0.22; transform:scale(0.985); filter:blur(1px); pointer-events:none; }
+  #w-tty.voice-focus {
+    position:fixed !important;
+    left:92px !important;
+    top:72px !important;
+    width:840px !important;
+    height:420px !important;
+    z-index:320 !important;
+    display:flex !important;
+    border-color:rgba(97,175,239,0.34);
+    box-shadow:0 24px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(97,175,239,0.18);
+    transform:translateY(0) scale(1.015);
+  }
+  #w-tty.voice-focus::after {
+    content:'';
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:linear-gradient(180deg, rgba(97,175,239,0.04), transparent 18%, transparent 82%, rgba(97,175,239,0.06));
+    z-index:0;
+  }
+  #w-tty.voice-focus .widget-header,
+  #w-tty.voice-focus .term-status,
+  #w-tty.voice-focus .term-output,
+  #w-tty.voice-focus .term-input { position:relative; z-index:1; }
+  #w-tty.voice-focus .widget-header { padding:10px 14px; font-size:11px; letter-spacing:2.5px; }
+  #w-tty.voice-focus .term-status { padding:7px 14px; }
+  #w-tty.voice-focus .term-label { font-size:10px; }
+  #w-tty.voice-focus .term-voice { font-size:9px; letter-spacing:1.2px; }
+  #w-tty.voice-focus .term-output { padding:14px 16px 16px; font-size:13px; line-height:1.68; }
+  #w-tty.voice-focus .term-input { padding:8px 14px; }
+  #w-tty.voice-focus .term-line { margin-bottom:6px; }
+  #w-tty.voice-focus .term-line.user::before { content:'YOU // '; color:var(--accent); opacity:0.75; }
+  #w-tty.voice-focus .term-line.reply::before { content:'ALFREDO // '; color:var(--success); opacity:0.78; }
+  #w-tty.voice-focus .term-line.good::before { content:'SAVED // '; color:var(--success); opacity:0.72; }
+  #w-tty.voice-focus .term-line.warn::before { content:'STATUS // '; color:var(--warning); opacity:0.72; }
 
   /* Calendar */
   .cal-event { display:flex; gap:8px; padding:4px 0; align-items:center; }
@@ -236,8 +335,14 @@
   .widget[data-size="compact"] .today-dot { width:7px; height:7px; }
 
   /* Weather Timeline */
-  .wx-timeline { position:relative; width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden; min-height:100px; }
-  .wx-arc { position:relative; flex:0 0 60%; min-height:66px; overflow:hidden; padding:10px 12px 4px; }
+  .wx-timeline { position:relative; width:100%; height:100%; display:flex; flex-direction:column; overflow:hidden; min-height:108px; }
+  .wx-arc { position:relative; flex:0 0 62%; min-height:78px; overflow:hidden; padding:10px 12px 6px; border-radius:10px; }
+  #w-weather.wx-day .wx-arc {
+    background:linear-gradient(180deg, rgba(70,120,170,0.18), rgba(19,29,42,0.08) 60%, rgba(8,14,24,0.02));
+  }
+  #w-weather.wx-night .wx-arc {
+    background:linear-gradient(180deg, rgba(36,48,74,0.26), rgba(12,19,33,0.16) 58%, rgba(8,14,24,0.04));
+  }
   .wx-arc-path { display:none; }
   .wx-horizon { display:none; }
   .wx-celestial { position:absolute; z-index:2; transition:left 60s linear, bottom 60s linear; }
@@ -250,7 +355,7 @@
   .wx-moon-shadow { position:absolute; top:-1px; width:50px; height:52px; border-radius:50%; background:var(--bg); }
   .wx-moon-body.full { box-shadow:0 0 18px 6px rgba(220,230,255,0.52), 0 0 34px 12px rgba(200,210,240,0.22); }
   .wx-moon-body.new { background:#3a3f4a; box-shadow:none; opacity:0.4; }
-  .wx-current-info { position:absolute; top:10px; left:12px; z-index:4; display:flex; flex-direction:column; gap:4px; pointer-events:none; min-width:220px; max-width:250px; }
+  .wx-current-info { position:absolute; top:10px; left:12px; z-index:4; display:flex; flex-direction:column; gap:4px; pointer-events:none; min-width:220px; max-width:290px; }
   .wx-current-main { display:flex; align-items:flex-start; gap:10px; }
   .wx-current-temp { font-size:34px; line-height:0.95; font-weight:700; color:var(--text-emphasis); text-shadow:0 2px 8px rgba(0,0,0,0.72); }
   .wx-current-copy { display:flex; flex-direction:column; gap:3px; padding-top:4px; }
@@ -258,14 +363,11 @@
   .wx-current-hilo { font-size:10px; color:var(--text-secondary); opacity:0.92; }
   .wx-current-meta { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
   .wx-meta-pill { font-size:9px; color:var(--text-secondary); letter-spacing:1px; padding:2px 6px; border-radius:999px; border:1px solid rgba(97,175,239,0.14); background:rgba(8,14,24,0.32); backdrop-filter:blur(4px); }
-  .wx-story { position:absolute; right:12px; top:24px; z-index:4; width:190px; display:flex; flex-direction:column; gap:5px; pointer-events:none; padding:6px 8px; border-radius:12px; background:linear-gradient(180deg, rgba(8,14,24,0.34), rgba(8,14,24,0.14)); backdrop-filter:blur(6px); }
-  .wx-story-line { font-size:10px; line-height:1.4; color:var(--text-primary); text-shadow:0 1px 2px rgba(0,0,0,0.6); }
-  .wx-story-line.secondary { color:var(--text-secondary); }
   .wx-sky-cover { position:absolute; inset:0; z-index:3; pointer-events:none; }
-  .wx-cloud { position:absolute; height:14px; border-radius:999px; background:linear-gradient(180deg, rgba(221,229,242,0.92), rgba(190,200,218,0.72)); box-shadow:0 6px 12px rgba(0,0,0,0.1); }
+  .wx-cloud { position:absolute; height:12px; border-radius:999px; background:linear-gradient(180deg, rgba(221,229,242,0.9), rgba(190,200,218,0.7)); box-shadow:0 5px 10px rgba(0,0,0,0.1); animation:wx-cloud-drift var(--drift, 48s) linear infinite; }
   .wx-cloud::before, .wx-cloud::after { content:''; position:absolute; bottom:6px; border-radius:50%; background:inherit; }
-  .wx-cloud::before { width:14px; height:14px; left:7px; bottom:4px; }
-  .wx-cloud::after { width:18px; height:18px; right:8px; bottom:4px; }
+  .wx-cloud::before { width:12px; height:12px; left:7px; bottom:3px; }
+  .wx-cloud::after { width:16px; height:16px; right:8px; bottom:3px; }
   .wx-cloud.heavy { opacity:0.96; }
   .wx-cloud.medium { opacity:0.82; }
   .wx-cloud.light { opacity:0.64; }
@@ -298,10 +400,30 @@
     background:linear-gradient(90deg, transparent 0%, rgba(119,136,153,0.4) 30%, rgba(119,136,153,0.5) 50%, rgba(119,136,153,0.4) 70%, transparent 100%);
     animation:wx-fog-drift linear infinite; }
   @keyframes wx-rain-fall { from{transform:translateY(-20px)} to{transform:translateY(200px)} }
+  @keyframes wx-cloud-drift { 0% { transform:translateX(-18px); } 100% { transform:translateX(18px); } }
   @keyframes wx-snow-fall { from{transform:translateY(-10px)} to{transform:translateY(200px)} }
   @keyframes wx-snow-drift { 0%,100%{margin-left:0} 50%{margin-left:15px} }
   @keyframes wx-sun-pulse { 0%,100%{opacity:0.7;transform:scale(1)} 50%{opacity:1;transform:scale(1.06)} }
   @keyframes wx-fog-drift { from{transform:translateX(-25%)} to{transform:translateX(0%)} }
+
+  #w-weather.wx-compact .wx-hours { display:none; }
+  #w-weather.wx-compact .wx-arc { flex:1; min-height:0; padding:8px 10px; }
+  #w-weather.wx-compact .wx-current-info {
+    left:8px !important; right:8px !important; top:8px !important;
+    min-width:0; max-width:none; gap:2px;
+    padding:6px 8px; border-radius:8px;
+    background:linear-gradient(180deg, rgba(8,14,24,0.42), rgba(8,14,24,0.22));
+    backdrop-filter:blur(6px);
+  }
+  #w-weather.wx-compact .wx-current-main { align-items:center; gap:8px; }
+  #w-weather.wx-compact .wx-current-temp { display:none; }
+  #w-weather.wx-compact .wx-current-copy { padding-top:0; }
+  #w-weather.wx-compact .wx-current-desc { font-size:12px; letter-spacing:1.1px; }
+  #w-weather.wx-compact .wx-current-hilo { display:none; }
+  #w-weather.wx-compact .wx-current-meta { display:none; }
+  #w-weather.wx-compact .wx-meta-pill { font-size:8px; padding:2px 5px; }
+  #w-weather.wx-compact .wx-meta-pill#wxClouds,
+  #w-weather.wx-compact .wx-rise-set { display:none; }
 
   /* Stats */
   .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
@@ -364,12 +486,12 @@
   .wd-item:last-child { border-bottom:none; }
 
   /* Voice btn */
-  .voice-btn { position:absolute; bottom:40px; right:16px; width:40px; height:40px; border-radius:50%; background:rgba(97,175,239,0.07); border:1px solid var(--accent-border); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; font-size:16px; opacity:0.4; transition: all 0.3s ease; }
-  .voice-btn.active { opacity:1; background:rgba(97,175,239,0.2); border-color:var(--accent); animation: voice-pulse 1.5s ease-in-out infinite; }
-  .voice-btn.muted { opacity:0.8; background:rgba(224,108,117,0.15); border-color:var(--danger); animation:none; }
-  .mute-btn { position:fixed; bottom:32px; right:8px; width:60px; height:24px; border-radius:4px; background:rgba(152,195,121,0.08); border:1px solid rgba(152,195,121,0.2); display:flex; align-items:center; justify-content:center; gap:4px; cursor:none; z-index:250; font-size:9px; font-family:var(--font); font-weight:700; letter-spacing:1px; color:var(--success); opacity:0.5; transition: all 0.3s ease; }
+  .voice-btn { display:none !important; }
+  .voice-btn.active { opacity:0.08; animation: voice-pulse 1.5s ease-in-out infinite; }
+  .voice-btn.muted { opacity:0.04; animation:none; }
+  .mute-btn { position:fixed; bottom:32px; right:8px; width:60px; height:24px; border-radius:4px; background:rgba(152,195,121,0.08); border:1px solid rgba(152,195,121,0.2); display:none !important; align-items:center; justify-content:center; gap:4px; cursor:none; z-index:250; font-size:9px; font-family:var(--font); font-weight:700; letter-spacing:1px; color:var(--success); opacity:0.5; transition: all 0.3s ease; }
   .mute-btn.muted { background:rgba(224,108,117,0.15); border-color:var(--danger); color:var(--danger); }
-  .wake-hotspot { position:absolute; right:0; bottom:0; width:148px; height:104px; z-index:12; cursor:none; -webkit-tap-highlight-color:transparent; background:linear-gradient(135deg, rgba(97,175,239,0), rgba(97,175,239,0.03)); opacity:0.01; }
+  .wake-hotspot { display:none !important; position:fixed; right:0; bottom:0; width:178px; height:118px; z-index:120; cursor:none; pointer-events:none; -webkit-tap-highlight-color:transparent; background:linear-gradient(135deg, rgba(97,175,239,0), rgba(97,175,239,0.03)); opacity:0.01; }
   .wake-hotspot.armed { opacity:1; background:linear-gradient(135deg, rgba(97,175,239,0.02), rgba(97,175,239,0.12)); box-shadow:inset 0 0 0 1px rgba(97,175,239,0.18); animation:wake-hotspot-pulse 0.45s ease-out; }
   @keyframes wake-hotspot-pulse { 0% { opacity:0.95; transform:scale(0.98); } 100% { opacity:0.01; transform:scale(1); } }
   @keyframes voice-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(97,175,239,0.4)} 50%{box-shadow:0 0 20px 8px rgba(97,175,239,0.15)} }
@@ -397,6 +519,10 @@
   .voice-toast .vt-dots { display: inline-block; }
   .voice-toast .vt-dots::after { content: ''; animation: dots 1.5s steps(4,end) infinite; }
   @keyframes dots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} }
+  .voice-toast,
+  .voice-hud,
+  .voice-bar,
+  .alfred-butler { display:none !important; }
 
   /* Persistent voice state bar — top of screen */
   .voice-bar {
@@ -405,8 +531,170 @@
   }
   .voice-bar.listening { background: var(--warning); animation: vbar-pulse 1s ease-in-out infinite; }
   .voice-bar.thinking { background: var(--accent); animation: vbar-scan 1.5s ease-in-out infinite; }
+  .voice-bar.reply { background: var(--success); animation: vbar-pulse 0.9s ease-in-out infinite; }
   @keyframes vbar-pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
   @keyframes vbar-scan { 0%{background:linear-gradient(90deg,transparent,var(--accent),transparent);background-size:200%;background-position:0%} 100%{background:linear-gradient(90deg,transparent,var(--accent),transparent);background-size:200%;background-position:100%} }
+
+  /* Persistent voice HUD */
+  .voice-hud {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%) translateY(-10px);
+    width: min(760px, calc(100vw - 120px));
+    border: 1px solid rgba(97,175,239,0.24);
+    border-radius: 10px;
+    background: rgba(8,14,24,0.82);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.36);
+    padding: 8px 12px;
+    z-index: 330;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+  }
+  .voice-hud.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .voice-hud.state-listening { border-color: rgba(229,192,123,0.48); }
+  .voice-hud.state-thinking { border-color: rgba(97,175,239,0.48); }
+  .voice-hud.state-reply { border-color: rgba(152,195,121,0.48); }
+  .voice-hud.state-dismissed { border-color: rgba(92,99,112,0.45); }
+  .vh-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+  .vh-dot { width:8px; height:8px; border-radius:999px; background: var(--text-secondary); opacity:0.5; }
+  .voice-hud.state-listening .vh-dot { background: var(--warning); opacity:1; animation: statpulse 1s ease-in-out infinite; }
+  .voice-hud.state-thinking .vh-dot { background: var(--accent); opacity:1; animation: statpulse 1s ease-in-out infinite; }
+  .voice-hud.state-reply .vh-dot { background: var(--success); opacity:1; animation: statpulse 0.8s ease-in-out infinite; }
+  .voice-hud.state-dismissed .vh-dot { background: var(--text-secondary); opacity:0.65; }
+  .vh-state { font-size:10px; font-weight:700; letter-spacing:1.5px; color: var(--text-emphasis); text-transform:uppercase; }
+  .vh-mode { margin-left:auto; font-size:8px; letter-spacing:1.4px; color: var(--text-secondary); text-transform:uppercase; }
+  .vh-line {
+    font-size:11px;
+    line-height:1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vh-user { color: var(--accent); opacity: 0.95; }
+  .vh-assistant { color: var(--text-emphasis); opacity: 0.92; }
+  .vh-line.interim { opacity: 0.72; font-style: italic; }
+  .vh-line.empty { opacity: 0.42; color: var(--text-secondary); }
+
+  /* ASCII Alfred butler activity indicator */
+  .alfred-butler {
+    position: fixed;
+    top: 14px;
+    left: auto;
+    right: 16px;
+    width: 212px;
+    border: 1px solid rgba(97,175,239,0.12);
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(8,14,24,0.22), rgba(8,14,24,0.08));
+    backdrop-filter: blur(3px);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.22);
+    padding: 8px 10px 7px;
+    z-index: 331;
+    pointer-events: none;
+    transform-origin: 30% 80%;
+    transition: border-color 0.25s ease, background 0.25s ease, opacity 0.25s ease;
+    opacity: 0.98;
+  }
+  .alfred-title {
+    font-size: 8px;
+    letter-spacing: 1.6px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .alfred-ascii {
+    margin: 0;
+    font-family: var(--font);
+    font-size: 10px;
+    line-height: 1.04;
+    color: var(--text-emphasis);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    white-space: pre;
+  }
+  .alfred-trayline {
+    margin-top: 5px;
+    font-size: 8px;
+    letter-spacing: 1.1px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .alfred-subline {
+    margin-top: 2px;
+    font-size: 7px;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    opacity: 0.8;
+    text-transform: uppercase;
+  }
+  .alfred-butler.state-idle {
+    animation: butler-idle 4.4s ease-in-out infinite;
+  }
+  .alfred-butler.state-listening {
+    border-color: rgba(229,192,123,0.2);
+    background: transparent;
+    animation: butler-listen 1.35s ease-in-out infinite;
+  }
+  .alfred-butler.state-thinking {
+    border-color: rgba(97,175,239,0.24);
+    background: transparent;
+    animation: butler-think 1.5s ease-in-out infinite;
+  }
+  .alfred-butler.state-reply {
+    border-color: rgba(152,195,121,0.24);
+    background: transparent;
+    animation: butler-reply 0.95s ease-in-out infinite;
+  }
+  .alfred-butler.state-dismissed {
+    border-color: rgba(92,99,112,0.42);
+    opacity: 0.75;
+    animation: none;
+  }
+  .alfred-butler.mood-bored { animation: butler-bored 5.6s ease-in-out infinite; }
+  .alfred-butler.mood-sideeye { animation: butler-sideeye 5.1s ease-in-out infinite; }
+  .alfred-butler.mood-polish { animation: butler-polish 3.8s ease-in-out infinite; }
+  .alfred-butler.mood-ledger { animation: butler-ledger 4.8s ease-in-out infinite; }
+  @keyframes butler-idle {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-2px) rotate(-0.25deg); }
+  }
+  @keyframes butler-listen {
+    0%,100% { transform: translateY(0) rotate(-1.2deg); }
+    50% { transform: translateY(-1px) rotate(1.1deg); }
+  }
+  @keyframes butler-think {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    30% { transform: translateY(-1px) rotate(-0.8deg); }
+    65% { transform: translateY(0) rotate(0.9deg); }
+  }
+  @keyframes butler-reply {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    40% { transform: translateY(-2px) rotate(0.7deg); }
+    70% { transform: translateY(0) rotate(-0.5deg); }
+  }
+  @keyframes butler-bored {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    35% { transform: translateY(-1px) rotate(-0.35deg); }
+    65% { transform: translateY(0) rotate(0.22deg); }
+  }
+  @keyframes butler-sideeye {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-1px) rotate(-0.6deg); }
+    52% { transform: translateY(-1px) rotate(0.4deg); }
+    78% { transform: translateY(0) rotate(-0.25deg); }
+  }
+  @keyframes butler-polish {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    20% { transform: translateY(-2px) rotate(0.5deg); }
+    45% { transform: translateY(0) rotate(-0.4deg); }
+    70% { transform: translateY(-1px) rotate(0.35deg); }
+  }
+  @keyframes butler-ledger {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    30% { transform: translateY(-1px) rotate(-0.5deg); }
+    60% { transform: translateY(0) rotate(0.5deg); }
+  }
 
   /* Modal */
   .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:100; align-items:flex-end; justify-content:center; padding-bottom:50px; }
@@ -426,8 +714,23 @@
 
   /* ── Mode system ─────────────────────────────────────────── */
   /* Night mode dimming */
-  body.mode-night .canvas { filter: brightness(0.6); }
-  body.mode-night .widget { opacity: 0.8; }
+  body.mode-night .canvas { filter: brightness(0.92); }
+  body.mode-night .widget { opacity: 0.95; }
+  body.mode-night #w-weather { border-color:rgba(97,175,239,0.34); background:linear-gradient(180deg, rgba(11,18,30,0.86), rgba(8,14,24,0.74)); }
+  body.mode-night #w-cal { border-color:rgba(97,175,239,0.28); background:linear-gradient(180deg, rgba(11,18,30,0.84), rgba(8,14,24,0.72)); }
+  body.mode-night #w-clock { border-color:rgba(97,175,239,0.3); background:linear-gradient(180deg, rgba(11,18,30,0.84), rgba(8,14,24,0.72)); }
+
+  .wall-cal { display:flex; flex-direction:column; height:100%; justify-content:space-between; padding:6px 8px 8px; }
+  .wall-month { font-size:13px; font-weight:700; color:var(--accent); letter-spacing:1.8px; text-transform:uppercase; }
+  .wall-day { font-size:72px; line-height:0.9; font-weight:700; color:var(--text-emphasis); text-shadow:0 4px 12px rgba(0,0,0,0.35); }
+  .wall-weekday { font-size:12px; color:var(--text-secondary); letter-spacing:2px; text-transform:uppercase; }
+  .wall-progress { height:8px; border-radius:999px; border:1px solid rgba(97,175,239,0.24); background:rgba(8,14,24,0.42); overflow:hidden; }
+  .wall-progress-fill { height:100%; background:linear-gradient(90deg, rgba(97,175,239,0.72), rgba(152,195,121,0.72)); border-radius:999px; }
+  .wall-meta { font-size:10px; color:var(--text-secondary); letter-spacing:1.1px; }
+
+  .ambient-body { display:flex; align-items:center; justify-content:center; height:100%; padding:14px 18px; text-align:center; }
+  .ambient-line { font-size:19px; line-height:1.45; color:var(--text-emphasis); text-shadow:0 2px 8px rgba(0,0,0,0.3); max-width:92%; }
+  .ambient-tag { display:block; margin-top:8px; font-size:10px; letter-spacing:2px; color:var(--text-secondary); text-transform:uppercase; }
 
   /* Meeting widget */
   .meeting-title { font-size: 16px; font-weight: 700; color: var(--text-emphasis); margin-bottom: 6px; }
@@ -458,11 +761,33 @@
   <div class="widget" id="w-clock" style="left:16px;top:8px;width:190px;height:110px">
     <div class="widget-header">CLOCK.SYS <span class="zone">primary</span></div>
     <div class="widget-body">
-      <div class="clock-time" id="clock">
-        <span class="hm" id="clockHM"></span><span class="sec" id="clockSec"></span><span class="ampm" id="clockAMPM"></span>
+      <div class="clock-digital">
+        <div class="clock-time" id="clock">
+          <span class="hm" id="clockHM"></span><span class="sec" id="clockSec"></span><span class="ampm" id="clockAMPM"></span>
+        </div>
+        <div class="clock-date" id="clockDate"></div>
+        <div class="clock-24h" id="clock24h"></div>
       </div>
-      <div class="clock-date" id="clockDate"></div>
-      <div class="clock-24h" id="clock24h"></div>
+      <div class="clock-analog" id="clockAnalog">
+        <div class="analog-face">
+          <div class="analog-tick major" style="transform:translateX(-50%) rotate(0deg)"></div>
+          <div class="analog-tick" style="transform:translateX(-50%) rotate(30deg)"></div>
+          <div class="analog-tick" style="transform:translateX(-50%) rotate(60deg)"></div>
+          <div class="analog-tick major" style="transform:translateX(-50%) rotate(90deg)"></div>
+          <div class="analog-tick" style="transform:translateX(-50%) rotate(120deg)"></div>
+          <div class="analog-tick" style="transform:translateX(-50%) rotate(150deg)"></div>
+          <div class="analog-tick major" style="transform:translateX(-50%) rotate(180deg)"></div>
+          <div class="analog-tick" style="transform:translateX(-50%) rotate(210deg)"></div>
+          <div class="analog-tick" style="transform:translateX(-50%) rotate(240deg)"></div>
+          <div class="analog-tick major" style="transform:translateX(-50%) rotate(270deg)"></div>
+          <div class="analog-tick" style="transform:translateX(-50%) rotate(300deg)"></div>
+          <div class="analog-tick" style="transform:translateX(-50%) rotate(330deg)"></div>
+          <div class="analog-hand analog-hour" id="analogHour"></div>
+          <div class="analog-hand analog-min" id="analogMinute"></div>
+          <div class="analog-hand analog-sec" id="analogSecond"></div>
+          <div class="analog-center"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -489,10 +814,6 @@
               <span class="wx-meta-pill" id="wxClouds">clouds --%</span>
               <span class="wx-meta-pill" id="wxWind">wind -- mph</span>
             </div>
-          </div>
-          <div class="wx-story" id="wxStory">
-            <div class="wx-story-line" id="wxStoryToday">Loading today's outlook...</div>
-            <div class="wx-story-line secondary" id="wxStoryTomorrow">Loading tomorrow...</div>
           </div>
         </div>
         <div class="wx-hours" id="wxHours">
@@ -524,7 +845,7 @@
   <!-- ALFREDO.TTY -->
   <div class="widget" id="w-tty" style="left:340px;top:352px;width:310px;height:185px">
     <div class="widget-header">ALFREDO.TTY <span class="badge" id="termBadge">OFF</span><span class="zone">system</span></div>
-    <div class="term-status"><div class="term-dot off" id="termDot"></div><span class="term-label" id="termLabel">checking...</span></div>
+    <div class="term-status"><div class="term-dot off" id="termDot"></div><span class="term-label" id="termLabel">checking...</span><span class="term-voice" id="termVoiceState">ALFREDO IDLE</span></div>
     <div class="term-output" id="termOutput">
       <div class="term-line sys">ALFREDO.TTY v0.51</div>
       <div class="term-line sys">ambient terminal ready</div>
@@ -574,6 +895,14 @@
     <div class="widget-body"><div class="scratch-body" id="scratchBody"></div></div>
   </div>
 
+  <!-- AMBIENT.LOG -->
+  <div class="widget hidden" id="w-ambient" style="left:350px;top:360px;width:644px;height:196px">
+    <div class="widget-header">AMBIENT.LOG <span class="zone">night</span></div>
+    <div class="widget-body ambient-body" id="ambientBody">
+      <div class="ambient-line" id="ambientLine">Loading ambient nonsense...</div>
+    </div>
+  </div>
+
   <!-- MEETING.LIVE -->
   <div class="widget hidden" id="w-meeting" style="left:16px;top:130px;width:992px;height:410px">
     <div class="widget-header">MEETING.LIVE <span class="badge" id="meetingBadge"></span><span class="zone">active</span></div>
@@ -590,8 +919,23 @@
 
   <!-- Voice -->
   <div class="voice-bar" id="voiceBar"></div>
+  <div class="voice-hud" id="voiceHud">
+    <div class="vh-row">
+      <span class="vh-dot" id="voiceHudDot"></span>
+      <span class="vh-state" id="voiceHudState">IDLE</span>
+      <span class="vh-mode" id="voiceHudMode">VOICE</span>
+    </div>
+    <div class="vh-line vh-user empty" id="voiceHudUser">YOU: waiting for input...</div>
+    <div class="vh-line vh-assistant empty" id="voiceHudAssistant">ALFREDO: waiting for reply...</div>
+  </div>
+  <div class="alfred-butler state-idle" id="alfredButler">
+    <div class="alfred-title">butler status</div>
+    <pre class="alfred-ascii" id="alfredAscii"></pre>
+    <div class="alfred-trayline" id="alfredTrayLine">tray: tea | notes</div>
+    <div class="alfred-subline" id="alfredSubLine">alfredo: quietly judging</div>
+  </div>
   <div class="mute-btn" id="muteBtn" title="mute alfredo">🔇</div>
-  <div class="voice-btn" id="voiceBtn" title="voice input">🎙</div>
+  <div class="voice-btn" id="voiceBtn" title="double tap to wake alfredo"></div>
   <div class="wake-hotspot" id="wakeHotspot" title="double tap to wake alfredo"></div>
   <div class="voice-toast" id="voiceToast">
     <span class="vt-icon">🎙</span>
@@ -617,6 +961,7 @@
   <div class="status-item" style="gap:6px"><div class="status-dot" id="sd-mic"></div><span style="font-size:9px;color:var(--text-secondary);letter-spacing:1px">MIC</span></div>
   <div class="spacer"></div>
   <span class="mode-indicator" id="modeIndicator">WORK</span>
+  <button class="alfredo-btn" id="alfredoQuickBtn" title="start alfredo">TALK</button>
   <span style="font-size:10px;color:var(--text-secondary);opacity:0.5;margin-right:6px">v0.51.0</span>
   <button class="hbg-btn" id="hbgToggle">☰</button>
 </div>
@@ -701,6 +1046,18 @@ function updateClock() {
   const D=['SUN','MON','TUE','WED','THU','FRI','SAT'], M=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   document.getElementById('clockDate').textContent = D[now.getDay()]+' · '+M[now.getMonth()]+' '+String(now.getDate()).padStart(2,'0')+' · '+now.getFullYear();
   document.getElementById('clock24h').textContent = String(h24).padStart(2,'0')+':'+m+':'+s;
+
+  const analogHour = document.getElementById('analogHour');
+  const analogMinute = document.getElementById('analogMinute');
+  const analogSecond = document.getElementById('analogSecond');
+  if (analogHour && analogMinute && analogSecond) {
+    const hoursDegrees = ((h24 % 12) + now.getMinutes() / 60) * 30;
+    const minuteDegrees = (now.getMinutes() + now.getSeconds() / 60) * 6;
+    const secondDegrees = now.getSeconds() * 6;
+    analogHour.style.transform = 'rotate(' + hoursDegrees + 'deg)';
+    analogMinute.style.transform = 'rotate(' + minuteDegrees + 'deg)';
+    analogSecond.style.transform = 'rotate(' + secondDegrees + 'deg)';
+  }
 }
 setInterval(updateClock,1000); updateClock();
 
@@ -716,7 +1073,12 @@ document.getElementById('clock').addEventListener('click',()=>{
 
 // ── Widget sizing + terminal feed ────────────────────────────
 const termOutput = document.getElementById('termOutput');
-const TERM_MAX_LINES = 48;
+const ttyWidget = document.getElementById('w-tty');
+const termBadge = document.getElementById('termBadge');
+const termDot = document.getElementById('termDot');
+const termLabel = document.getElementById('termLabel');
+const termVoiceState = document.getElementById('termVoiceState');
+const TERM_MAX_LINES = 140;
 let _termLines = [];
 let _termBridgeState = null;
 
@@ -763,8 +1125,33 @@ function pushTermLine(text, kind='sys') {
   termOutput.scrollTop = termOutput.scrollHeight;
 }
 
+function setTermVoiceState(label) {
+  if (!termVoiceState) return;
+  const value = String(label || '').trim();
+  termVoiceState.textContent = (value || 'alfredo idle').toUpperCase();
+}
+
+function setConversationPanelActive(active, status = 'ready') {
+  if (!ttyWidget) return;
+  document.body.classList.toggle('voice-engaged', active);
+  ttyWidget.classList.toggle('voice-focus', active);
+  if (active) ttyWidget.classList.remove('hidden');
+  if (termBadge) termBadge.textContent = active ? 'LIVE' : (_termBridgeState === 'on' ? 'ON' : _termBridgeState === 'err' ? 'ERR' : 'OFF');
+  if (termDot) termDot.className = 'term-dot ' + (active || _termBridgeState === 'on' ? 'on' : 'off');
+  if (termLabel) {
+    if (active) termLabel.textContent = status;
+    else if (_termBridgeState === 'off') termLabel.textContent = 'bridge offline';
+  }
+  if (!active && _currentMode) applyModeLayout(_currentMode);
+  refreshWidgetSizing();
+  setTimeout(() => placeButlerAvoidingOverlap(), 30);
+}
+
 pushTermLine('ambient terminal online', 'sys');
 pushTermLine('voice + layout surface ready', 'sys');
+pushTermLine('wake mode // wake-word only', 'sys');
+pushTermLine('manual wake // tap TALK or press ctrl+space', 'sys');
+setTermVoiceState('alfredo idle');
 
 // ── Tasks ───────────────────────────────────────────────────
 function fetchWithTimeout(url, ms) {
@@ -1012,18 +1399,49 @@ function renderCalEvent(e,now){
     +'<div class="meeting-full">'+fullText+prev+'</div>'
     +'</div>';
 }
+
+function renderWallCalendar(){
+  const el = document.getElementById('calendarBody');
+  if (!el) return;
+  const now = new Date();
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dayOfMonth = now.getDate();
+  const progress = Math.max(4, Math.round((dayOfMonth / daysInMonth) * 100));
+  const weekOfMonth = Math.ceil(dayOfMonth / 7);
+  el.innerHTML =
+    '<div class="wall-cal">' +
+      '<div class="wall-month">' + monthNames[now.getMonth()] + ' ' + now.getFullYear() + '</div>' +
+      '<div class="wall-day">' + dayOfMonth + '</div>' +
+      '<div class="wall-weekday">' + dayNames[now.getDay()] + '</div>' +
+      '<div class="wall-progress"><div class="wall-progress-fill" style="width:' + progress + '%"></div></div>' +
+      '<div class="wall-meta">Week ' + weekOfMonth + ' of ' + Math.ceil(daysInMonth / 7) + ' · Day ' + dayOfMonth + ' of ' + daysInMonth + '</div>' +
+    '</div>';
+}
+
 function renderCalendar(events){
   const el=document.getElementById('calendarBody');
   currentCalendarEvents = events || [];
+  const now=new Date();
+  const todayStr=now.toLocaleDateString('sv'); // YYYY-MM-DD in local timezone
+  const today=(events||[]).filter(e=>(e.startTime||'').slice(0,10)===todayStr);
+  hotlistCalEvents = today;
+  if (typeof updateHotlist === 'function') updateHotlist();
+
+  if (_currentMode === 'night') {
+    renderWallCalendar();
+    queueDirectContextSync();
+    return;
+  }
   if(!events||!events.length){
     el.innerHTML='<div class="cal-event"><span class="cal-time">--</span><div class="cal-bar"></div><span class="cal-title dim">no events today</span></div>';
     queueDirectContextSync();
     return;
   }
-  const now=new Date(), todayStr=now.toLocaleDateString('sv'); // YYYY-MM-DD in local timezone
-  const today=events.filter(e=>(e.startTime||'').slice(0,10)===todayStr);
   if(!today.length){
     el.innerHTML='<div class="cal-event"><span class="cal-time">--</span><div class="cal-bar"></div><span class="cal-title dim">no events today</span></div>';
+    queueDirectContextSync();
     return;
   }
   const work=today.filter(e=>!isPersonal(e));
@@ -1126,21 +1544,26 @@ function updateHotlist(){
 }
 updateHotlist();
 
-// Hook hotlist into calendar updates
-const _origRenderCal = renderCalendar;
-function renderCalendar(events){
-  _origRenderCal(events);
-  const now = new Date(), todayStr = now.toISOString().slice(0,10);
-  hotlistCalEvents = (events||[]).filter(e=>(e.startTime||'').slice(0,10)===todayStr);
-  updateHotlist();
-}
-
 // ── Weather Timeline (Open-Meteo, no API key) ──────────────
 const WX_LAT=40.6023,WX_LON=-75.4714; // Allentown, PA
 const WX_TZ='America/New_York';
 const WX_PLACE='Allentown';
 const WX_CODES={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌦',61:'🌧',63:'🌧',65:'🌧',71:'❄️',73:'❄️',75:'❄️',80:'🌦',81:'🌦',82:'⛈',95:'⛈',96:'⛈',99:'⛈'};
 const WX_DESC={0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
+
+function compassFromDegrees(degrees){
+  if (degrees === null || degrees === undefined || Number.isNaN(Number(degrees))) return '--';
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  const normalized = ((Number(degrees) % 360) + 360) % 360;
+  return dirs[Math.round(normalized / 22.5) % 16];
+}
+
+function windArrowFromDegrees(degrees){
+  if (degrees === null || degrees === undefined || Number.isNaN(Number(degrees))) return '';
+  const arrows = ['↑','↗','→','↘','↓','↙','←','↖'];
+  const normalized = ((Number(degrees) % 360) + 360) % 360;
+  return arrows[Math.round(normalized / 45) % 8];
+}
 
 // Moon phase via synodic month (reference: Jan 6, 2000 18:14 UTC new moon)
 function getMoonPhase(){
@@ -1161,7 +1584,7 @@ function getMoonPhase(){
 let _wxData=null;
 function fetchWeather(){
   const url='https://api.open-meteo.com/v1/forecast?latitude='+WX_LAT+'&longitude='+WX_LON
-    +'&current=temperature_2m,weather_code,wind_speed_10m,cloud_cover,precipitation'
+    +'&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation'
     +'&hourly=temperature_2m,weather_code,cloud_cover,precipitation_probability'
     +'&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,weather_code'
     +'&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone='+encodeURIComponent(WX_TZ)+'&forecast_days=2';
@@ -1182,6 +1605,8 @@ function renderWeatherTimeline(d){
   const cloudCover=Math.round(c.cloud_cover||0);
   const precip=Number(c.precipitation||0);
   const wind=Math.round(c.wind_speed_10m||0);
+  const windDirection = compassFromDegrees(c.wind_direction_10m);
+  const windArrow = windArrowFromDegrees(c.wind_direction_10m);
   const hi=Math.round((d.daily||{}).temperature_2m_max?.[0]||0);
   const lo=Math.round((d.daily||{}).temperature_2m_min?.[0]||0);
   const daily=d.daily||{};
@@ -1189,32 +1614,42 @@ function renderWeatherTimeline(d){
   const sunset0=new Date(daily.sunset?.[0]||'');
   const sunrise1=new Date(daily.sunrise?.[1]||daily.sunrise?.[0]||'');
   const now=new Date();
+  const weatherWidget = document.getElementById('w-weather');
+  const isCompact = !!(weatherWidget && weatherWidget.dataset.size === 'compact');
+  if (weatherWidget) weatherWidget.classList.toggle('wx-compact', isCompact);
 
   // Update current info — at night show moon phase + avg temp
   const isNightNow = now < sunrise0 || now > sunset0;
+  if (weatherWidget) {
+    weatherWidget.classList.toggle('wx-night', isNightNow);
+    weatherWidget.classList.toggle('wx-day', !isNightNow);
+  }
   document.getElementById('wxTemp').textContent=temp+'°';
   document.getElementById('wxPlace').textContent=WX_PLACE;
   document.getElementById('wxClouds').textContent='clouds '+cloudCover+'%';
-  document.getElementById('wxWind').textContent='wind '+wind+' mph';
-  const story = buildWeatherStory({
-    now,
-    currentCode: code,
-    currentDesc: desc,
-    hourly: d.hourly||{},
-    daily
-  });
-  document.getElementById('wxStoryToday').textContent = story.today;
-  document.getElementById('wxStoryTomorrow').textContent = story.tomorrow;
+  document.getElementById('wxWind').textContent='wind '+wind+' mph ' + (windArrow ? windArrow + ' ' : '') + windDirection;
   if (isNightNow) {
     const moon = getMoonPhase();
     const phaseNames = ['New Moon','Waxing Crescent','First Quarter','Waxing Gibbous','Full Moon','Waning Gibbous','Last Quarter','Waning Crescent'];
     const phaseIdx = Math.floor(moon.age / (29.53/8)) % 8;
-    document.getElementById('wxDesc').textContent=phaseNames[phaseIdx];
+    if (isCompact) {
+      const compactDesc = WX_DESC[code] || phaseNames[phaseIdx];
+      document.getElementById('wxDesc').textContent = compactDesc.toUpperCase();
+    } else {
+      document.getElementById('wxDesc').textContent = phaseNames[phaseIdx];
+    }
     const avg = Math.round((hi+lo)/2);
-    document.getElementById('wxHiLo').textContent='avg '+avg+'° · now '+temp+'°';
+    document.getElementById('wxHiLo').textContent=isCompact ? '' : 'avg '+avg+'° · now '+temp+'°';
   } else {
-    document.getElementById('wxDesc').textContent=desc;
-    document.getElementById('wxHiLo').textContent='H '+hi+'° · L '+lo+'°' + (precip > 0 ? ' · precip '+precip.toFixed(2)+' mm' : '');
+    if (isCompact) {
+      const compactBits = [desc.toUpperCase()];
+      if (wind >= 16) compactBits.push('BREEZY');
+      if (precip > 0.02) compactBits.push('WET');
+      document.getElementById('wxDesc').textContent = compactBits.join(' · ');
+    } else {
+      document.getElementById('wxDesc').textContent = desc;
+    }
+    document.getElementById('wxHiLo').textContent=isCompact ? '' : 'H '+hi+'° · L '+lo+'°' + (precip > 0 ? ' · precip '+precip.toFixed(2)+' mm' : '');
   }
 
   // Sunrise/sunset labels
@@ -1245,7 +1680,9 @@ function renderWeatherTimeline(d){
   // Semicircular arc: x goes left to right, y = sqrt(r²-(x-cx)²) scaled
   const cx=usableW/2;
   const r=usableW/2;
-  const xPos=progress*usableW;
+  const xPosRaw=progress*usableW;
+  // Moon travels opposite the sun (right -> left through the night arc).
+  const xPos=isDay ? xPosRaw : (usableW - xPosRaw);
   const dx=xPos-cx;
   const yNorm=Math.sqrt(Math.max(0, r*r - dx*dx))/r; // 0 at edges, 1 at zenith
   const bodySize=isDay?58:50;
@@ -1269,37 +1706,51 @@ function renderWeatherTimeline(d){
     celEl.innerHTML='<div class="wx-moon-body '+bodyClass+'"><div class="wx-moon-shadow" style="left:'+shadowOffset+'px"></div></div>';
   }
 
+  const infoEl = document.getElementById('wxCurrentInfo');
+  if (infoEl && !isCompact) {
+    const celestialX = pad + xPos;
+    const celestialBottom = 4 + yNorm*(arcH-bodySize-8);
+    const celestialTop = arcH - celestialBottom - bodySize;
+    const textOnRight = celestialX < (arcW * 0.5);
+    const highInSky = celestialTop < (arcH * 0.42);
+    const targetTop = highInSky ? Math.max(8, arcH - 84) : 10;
+    infoEl.style.left = textOnRight ? 'auto' : '12px';
+    infoEl.style.right = textOnRight ? '12px' : 'auto';
+    infoEl.style.top = targetTop + 'px';
+  }
+
   renderSkyCover({
     cloudCover,
     code,
     isDay,
     xPos: pad + xPos,
     arcWidth: arcW,
-    arcHeight: arcH
+    arcHeight: arcH,
+    compact: isCompact
   });
 
-  // Build hourly strip — fewer, bigger: now + every 2h for next 10h (6 slots)
-  const nowHr=now.getHours();
-  const hrs=(d.hourly||{}).temperature_2m||[];
-  const hrCodes=(d.hourly||{}).weather_code||[];
-  let hoursHTML='';
-  for(let offset=0;offset<=10;offset+=2){
-    const i=nowHr+offset;
-    if(i>=hrs.length) break;
-    const h=i%24;
-    const hLabel=offset===0?'NOW':h===0?'12a':h<12?h+'a':h===12?'12p':(h-12)+'p';
-    const cls=offset===0?'now':'';
-    const icon=WX_CODES[hrCodes[i]]||'';
-    hoursHTML+='<div class="wx-hour '+cls+'"><div class="wx-h-icon">'+icon+'</div><div class="wx-h-temp">'+Math.round(hrs[i])+'°</div><div class="wx-h-time">'+hLabel+'</div></div>';
-  }
-  // Keep rise/set labels, replace hour blocks
   const wxHoursEl=document.getElementById('wxHours');
   wxHoursEl.querySelectorAll('.wx-hour').forEach(e=>e.remove());
-  // Insert before the rise/set spans
-  const riseSpan=document.getElementById('wxRise');
-  const frag=document.createElement('div');
-  frag.innerHTML=hoursHTML;
-  while(frag.firstChild) wxHoursEl.insertBefore(frag.firstChild, riseSpan);
+  if (!isCompact) {
+    // Build hourly strip — fewer, bigger: now + every 2h for next 10h (6 slots)
+    const nowHr=now.getHours();
+    const hrs=(d.hourly||{}).temperature_2m||[];
+    const hrCodes=(d.hourly||{}).weather_code||[];
+    let hoursHTML='';
+    for(let offset=0;offset<=10;offset+=2){
+      const i=nowHr+offset;
+      if(i>=hrs.length) break;
+      const h=i%24;
+      const hLabel=offset===0?'NOW':h===0?'12a':h<12?h+'a':h===12?'12p':(h-12)+'p';
+      const cls=offset===0?'now':'';
+      const icon=WX_CODES[hrCodes[i]]||'';
+      hoursHTML+='<div class="wx-hour '+cls+'"><div class="wx-h-icon">'+icon+'</div><div class="wx-h-temp">'+Math.round(hrs[i])+'°</div><div class="wx-h-time">'+hLabel+'</div></div>';
+    }
+    const riseSpan=document.getElementById('wxRise');
+    const frag=document.createElement('div');
+    frag.innerHTML=hoursHTML;
+    while(frag.firstChild) wxHoursEl.insertBefore(frag.firstChild, riseSpan);
+  }
 
   applyWeatherFx({ code, cloudCover, precip, isDay });
 }
@@ -1393,27 +1844,29 @@ function applyWeatherFx({ code, cloudCover, precip, isDay }){
   else if(isDay && cloudCover < 35 && code <= 1){ spawnSunGlow(fx); }
 }
 
-function renderSkyCover({ cloudCover, code, isDay, xPos, arcWidth, arcHeight }){
+function renderSkyCover({ cloudCover, code, isDay, xPos, arcWidth, arcHeight, compact }){
   const coverEl=document.getElementById('wxSkyCover');
   if(!coverEl) return;
   coverEl.innerHTML='';
 
   const clouds=[];
+  const compactScale = compact ? 0.78 : 1;
   const normalizedX=Math.max(70, Math.min(arcWidth - 92, xPos));
   const baseTop=isDay ? 26 : 30;
-  const maskWidth = cloudCover >= 90 ? 94 : cloudCover >= 70 ? 80 : 64;
+  const maskWidthBase = cloudCover >= 90 ? 82 : cloudCover >= 70 ? 68 : 54;
+  const maskWidth = Math.round(maskWidthBase * compactScale);
 
   if(cloudCover >= 20 || [2,3,45,48,51,53,55,61,63,65,71,73,75,80,81,82,95,96,99].includes(code)){
     clouds.push({ left: normalizedX - Math.round(maskWidth * 0.45), top: baseTop, width: maskWidth, size: cloudCover >= 85 ? 'heavy' : 'medium', mask: true });
   }
   if(cloudCover >= 45 || code === 2 || code === 3){
-    clouds.push({ left: 44, top: 22, width: 68, size: cloudCover >= 75 ? 'medium' : 'light' });
+    clouds.push({ left: 44, top: 22, width: Math.round(58 * compactScale), size: cloudCover >= 75 ? 'medium' : 'light' });
   }
-  if(cloudCover >= 60 || code === 3){
-    clouds.push({ left: arcWidth - 128, top: 32, width: 82, size: cloudCover >= 90 ? 'heavy' : 'medium' });
+  if((cloudCover >= 60 || code === 3) && !compact){
+    clouds.push({ left: arcWidth - 118, top: 32, width: 70, size: cloudCover >= 90 ? 'heavy' : 'medium' });
   }
-  if(cloudCover >= 85 || code === 3){
-    clouds.push({ left: arcWidth * 0.42, top: arcHeight - 6, width: 96, size: 'heavy' });
+  if((cloudCover >= 85 || code === 3) && !compact){
+    clouds.push({ left: arcWidth * 0.44, top: arcHeight - 8, width: 80, size: 'heavy' });
   }
 
   clouds.forEach((cloud) => {
@@ -1422,6 +1875,8 @@ function renderSkyCover({ cloudCover, code, isDay, xPos, arcWidth, arcHeight }){
     el.style.left=Math.round(cloud.left)+'px';
     el.style.top=Math.round(cloud.top)+'px';
     el.style.width=Math.round(cloud.width)+'px';
+    el.style.setProperty('--drift', (36 + Math.random() * 28) + 's');
+    el.style.animationDelay = (-Math.random() * 12) + 's';
     coverEl.appendChild(el);
   });
 }
@@ -1507,10 +1962,47 @@ const FUNFACTS=[
   "The total weight of ants on Earth roughly equals that of humans.",
   "There are more possible chess games than atoms in the universe."
 ];
+const DAD_JOKES = [
+  "I only know 25 letters of the alphabet. I do not know y.",
+  "Parallel lines have so much in common. It is a shame they will never meet.",
+  "I used to hate facial hair, but then it grew on me.",
+  "I am reading a book about anti-gravity. It is impossible to put down."
+];
+const MONDAY_ROASTS = [
+  "You opened twelve tabs and solved none of them. Peak strategy.",
+  "Your inbox is now a museum of urgent things you forgot on purpose.",
+  "You are one strong coffee away from becoming suspiciously productive.",
+  "You keep saying 'quick update' and then writing a novella."
+];
+const ODD_QUOTES = [
+  "\"I can resist everything except temptation.\" — Oscar Wilde",
+  "\"The trouble with having an open mind is people insist on coming along and trying to put things in it.\" — Terry Pratchett",
+  "\"Never put off till tomorrow what may be done day after tomorrow just as well.\" — Mark Twain",
+  "\"I am not afraid of death; I just do not want to be there when it happens.\" — Woody Allen"
+];
+const AMBIENT_ROTATION = [
+  { tag: 'fun fact', list: FUNFACTS },
+  { tag: 'dad joke', list: DAD_JOKES },
+  { tag: 'monday roast', list: MONDAY_ROASTS },
+  { tag: 'odd quote', list: ODD_QUOTES },
+];
+
+function renderAmbientLine(){
+  const el = document.getElementById('ambientLine');
+  if (!el) return;
+  const pick = AMBIENT_ROTATION[Math.floor(Math.random() * AMBIENT_ROTATION.length)];
+  const line = pick.list[Math.floor(Math.random() * pick.list.length)];
+  el.innerHTML = escHtml(line) + '<span class="ambient-tag">' + pick.tag + '</span>';
+}
+
 // ── Floating fun fact — finds empty canvas space, hides if overlapping ──
 function positionFunFact() {
   const ff = document.getElementById('funfact-float');
   if (!ff) return;
+  if (_currentMode === 'night') {
+    ff.style.opacity = '0';
+    return;
+  }
   ff.textContent = FUNFACTS[Math.floor(Math.random() * FUNFACTS.length)];
 
   // Get all visible widget rects
@@ -1558,6 +2050,8 @@ function positionFunFact() {
 positionFunFact();
 // Rotate fun fact every 45 seconds
 setInterval(positionFunFact, 45000);
+renderAmbientLine();
+setInterval(renderAmbientLine, 30000);
 
 // ── Waiting / Deferred ─────────────────────────────────────
 let waitingItems=loadData('waitingItems',[]);
@@ -1668,6 +2162,179 @@ setInterval(updateUptime,30000); updateUptime();
 const syncTimes = {};
 const STALE_WARN = 5 * 60 * 1000;
 const STALE_ERR  = 30 * 60 * 1000;
+const DEFAULT_DISPLAY_SLEEP_MINS = 10;
+const DEFAULT_WORK_PRESENCE_SLEEP_MINS = 120;
+const DEFAULT_DAY_PRESENCE_SLEEP_MINS = 45;
+const DEFAULT_NIGHT_PRESENCE_SLEEP_MINS = 25;
+const KEYBOARD_CLICK_WINDOW_MS = 12000;
+const KEYBOARD_CLICK_INTERACTION_MIN = 2;
+const KEYBOARD_CLICK_INTERACTION_COOLDOWN_MS = 5000;
+let _displayPowerState = 'unknown'; // unknown | on | off
+let _displayCommandPending = false;
+let _lastPresenceState = null;
+let _lastUserInteractionAt = Date.now();
+let _voiceSessionEngaged = false;
+let _keyboardAssistStarted = false;
+let _keyboardAssistContext = null;
+let _keyboardAssistStream = null;
+let _keyboardAssistLastClickAt = 0;
+let _keyboardAssistLastInteractionAt = 0;
+let _keyboardAssistClickTimes = [];
+let _keyboardAssistRmsEma = 0;
+let _keyboardAssistWarned = false;
+
+function getDisplaySleepMinutes() {
+  const settings = loadData('kioskSettings', {}) || {};
+  const raw = settings.displaySleepMins ?? loadData('displaySleepMins', DEFAULT_DISPLAY_SLEEP_MINS);
+  const mins = Number(raw);
+  if (!Number.isFinite(mins)) return DEFAULT_DISPLAY_SLEEP_MINS;
+  return Math.max(1, Math.min(240, Math.round(mins)));
+}
+
+function readSleepSetting(settings, key, fallback) {
+  const value = Number(settings[key]);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(1, Math.min(240, Math.round(value)));
+}
+
+function isWorkHours(now = new Date()) {
+  const day = now.getDay();
+  const hour = now.getHours();
+  const weekday = day >= 1 && day <= 5;
+  return weekday && hour >= 7 && hour < 21;
+}
+
+function isNightHours(now = new Date()) {
+  const hour = now.getHours();
+  return hour >= 22 || hour < 6;
+}
+
+function getPresenceAdaptiveSleepMinutes(present, now = new Date()) {
+  const settings = loadData('kioskSettings', {}) || {};
+  const base = getDisplaySleepMinutes();
+  if (!present) return base;
+  if (isWorkHours(now)) {
+    return readSleepSetting(settings, 'presenceWorkSleepMins', Math.max(base, DEFAULT_WORK_PRESENCE_SLEEP_MINS));
+  }
+  if (isNightHours(now)) {
+    return readSleepSetting(settings, 'presenceNightSleepMins', Math.max(base, DEFAULT_NIGHT_PRESENCE_SLEEP_MINS));
+  }
+  return readSleepSetting(settings, 'presenceDaySleepMins', Math.max(base, DEFAULT_DAY_PRESENCE_SLEEP_MINS));
+}
+
+async function requestDisplayPower(on, reason = '') {
+  const target = on ? 'on' : 'off';
+  if (_displayPowerState === target || _displayCommandPending) return false;
+  _displayCommandPending = true;
+  try {
+    const response = await fetch('/proxy/display', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({on})
+    });
+    if (!response.ok) throw new Error('http ' + response.status);
+    _displayPowerState = target;
+    pushTermLine('display ' + target + (reason ? ' // ' + reason : ''), on ? 'good' : 'sys');
+    return true;
+  } catch (error) {
+    pushTermLine('display toggle failed // ' + (error && error.message ? error.message : 'unknown error'), 'warn');
+    return false;
+  } finally {
+    _displayCommandPending = false;
+  }
+}
+
+function noteUserInteraction(source = 'interaction', options = {}) {
+  _lastUserInteractionAt = Date.now();
+  if (options.wakeDisplay) {
+    requestDisplayPower(true, source).catch(() => {});
+  }
+}
+
+function getInteractionIdleMins(now = Date.now()) {
+  return Math.max(0, (now - _lastUserInteractionAt) / 60000);
+}
+
+function isKeyboardAssistEnabled() {
+  const settings = loadData('kioskSettings', {}) || {};
+  return settings.keyboardClickAssist !== false;
+}
+
+function startKeyboardClickAssist() {
+  if (_keyboardAssistStarted || !isKeyboardAssistEnabled()) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  _keyboardAssistStarted = true;
+  navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+      channelCount: 1,
+    },
+  }).then((stream) => {
+    const AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor) return;
+    _keyboardAssistStream = stream;
+    _keyboardAssistContext = new AudioCtor();
+    const source = _keyboardAssistContext.createMediaStreamSource(stream);
+    const analyser = _keyboardAssistContext.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.2;
+    source.connect(analyser);
+
+    const timeData = new Float32Array(analyser.fftSize);
+    const freqData = new Uint8Array(analyser.frequencyBinCount);
+    const sampleRate = _keyboardAssistContext.sampleRate || 48000;
+    const hzPerBin = sampleRate / analyser.fftSize;
+    const highStart = Math.max(0, Math.floor(1800 / hzPerBin));
+    const highEnd = Math.min(analyser.frequencyBinCount - 1, Math.floor(7800 / hzPerBin));
+
+    pushTermLine('mic assist ready // keyboard click detection', 'sys');
+
+    const tick = () => {
+      if (!_keyboardAssistContext || _keyboardAssistContext.state === 'closed') return;
+      analyser.getFloatTimeDomainData(timeData);
+      analyser.getByteFrequencyData(freqData);
+
+      let sumSq = 0;
+      for (let i = 0; i < timeData.length; i += 1) sumSq += timeData[i] * timeData[i];
+      const rms = Math.sqrt(sumSq / timeData.length);
+      _keyboardAssistRmsEma = (_keyboardAssistRmsEma * 0.92) + (rms * 0.08);
+      const transient = rms - _keyboardAssistRmsEma;
+
+      let high = 0;
+      let total = 0;
+      for (let i = 0; i < freqData.length; i += 1) {
+        const v = freqData[i];
+        total += v;
+        if (i >= highStart && i <= highEnd) high += v;
+      }
+      const highRatio = total > 0 ? (high / total) : 0;
+      const nowMs = Date.now();
+
+      const clickLike = rms > 0.018 && transient > 0.007 && highRatio > 0.31;
+      if (clickLike && (nowMs - _keyboardAssistLastClickAt) > 120) {
+        _keyboardAssistLastClickAt = nowMs;
+        _keyboardAssistClickTimes.push(nowMs);
+      }
+
+      _keyboardAssistClickTimes = _keyboardAssistClickTimes.filter((ts) => nowMs - ts <= KEYBOARD_CLICK_WINDOW_MS);
+      const enoughClicks = _keyboardAssistClickTimes.length >= KEYBOARD_CLICK_INTERACTION_MIN;
+      const cooldownOk = (nowMs - _keyboardAssistLastInteractionAt) > KEYBOARD_CLICK_INTERACTION_COOLDOWN_MS;
+      if (enoughClicks && cooldownOk && _lastPresenceState === true) {
+        _keyboardAssistLastInteractionAt = nowMs;
+        noteUserInteraction('keyboard clicks', { wakeDisplay: true });
+      }
+
+      requestAnimationFrame(tick);
+    };
+    tick();
+  }).catch((error) => {
+    if (_keyboardAssistWarned) return;
+    _keyboardAssistWarned = true;
+    pushTermLine('mic assist unavailable // ' + (error && error.message ? error.message : 'permission denied'), 'warn');
+  });
+}
 
 function setDot(id, state, ts) {
   const el = document.getElementById(id);
@@ -1706,17 +2373,17 @@ async function checkStatus() {
     const j = await r.json();
     if (j.status === 'ok') {
       setDot('sd-bridge','on',now); setDot('sd-ws','on',now);
-      document.getElementById('termDot').className = 'term-dot on';
-      document.getElementById('termLabel').textContent = 'pihub.local \u2714 ws:' + j.ws_port;
-      document.getElementById('termBadge').textContent = 'ON';
+      termDot.className = 'term-dot on';
+      termLabel.textContent = 'pihub.local \u2714 ws:' + j.ws_port;
+      termBadge.textContent = 'ON';
       if (_termBridgeState !== 'on') {
         pushTermLine('bridge live // ws:' + j.ws_port, 'good');
         _termBridgeState = 'on';
       }
     } else {
       setDot('sd-bridge','off'); setDot('sd-ws','warn');
-      document.getElementById('termDot').className = 'term-dot off';
-      document.getElementById('termBadge').textContent = 'ERR';
+      termDot.className = 'term-dot off';
+      termBadge.textContent = 'ERR';
       if (_termBridgeState !== 'err') {
         pushTermLine('bridge reachable but unhealthy', 'warn');
         _termBridgeState = 'err';
@@ -1724,9 +2391,9 @@ async function checkStatus() {
     }
   } catch {
     setDot('sd-bridge','off'); setDot('sd-ws','off');
-    document.getElementById('termDot').className = 'term-dot off';
-    document.getElementById('termLabel').textContent = 'bridge offline';
-    document.getElementById('termBadge').textContent = 'OFF';
+    termDot.className = 'term-dot off';
+    termLabel.textContent = 'bridge offline';
+    termBadge.textContent = 'OFF';
     if (_termBridgeState !== 'off') {
       pushTermLine('bridge offline', 'warn');
       _termBridgeState = 'off';
@@ -1749,11 +2416,30 @@ async function checkStatus() {
   try {
     const r = await fetch('/proxy/presence', {signal: AbortSignal.timeout(4000)});
     const j = await r.json();
-    setDot('sd-presence', j.present ? 'on' : 'off', j.present ? now : null);
-    if (!j.present && j.absent_mins > 10) {
-      // Screen blank after 10 min away
-      fetch('/proxy/display', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({on: false})}).catch(()=>{});
+    const present = !!j.present;
+    const absentMins = Number(j.absent_mins || 0);
+    const sleepAfterMins = getPresenceAdaptiveSleepMinutes(present, new Date(now));
+    const interactionIdleMins = getInteractionIdleMins(now);
+    const holdDisplay = _voiceSessionEngaged || interactionIdleMins < sleepAfterMins;
+    setDot('sd-presence', present ? 'on' : 'off', present ? now : null);
+
+    if (present) {
+      if (_lastPresenceState === false) {
+        pushTermLine('presence detected // welcome back', 'good');
+      }
+      if (_lastPresenceState === false || _displayPowerState !== 'on') {
+        await requestDisplayPower(true, 'presence returned');
+      }
     }
+
+    // Presence alone should not hold the panel awake forever (e.g., TV/media noise nearby).
+    if (!holdDisplay) {
+      const reason = present
+        ? 'idle ' + Math.floor(interactionIdleMins) + 'm // no keyboard activity'
+        : 'away ' + Math.floor(absentMins) + 'm';
+      await requestDisplayPower(false, reason);
+    }
+    _lastPresenceState = present;
   } catch { setDot('sd-presence','warn'); }
 
   updateSyncDot();
@@ -1805,7 +2491,7 @@ setInterval(() => {
 
 // ── Mode system ─────────────────────────────────────────────
 // Replaces time-aware visibility with full context-aware modes
-let _currentMode = null;
+var _currentMode = null;
 let _meetingSticky = false; // meeting mode stays until dismissed
 
 function isInMeeting() {
@@ -1954,15 +2640,16 @@ const modeLayouts = {
   // Work mode: full dashboard (default weekday view)
   work: {
     'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'140px',show:true},
-    'w-hotlist': {left:'218px', top:'8px',   width:'300px', height:'165px',show:true},
-    'w-weather': {right:'16px', top:'8px',   width:'480px', height:'165px',show:true},
-    'w-work':    {left:'16px',  top:'185px', width:'494px', height:'165px',show:true},
-    'w-life':    {left:'522px', top:'185px', width:'486px', height:'165px',show:true},
-    'w-cal':     {left:'16px',  top:'362px', width:'494px', height:'195px',show:true},
-    'w-today':   {left:'522px', top:'362px', width:'236px', height:'195px',show:true},
+    'w-hotlist': {left:'218px', top:'8px',   width:'220px', height:'190px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'570px', height:'190px',show:true},
+    'w-work':    {left:'16px',  top:'210px', width:'494px', height:'150px',show:true},
+    'w-life':    {left:'522px', top:'210px', width:'486px', height:'150px',show:true},
+    'w-cal':     {left:'16px',  top:'370px', width:'494px', height:'188px',show:true},
+    'w-today':   {left:'522px', top:'370px', width:'236px', height:'188px',show:true},
     'w-stats':   {show:false},
     'w-scratch': {show:false},
-    'w-tty':     {left:'772px', top:'362px', width:'236px', height:'195px',show:true},
+    'w-tty':     {left:'772px', top:'370px', width:'236px', height:'188px',show:true},
+    'w-ambient': {show:false},
     'w-meeting': {show:false},
   },
   // Meeting mode: immersive meeting view
@@ -1978,14 +2665,16 @@ const modeLayouts = {
     'w-tty':     {show:false},
     'w-stats':   {show:false},
     'w-scratch': {show:false},
+    'w-ambient': {show:false},
   },
   // Night mode: dimmed, minimal (10pm-6am)
   night: {
-    'w-clock':   {left:'256px', top:'80px',  width:'512px', height:'200px',show:true},
-    'w-weather': {left:'262px', top:'290px', width:'500px', height:'120px',show:true},
-    'w-work':    {left:'16px',  top:'390px', width:'494px', height:'150px',show:true},
-    'w-life':    {left:'522px', top:'390px', width:'486px', height:'150px',show:true},
-    'w-cal':     {show:false},
+    'w-clock':   {left:'16px',  top:'20px',  width:'318px', height:'244px',show:true},
+    'w-weather': {left:'350px', top:'20px',  width:'658px', height:'334px',show:true},
+    'w-cal':     {left:'16px',  top:'276px', width:'318px', height:'282px',show:true},
+    'w-ambient': {left:'350px', top:'366px', width:'658px', height:'192px',show:true},
+    'w-work':    {show:false},
+    'w-life':    {show:false},
     'w-today':   {show:false},
     'w-hotlist': {show:false},
     'w-tty':     {show:false},
@@ -2005,6 +2694,7 @@ const modeLayouts = {
     'w-hotlist': {show:false},
     'w-tty':     {show:false},
     'w-stats':   {show:false},
+    'w-ambient': {show:false},
     'w-meeting': {show:false},
   },
   // Focus mode: deep work, tasks only
@@ -2019,6 +2709,7 @@ const modeLayouts = {
     'w-tty':     {show:false},
     'w-stats':   {show:false},
     'w-scratch': {show:false},
+    'w-ambient': {show:false},
     'w-meeting': {show:false},
   },
 };
@@ -2027,28 +2718,30 @@ const modeLayouts = {
 const workVariants = {
   'work-md': {
     'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'134px',show:true},
-    'w-hotlist': {left:'218px', top:'8px',   width:'300px', height:'158px',show:true},
-    'w-weather': {right:'16px', top:'8px',   width:'480px', height:'158px',show:true},
-    'w-work':    {left:'16px',  top:'178px', width:'494px', height:'180px',show:true},
-    'w-life':    {left:'522px', top:'178px', width:'486px', height:'180px',show:true},
+    'w-hotlist': {left:'218px', top:'8px',   width:'220px', height:'182px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'570px', height:'182px',show:true},
+    'w-work':    {left:'16px',  top:'200px', width:'494px', height:'160px',show:true},
+    'w-life':    {left:'522px', top:'200px', width:'486px', height:'160px',show:true},
     'w-cal':     {left:'16px',  top:'370px', width:'494px', height:'190px',show:true},
     'w-today':   {left:'522px', top:'370px', width:'236px', height:'190px',show:true},
     'w-stats':   {show:false},
     'w-scratch': {show:false},
     'w-tty':     {left:'772px', top:'370px', width:'236px', height:'190px',show:true},
+    'w-ambient': {show:false},
     'w-meeting': {show:false},
   },
   'work-lg': {
     'w-clock':   {left:'16px',  top:'8px',   width:'190px', height:'126px',show:true},
-    'w-hotlist': {left:'218px', top:'8px',   width:'300px', height:'150px',show:true},
-    'w-weather': {right:'16px', top:'8px',   width:'480px', height:'150px',show:true},
-    'w-work':    {left:'16px',  top:'170px', width:'494px', height:'190px',show:true},
-    'w-life':    {left:'522px', top:'170px', width:'486px', height:'190px',show:true},
+    'w-hotlist': {left:'218px', top:'8px',   width:'220px', height:'176px',show:true},
+    'w-weather': {right:'16px', top:'8px',   width:'570px', height:'176px',show:true},
+    'w-work':    {left:'16px',  top:'194px', width:'494px', height:'166px',show:true},
+    'w-life':    {left:'522px', top:'194px', width:'486px', height:'166px',show:true},
     'w-cal':     {left:'16px',  top:'372px', width:'494px', height:'188px',show:true},
     'w-today':   {left:'522px', top:'372px', width:'236px', height:'188px',show:true},
     'w-stats':   {show:false},
     'w-scratch': {show:false},
     'w-tty':     {left:'772px', top:'372px', width:'236px', height:'188px',show:true},
+    'w-ambient': {show:false},
     'w-meeting': {show:false},
   },
 };
@@ -2079,6 +2772,10 @@ function applyModeLayout(mode) {
     });
   });
 
+  if (document.body.classList.contains('voice-engaged') && ttyWidget) {
+    ttyWidget.classList.remove('hidden');
+  }
+
   // Night mode: compact task widgets
   if (mode === 'night') {
     ['w-work','w-life'].forEach(id => {
@@ -2092,6 +2789,11 @@ function applyModeLayout(mode) {
     });
   }
   refreshWidgetSizing();
+  if (_wxData) renderWeatherTimeline(_wxData);
+  renderCalendar(currentCalendarEvents || []);
+  if (mode === 'night') renderAmbientLine();
+  positionFunFact();
+  placeButlerAvoidingOverlap();
 }
 
 // Legacy compat: applyLayout still works for settings sync
@@ -2160,8 +2862,58 @@ updateFsDisplay();
 
 // Hamburger open/close
 function closeHbg(){ document.getElementById('hbgPanel').classList.remove('open'); }
-document.getElementById('hbgToggle').addEventListener('click',e=>{ e.stopPropagation(); document.getElementById('hbgPanel').classList.toggle('open'); });
-document.addEventListener('click',e=>{ if(!document.getElementById('hbgPanel').contains(e.target)) closeHbg(); });
+function bindTap(el, handler) {
+  if (!el) return;
+  let pointerHandledAt = 0;
+  el.addEventListener('pointerup', (event) => {
+    pointerHandledAt = Date.now();
+    handler(event);
+  });
+  el.addEventListener('click', (event) => {
+    if (Date.now() - pointerHandledAt < 320) return;
+    handler(event);
+  });
+  el.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') handler(event);
+  });
+}
+function toggleHamburgerPanel(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const panel = document.getElementById('hbgPanel');
+  if (panel) panel.classList.toggle('open');
+}
+const hbgToggle = document.getElementById('hbgToggle');
+bindTap(hbgToggle, toggleHamburgerPanel);
+const alfredoQuickBtn = document.getElementById('alfredoQuickBtn');
+function triggerAlfredoDirect(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const active = (typeof realtimeVoice !== 'undefined' && realtimeVoice && realtimeVoice.active);
+  if (active) {
+    pushTermLine('direct trigger // stop requested', 'warn');
+    realtimeVoice.end('manual stop requested');
+    return;
+  }
+  pushTermLine('direct trigger // status button', 'sys');
+  engageDirectMode('status-button');
+}
+if (alfredoQuickBtn) {
+  bindTap(alfredoQuickBtn, triggerAlfredoDirect);
+}
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('hbgPanel');
+  if (!panel) return;
+  const target = e.target;
+  if (target && typeof target.closest === 'function') {
+    if (target.closest('#hbgPanel') || target.closest('#hbgToggle') || target.closest('#alfredoQuickBtn')) return;
+  }
+  closeHbg();
+});
 
 // System buttons
 document.getElementById('btnRefresh').addEventListener('click',()=>{ closeHbg(); location.reload(); });
@@ -2229,26 +2981,351 @@ let _voiceSince = Date.now() / 1000;
 let _voiceToastTimer = null;
 let _voiceState = 'idle'; // idle, wake, listening, thinking, reply, dismissed
 let _voiceMode = 'voice';
+let _voiceStateDetail = '';
 const voiceToast = document.getElementById('voiceToast');
 const vtLabel = document.getElementById('vtLabel');
 const vtText = document.getElementById('vtText');
 const voiceBtn = document.getElementById('voiceBtn');
+const voiceBtnHint = document.getElementById('voiceBtnHint');
 const voiceBar = document.getElementById('voiceBar');
+const voiceHud = document.getElementById('voiceHud');
+const voiceHudState = document.getElementById('voiceHudState');
+const voiceHudMode = document.getElementById('voiceHudMode');
+const voiceHudUser = document.getElementById('voiceHudUser');
+const voiceHudAssistant = document.getElementById('voiceHudAssistant');
+const alfredButler = document.getElementById('alfredButler');
+const alfredAscii = document.getElementById('alfredAscii');
+const alfredTrayLine = document.getElementById('alfredTrayLine');
+const alfredSubLine = document.getElementById('alfredSubLine');
 const wakeHotspot = document.getElementById('wakeHotspot');
 const sdMic = document.getElementById('sd-mic');
 let _wakeTapTime = 0;
 let _wakeTapTimer = null;
+let _voiceTapTimer = null;
+let _voiceHudUserFinal = '';
+let _voiceHudAssistantFinal = '';
+let _voiceHudUserInterim = '';
+let _voiceHudAssistantInterim = '';
+let _butlerTrayTick = 0;
+let _butlerIdleSceneIndex = 0;
 
-function setVoiceState(state) {
+const BUTLER_TRAYS = {
+  idle: [
+    'tray: tea | notes',
+    'tray: weather | calendar',
+    'tray: inbox | priorities'
+  ],
+  listening: [
+    'tray: microphone | transcript',
+    'tray: active ears | side-eye',
+    'tray: your words | context'
+  ],
+  thinking: [
+    'tray: gears | schedule',
+    'tray: task board | memory',
+    'tray: projects | response draft'
+  ],
+  reply: [
+    'tray: answer | sass',
+    'tray: summary | next steps',
+    'tray: calendar truth | mild roast'
+  ],
+  dismissed: [
+    'tray: napkin | silence',
+    'tray: cold tea | judgement'
+  ]
+};
+
+const BUTLER_SUB = {
+  idle: 'alfredo: quietly judging',
+  listening: 'alfredo: hearing every syllable',
+  thinking: 'alfredo: plotting a useful answer',
+  reply: 'alfredo: serving response',
+  dismissed: 'alfredo: dismissed... for now'
+};
+
+const BUTLER_IDLE_SCENES = [
+  {
+    id: 'bored',
+    eyes: '--',
+    mouth: '.',
+    brow: '____',
+    tray: ['tray: tea gone cold', 'tray: calendar still chaos'],
+    sub: 'alfredo: visibly under-stimulated'
+  },
+  {
+    id: 'sideeye',
+    eyes: 'o<',
+    mouth: '-',
+    brow: '----',
+    tray: ['tray: side-eye | priorities', 'tray: subtle judgement | notes'],
+    sub: 'alfredo: silently evaluating your choices'
+  },
+  {
+    id: 'polish',
+    eyes: 'o_',
+    mouth: '_',
+    brow: '----',
+    tray: ['tray: polishing silver', 'tray: polishing same silver'],
+    sub: 'alfredo: polishing things that are already polished'
+  },
+  {
+    id: 'ledger',
+    eyes: 'o-',
+    mouth: '~',
+    brow: '____',
+    tray: ['tray: ledgers | follow-ups', 'tray: inbox tally | receipts'],
+    sub: 'alfredo: reconciling your social debt'
+  }
+];
+const BUTLER_MARGIN = 16;
+const BUTLER_TOP = 14;
+const BUTLER_STATUSBAR_H = 30;
+
+function rectOverlap(a, b, pad = 0) {
+  return a.left < (b.right + pad) && a.right > (b.left - pad) && a.top < (b.bottom + pad) && a.bottom > (b.top - pad);
+}
+
+function collectButlerObstacles() {
+  const obstacles = [];
+  document.querySelectorAll('.widget').forEach((el) => {
+    if (el.classList.contains('hidden') || el.offsetParent === null) return;
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) return;
+    obstacles.push(r);
+  });
+  [voiceHud, voiceToast].forEach((el) => {
+    if (!el || !el.classList.contains('show')) return;
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) return;
+    obstacles.push(r);
+  });
+  obstacles.push({
+    left: 0,
+    top: window.innerHeight - BUTLER_STATUSBAR_H,
+    right: window.innerWidth,
+    bottom: window.innerHeight
+  });
+  return obstacles;
+}
+
+function getButlerCandidates(width, height) {
+  const maxX = Math.max(BUTLER_MARGIN, window.innerWidth - BUTLER_MARGIN - width);
+  const maxY = Math.max(BUTLER_TOP, window.innerHeight - BUTLER_STATUSBAR_H - BUTLER_MARGIN - height);
+  return [
+    { left: maxX, top: BUTLER_TOP }, // preferred top-right
+    { left: BUTLER_MARGIN, top: BUTLER_TOP }, // top-left
+    { left: maxX, top: Math.min(184, maxY) }, // mid-right
+    { left: BUTLER_MARGIN, top: Math.min(184, maxY) }, // mid-left
+    { left: maxX, top: maxY }, // bottom-right
+    { left: BUTLER_MARGIN, top: maxY }, // bottom-left
+    { left: Math.max(BUTLER_MARGIN, Math.min(maxX, Math.round(window.innerWidth * 0.62))), top: Math.min(120, maxY) }, // upper center-right
+  ];
+}
+
+function placeButlerAvoidingOverlap() {
+  if (!alfredButler) return;
+  const rect = alfredButler.getBoundingClientRect();
+  const width = rect.width > 120 ? rect.width : 212;
+  const height = rect.height > 90 ? rect.height : 165;
+  const obstacles = collectButlerObstacles();
+  const candidates = getButlerCandidates(width, height);
+  let best = candidates[0];
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  candidates.forEach((candidate, idx) => {
+    const box = {
+      left: candidate.left,
+      top: candidate.top,
+      right: candidate.left + width,
+      bottom: candidate.top + height
+    };
+    let overlapArea = 0;
+    obstacles.forEach((obs) => {
+      if (!rectOverlap(box, obs, 2)) return;
+      const x = Math.max(0, Math.min(box.right, obs.right) - Math.max(box.left, obs.left));
+      const y = Math.max(0, Math.min(box.bottom, obs.bottom) - Math.max(box.top, obs.top));
+      overlapArea += x * y;
+    });
+    const score = overlapArea * 100000 + idx; // prioritize no-overlap, then candidate order
+    if (score < bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  });
+
+  const left = Math.max(BUTLER_MARGIN, Math.min(best.left, window.innerWidth - BUTLER_MARGIN - width));
+  const top = Math.max(BUTLER_TOP, Math.min(best.top, window.innerHeight - BUTLER_STATUSBAR_H - BUTLER_MARGIN - height));
+  alfredButler.style.left = Math.round(left) + 'px';
+  alfredButler.style.top = Math.round(top) + 'px';
+  alfredButler.style.right = 'auto';
+}
+
+function voiceStateClass(state) {
+  if (state === 'wake' || state === 'listening') return 'listening';
+  if (state === 'thinking' || state === 'command') return 'thinking';
+  if (state === 'reply' || state === 'speaking') return 'reply';
+  if (state === 'dismissed' || state === 'closing') return 'dismissed';
+  return 'idle';
+}
+
+function voiceStateLabel(state) {
+  if (state === 'wake') return 'wake';
+  if (state === 'listening') return 'listening';
+  if (state === 'thinking') return 'thinking';
+  if (state === 'command') return 'processing';
+  if (state === 'reply' || state === 'speaking') return 'speaking';
+  if (state === 'dismissed' || state === 'closing') return 'closed';
+  return 'idle';
+}
+
+function buildButlerAscii(state) {
+  const cls = voiceStateClass(state);
+  const idleScene = cls === 'idle'
+    ? BUTLER_IDLE_SCENES[_butlerIdleSceneIndex % BUTLER_IDLE_SCENES.length]
+    : null;
+  let eyes = cls === 'listening' ? 'o<' : cls === 'thinking' ? 'o-' : cls === 'reply' ? '^_' : cls === 'dismissed' ? '--' : 'o_';
+  let mouth = cls === 'listening' ? '_' : cls === 'thinking' ? '~' : cls === 'reply' ? ')' : cls === 'dismissed' ? '-' : '.';
+  let brow = cls === 'thinking' ? '____' : '----';
+  if (idleScene) {
+    eyes = idleScene.eyes || eyes;
+    mouth = idleScene.mouth || mouth;
+    brow = idleScene.brow || brow;
+  }
+  return [
+    '       .-^^^^-.',
+    '      /_' + brow + '_\\',
+    '      |  ' + eyes + '  |',
+    '      |   ' + mouth + '   |',
+    '     /|  /__\\  |\\',
+    '    /_| /____\\ |_\\',
+    '       /  ||  \\',
+    '    __/___||___\\__',
+    '   /_____[==]_____\\'
+  ].join('\n');
+}
+
+function updateButlerForState(state) {
+  if (!alfredButler || !alfredAscii || !alfredTrayLine || !alfredSubLine) return;
+  const cls = voiceStateClass(state);
+  const idleScene = cls === 'idle'
+    ? BUTLER_IDLE_SCENES[_butlerIdleSceneIndex % BUTLER_IDLE_SCENES.length]
+    : null;
+  alfredButler.className = 'alfred-butler state-' + cls + (idleScene ? ' mood-' + idleScene.id : '');
+  alfredAscii.textContent = buildButlerAscii(state);
+  const pool = (idleScene && idleScene.tray && idleScene.tray.length)
+    ? idleScene.tray
+    : (BUTLER_TRAYS[cls] || BUTLER_TRAYS.idle);
+  _butlerTrayTick += 1;
+  alfredTrayLine.textContent = pool[_butlerTrayTick % pool.length];
+  alfredSubLine.textContent = (idleScene && idleScene.sub) || BUTLER_SUB[cls] || BUTLER_SUB.idle;
+  placeButlerAvoidingOverlap();
+}
+
+function clipVoiceLine(text, max = 150) {
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  if (normalized.length <= max) return normalized;
+  return normalized.slice(0, max - 1) + '…';
+}
+
+function setVoiceHudLine(role, text, options = {}) {
+  const value = clipVoiceLine(text);
+  const interim = !!options.interim;
+  const append = !!options.append;
+  if (role === 'user') {
+    if (interim) {
+      _voiceHudUserInterim = append ? (_voiceHudUserInterim + value) : value;
+    } else {
+      _voiceHudUserInterim = '';
+      _voiceHudUserFinal = value;
+    }
+  } else if (role === 'assistant') {
+    if (interim) {
+      _voiceHudAssistantInterim = append ? (_voiceHudAssistantInterim + value) : value;
+    } else {
+      _voiceHudAssistantInterim = '';
+      _voiceHudAssistantFinal = value;
+    }
+  }
+  refreshVoiceHud();
+}
+
+function clearVoiceHudInterim() {
+  _voiceHudUserInterim = '';
+  _voiceHudAssistantInterim = '';
+  refreshVoiceHud();
+}
+
+function refreshVoiceHud() {
+  if (!voiceHud || !voiceHudState || !voiceHudMode || !voiceHudUser || !voiceHudAssistant) return;
+  const cls = voiceStateClass(_voiceState);
+  const stateLabel = voiceStateLabel(_voiceState);
+  voiceHud.className = 'voice-hud state-' + cls;
+  const showHud = cls !== 'idle' || !!(_voiceHudUserFinal || _voiceHudAssistantFinal || _voiceHudUserInterim || _voiceHudAssistantInterim);
+  if (showHud) voiceHud.classList.add('show');
+
+  voiceHudState.textContent = _voiceStateDetail ? (stateLabel + ' · ' + _voiceStateDetail) : stateLabel;
+  voiceHudMode.textContent = _voiceMode === 'direct' ? 'MONDAY / ALFREDO' : 'VOICE';
+
+  const userLine = _voiceHudUserInterim || _voiceHudUserFinal;
+  const assistantLine = _voiceHudAssistantInterim || _voiceHudAssistantFinal;
+  voiceHudUser.textContent = 'YOU: ' + (userLine || 'waiting for input...');
+  voiceHudAssistant.textContent = 'ALFREDO: ' + (assistantLine || 'waiting for reply...');
+  voiceHudUser.className = 'vh-line vh-user' + (_voiceHudUserInterim ? ' interim' : '') + (!userLine ? ' empty' : '');
+  voiceHudAssistant.className = 'vh-line vh-assistant' + (_voiceHudAssistantInterim ? ' interim' : '') + (!assistantLine ? ' empty' : '');
+}
+
+function setVoiceState(state, detail = '') {
   _voiceState = state;
+  _voiceStateDetail = clipVoiceLine(detail, 52);
+  const termState = voiceStateLabel(state).toUpperCase();
+  setTermVoiceState('alfredo ' + termState + (_voiceStateDetail ? ' · ' + _voiceStateDetail : ''));
+  const cls = voiceStateClass(state);
   // Voice bar — persistent top indicator
-  voiceBar.className = 'voice-bar' + (state === 'listening' || state === 'wake' ? ' listening' : state === 'thinking' || state === 'command' ? ' thinking' : '');
+  voiceBar.className = 'voice-bar' + (cls === 'listening' ? ' listening' : cls === 'thinking' ? ' thinking' : cls === 'reply' ? ' reply' : '');
   // Voice button glow
   if (state === 'idle' || state === 'dismissed') {
     voiceBtn.classList.remove('active');
   } else {
     voiceBtn.classList.add('active');
   }
+  refreshVoiceHud();
+  updateButlerForState(state);
+  updateQuickWakeButton();
+}
+
+updateButlerForState(_voiceState);
+setInterval(() => {
+  if (voiceStateClass(_voiceState) === 'idle') {
+    _butlerIdleSceneIndex = (_butlerIdleSceneIndex + 1) % BUTLER_IDLE_SCENES.length;
+  }
+  updateButlerForState(_voiceState);
+}, 12000);
+window.addEventListener('resize', () => placeButlerAvoidingOverlap());
+
+function updateVoiceButtonHint(label) {
+  if (voiceBtnHint) voiceBtnHint.textContent = label;
+}
+
+function updateQuickWakeButton() {
+  if (!alfredoQuickBtn) return;
+  const active = (typeof realtimeVoice !== 'undefined' && realtimeVoice && realtimeVoice.active);
+  alfredoQuickBtn.classList.remove('live', 'stop', 'muted');
+  if (_voiceMuted) {
+    alfredoQuickBtn.classList.add('muted');
+    alfredoQuickBtn.textContent = active ? 'UNMUTE' : 'MUTED';
+    alfredoQuickBtn.title = 'alfredo is muted — double tap the mute icon to unmute';
+    return;
+  }
+  if (active) {
+    alfredoQuickBtn.classList.add('live', 'stop');
+    alfredoQuickBtn.textContent = 'STOP';
+    alfredoQuickBtn.title = 'tap to end alfredo live session';
+    return;
+  }
+  alfredoQuickBtn.textContent = 'TALK';
+  alfredoQuickBtn.title = 'tap to wake alfredo immediately';
 }
 
 function voiceLabel(base) {
@@ -2263,7 +3340,6 @@ function showVoiceToast(label, text, cssClass, duration) {
   if (duration > 0) {
     _voiceToastTimer = setTimeout(() => {
       voiceToast.classList.remove('show');
-      setVoiceState('idle');
     }, duration);
   }
 }
@@ -2281,32 +3357,89 @@ function pulseWakeHotspot() {
   setTimeout(() => wakeHotspot.classList.remove('armed'), 500);
 }
 
+function engageDirectMode(trigger) {
+  noteUserInteraction('direct mode trigger', { wakeDisplay: true });
+  if (_voiceMuted) {
+    _voiceMuted = false;
+    updateMuteUI(false);
+    fetch('/proxy/voice-mute', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({muted:false})
+    }).catch(() => {});
+    pushTermLine('auto-unmuted // wake requested', 'warn');
+  }
+  if (realtimeVoice.active && realtimeVoice.audioSuppressed) {
+    realtimeVoice.resumeAudioMode();
+    showVoiceToast('DIRECT MODE', 'audio back on.', '', 1800);
+    return;
+  }
+  if (realtimeVoice.active) {
+    showVoiceToast('DIRECT MODE', 'already listening.', '', 1800);
+    return;
+  }
+  showVoiceToast('DIRECT MODE', trigger === 'corner-double-tap' ? 'corner wake engaged.' : 'alfredo is waking up.', '', 1800);
+  pushTermLine('direct mode starting // ' + trigger.replace(/-/g, ' '), 'sys');
+  realtimeVoice.start(trigger);
+}
+
 function handleWakeHotspotTap() {
+  noteUserInteraction('wake hotspot tap', { wakeDisplay: true });
   const now = Date.now();
-  if (now - _wakeTapTime < 400) {
+  if (now - _wakeTapTime < 650) {
     clearTimeout(_wakeTapTimer);
     _wakeTapTimer = null;
     _wakeTapTime = 0;
     pulseWakeHotspot();
-    if (_voiceMuted) {
-      showVoiceToast('MUTED', 'alfredo is muted. double-tap 🔇 to unmute first.', 'dismissed', 3200);
-      return;
-    }
-    if (realtimeVoice.active) {
-      showVoiceToast('DIRECT MODE', 'already listening.', '', 1800);
-      return;
-    }
-    showVoiceToast('DIRECT MODE', 'corner wake engaged.', '', 1800);
-    pushTermLine('direct mode starting // corner wake', 'sys');
-    realtimeVoice.start('corner-double-tap');
+    engageDirectMode('corner-double-tap');
     return;
   }
+  pushTermLine('corner tap // tap again to wake', 'sys');
   _wakeTapTime = now;
   clearTimeout(_wakeTapTimer);
   _wakeTapTimer = setTimeout(() => {
     _wakeTapTime = 0;
     _wakeTapTimer = null;
-  }, 450);
+  }, 700);
+}
+
+function isCornerWakeTap(event) {
+  if (!event) return false;
+  const target = event.target;
+  if (target && typeof target.closest === 'function') {
+    if (target.closest('#hbgPanel') || target.closest('#hbgToggle') || target.closest('#modal') || target.closest('.hbg-btn')) {
+      return false;
+    }
+  }
+  const x = Number(event.clientX || 0);
+  const y = Number(event.clientY || 0);
+  const inCornerX = x >= (window.innerWidth - 220);
+  const inCornerY = y >= (window.innerHeight - 155);
+  return inCornerX && inCornerY;
+}
+
+function handleVoiceButtonTap() {
+  noteUserInteraction('voice button tap', { wakeDisplay: true });
+  const doubleTapWindowMs = 380;
+  if (_voiceTapTimer) {
+    clearTimeout(_voiceTapTimer);
+    _voiceTapTimer = null;
+    engageDirectMode('button-double-tap');
+    return;
+  }
+
+  _voiceTapTimer = setTimeout(() => {
+    _voiceTapTimer = null;
+    if (_voiceMuted) {
+      showVoiceToast('MUTED', 'alfredo is muted. double-tap 🔇 to unmute.', 'dismissed', 3000);
+      return;
+    }
+    if (!realtimeVoice.active) {
+      showVoiceToast('ALFREDO', 'double-tap to wake. single tap only stops audio once he is live.', '', 2200);
+      return;
+    }
+    realtimeVoice.stopAudioMode();
+  }, doubleTapWindowMs);
 }
 
 const REALTIME_STOP_PHRASES = [
@@ -2336,6 +3469,14 @@ function extractRealtimeText(payload) {
     if (typeof part.text === 'string' && part.text.trim()) return part.text.trim();
     if (typeof part.transcript === 'string' && part.transcript.trim()) return part.transcript.trim();
   }
+  return '';
+}
+
+function extractRealtimeDelta(payload) {
+  if (!payload) return '';
+  if (typeof payload.delta === 'string') return payload.delta;
+  if (payload.delta && typeof payload.delta.text === 'string') return payload.delta.text;
+  if (payload.part && typeof payload.part.text === 'string') return payload.part.text;
   return '';
 }
 
@@ -2448,6 +3589,9 @@ class RealtimeVoiceSession {
     this.idleTimer = null;
     this.serverSession = null;
     this.isClosing = false;
+    this.audioSuppressed = false;
+    this.pendingUserTranscript = '';
+    this.pendingAssistantTranscript = '';
   }
 
   get active() {
@@ -2486,11 +3630,53 @@ class RealtimeVoiceSession {
     }
   }
 
+  setInputEnabled(enabled) {
+    if (!this.localStream) return;
+    this.localStream.getAudioTracks().forEach((track) => {
+      track.enabled = enabled;
+    });
+  }
+
+  stopAudioMode() {
+    if (!this.active) return;
+    this.audioSuppressed = true;
+    this.setInputEnabled(false);
+    if (this.audioEl) {
+      this.audioEl.muted = true;
+      try { this.audioEl.pause(); } catch (e) {}
+    }
+    setVoiceState('thinking', 'audio paused');
+    updateVoiceButtonHint('text-only mode');
+    setConversationPanelActive(true, 'text-only // audio paused');
+    showVoiceToast('DIRECT MODE', 'audio paused. I will keep the text conversation going.', '', 2600);
+    pushTermLine('audio paused // text-only mode', 'warn');
+  }
+
+  resumeAudioMode() {
+    if (!this.active) return;
+    this.audioSuppressed = false;
+    this.setInputEnabled(true);
+    if (this.audioEl) {
+      this.audioEl.muted = false;
+      const playPromise = this.audioEl.play();
+      if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
+    }
+    setVoiceState('listening', 'mic open');
+    updateVoiceButtonHint('single tap stops audio');
+    setConversationPanelActive(true, 'direct mode live // listening');
+    pushTermLine('audio resumed // live voice back on', 'good');
+  }
+
   async start(trigger = 'push-to-talk') {
     if (this.active || _voiceMuted) return;
     this.isClosing = false;
+    this.audioSuppressed = false;
+    _voiceSessionEngaged = true;
+    noteUserInteraction('direct mode start', { wakeDisplay: true });
     _voiceMode = 'direct';
-    setVoiceState('thinking');
+    setVoiceState('thinking', 'connecting');
+    updateVoiceButtonHint('connecting…');
+    setConversationPanelActive(true, 'connecting realtime voice…');
     showVoiceToast('DIRECT MODE', 'connecting realtime voice…', 'thinking', 0);
     pushTermLine('direct mode starting // realtime voice', 'sys');
 
@@ -2508,8 +3694,11 @@ class RealtimeVoiceSession {
       sessionData = await response.json();
       if (!response.ok) throw new Error(sessionData.error || 'session broker unavailable');
     } catch (error) {
+      _voiceSessionEngaged = false;
       const friendly = formatRealtimeErrorMessage(error.message || 'realtime unavailable');
-      setVoiceState('idle');
+      setVoiceState('idle', '');
+      updateVoiceButtonHint('tap TALK to wake');
+      setConversationPanelActive(false);
       showVoiceToast('DIRECT MODE', escapeHtml(friendly), 'dismissed', 7000);
       pushTermLine('realtime unavailable // ' + friendly, 'warn');
       return;
@@ -2534,7 +3723,8 @@ class RealtimeVoiceSession {
       this.pc.ontrack = (event) => {
         if (!this.audioEl) return;
         this.audioEl.srcObject = event.streams[0];
-        const playPromise = this.audioEl.play();
+        this.audioEl.muted = this.audioSuppressed;
+        const playPromise = this.audioSuppressed ? null : this.audioEl.play();
         if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
       };
       this.pc.onconnectionstatechange = () => {
@@ -2555,10 +3745,15 @@ class RealtimeVoiceSession {
 
       this.dc = this.pc.createDataChannel('oai-events');
       this.dc.addEventListener('open', () => {
-        setVoiceState('listening');
-        showVoiceToast('DIRECT MODE', 'Go ahead.', '', 3000);
-        pushTermLine('direct mode active // realtime live', 'good');
-        this.postVoiceEvent('session', { text: 'direct mode active', session_state: 'listening' });
+        _voiceSessionEngaged = true;
+        noteUserInteraction('direct mode connected', { wakeDisplay: true });
+        setVoiceState('listening', 'mic open');
+        updateVoiceButtonHint('single tap stops audio');
+        setConversationPanelActive(true, 'direct mode live // listening');
+        showVoiceToast('ALFREDO', 'All right, what now?', '', 3000);
+        pushTermLine('alfredo live // all right, what now?', 'good');
+        setVoiceHudLine('assistant', 'All right, what now?', { interim: false });
+        this.postVoiceEvent('session', { text: 'All right, what now?', session_state: 'listening' });
         this.resetIdleTimer();
         if (this.serverSession) {
           this.sendEvent({ type: 'session.update', session: this.serverSession });
@@ -2566,7 +3761,7 @@ class RealtimeVoiceSession {
         this.sendEvent({
           type: 'response.create',
           response: {
-            instructions: 'Greet very briefly and say direct mode is active.'
+            instructions: 'Greet very briefly in Alfredo voice with a touch of sarcasm, like "All right, what now?" or "Yes, yes, I am listening." Do not mention direct mode.'
           }
         });
       });
@@ -2593,6 +3788,7 @@ class RealtimeVoiceSession {
         sdp: await sdpResponse.text(),
       });
     } catch (error) {
+      _voiceSessionEngaged = false;
       this.fail(error.message || 'failed to start realtime voice');
     }
   }
@@ -2607,25 +3803,48 @@ class RealtimeVoiceSession {
     this.resetIdleTimer();
 
     if (event.type === 'input_audio_buffer.speech_started') {
-      setVoiceState('listening');
+      this.pendingUserTranscript = '';
+      setVoiceState('listening', this.audioSuppressed ? 'text-only' : 'hearing you');
+      setConversationPanelActive(true, this.audioSuppressed ? 'text-only // audio paused' : 'direct mode live // listening');
       showVoiceToast('DIRECT MODE', '<span class="vt-dots"></span>', 'listening', 0);
+      setVoiceHudLine('user', 'listening…', { interim: true });
       return;
     }
 
     if (event.type === 'input_audio_buffer.speech_stopped') {
-      setVoiceState('thinking');
+      setVoiceState('thinking', 'working on it');
+      setConversationPanelActive(true, this.audioSuppressed ? 'text-only // processing' : 'direct mode live // thinking');
       showVoiceToast('DIRECT MODE', '<span class="vt-dots"></span>', 'thinking', 0);
       return;
     }
 
+    if (event.type === 'conversation.item.input_audio_transcription.delta') {
+      const delta = extractRealtimeDelta(event);
+      if (!delta) return;
+      this.pendingUserTranscript += delta;
+      setVoiceHudLine('user', this.pendingUserTranscript, { interim: true });
+      return;
+    }
+
     if (event.type === 'conversation.item.input_audio_transcription.completed') {
-      const transcript = extractRealtimeText(event);
+      const transcript = extractRealtimeText(event) || this.pendingUserTranscript;
+      this.pendingUserTranscript = '';
       if (!transcript) return;
       pushTermLine('> ' + transcript, 'user');
+      setVoiceHudLine('user', transcript, { interim: false });
       this.postVoiceEvent('command', { text: transcript, session_state: 'thinking' });
       if (isRealtimeStopPhrase(transcript)) {
         this.end('direct mode closed');
       }
+      return;
+    }
+
+    if (event.type === 'response.audio_transcript.delta' || event.type === 'response.text.delta') {
+      const delta = extractRealtimeDelta(event);
+      if (!delta) return;
+      this.pendingAssistantTranscript += delta;
+      setVoiceState('reply', this.audioSuppressed ? 'text reply' : 'talking');
+      setVoiceHudLine('assistant', this.pendingAssistantTranscript, { interim: true });
       return;
     }
 
@@ -2644,34 +3863,46 @@ class RealtimeVoiceSession {
     }
 
     if (event.type === 'response.audio_transcript.done') {
-      const reply = extractAssistantReply(event);
+      const reply = extractAssistantReply(event) || this.pendingAssistantTranscript;
+      this.pendingAssistantTranscript = '';
       if (!reply) return;
-      setVoiceState('speaking');
+      setVoiceState('speaking', this.audioSuppressed ? 'reply ready' : 'talking');
+      setConversationPanelActive(true, this.audioSuppressed ? 'text-only // reply ready' : 'direct mode live // speaking');
       showVoiceToast('DIRECT MODE', escapeHtml(reply), '', 9000);
       pushTermLine(reply, 'reply');
+      setVoiceHudLine('assistant', reply, { interim: false });
       this.postVoiceEvent('reply', { reply, session_state: 'speaking' });
       setTimeout(() => {
-        if (this.active && !this.isClosing) setVoiceState('listening');
+        if (this.active && !this.isClosing) {
+          setVoiceState('listening', this.audioSuppressed ? 'text-only ready' : 'ready');
+          setConversationPanelActive(true, this.audioSuppressed ? 'text-only // waiting' : 'direct mode live // listening');
+        }
       }, 900);
       return;
     }
 
     if (event.type === 'response.output_item.done' && event.item && event.item.type === 'message') {
-      const reply = extractAssistantReply(event);
+      const reply = extractAssistantReply(event) || this.pendingAssistantTranscript;
+      this.pendingAssistantTranscript = '';
       if (!reply) return;
-      setVoiceState('speaking');
+      setVoiceState('speaking', this.audioSuppressed ? 'reply ready' : 'talking');
+      setConversationPanelActive(true, this.audioSuppressed ? 'text-only // reply ready' : 'direct mode live // speaking');
       showVoiceToast('DIRECT MODE', escapeHtml(reply), '', 9000);
       pushTermLine(reply, 'reply');
+      setVoiceHudLine('assistant', reply, { interim: false });
       this.postVoiceEvent('reply', { reply, session_state: 'speaking' });
       return;
     }
 
     if (event.type === 'response.done') {
-      const reply = extractAssistantReply(event);
+      const reply = extractAssistantReply(event) || this.pendingAssistantTranscript;
+      this.pendingAssistantTranscript = '';
       if (!reply) return;
-      setVoiceState('speaking');
+      setVoiceState('speaking', this.audioSuppressed ? 'reply ready' : 'talking');
+      setConversationPanelActive(true, this.audioSuppressed ? 'text-only // reply ready' : 'direct mode live // speaking');
       showVoiceToast('DIRECT MODE', escapeHtml(reply), '', 9000);
       pushTermLine(reply, 'reply');
+      setVoiceHudLine('assistant', reply, { interim: false });
       this.postVoiceEvent('reply', { reply, session_state: 'speaking' });
       return;
     }
@@ -2691,7 +3922,8 @@ class RealtimeVoiceSession {
       args = JSON.parse(event.arguments || (event.item && event.item.arguments) || '{}');
     } catch (error) {}
 
-    setVoiceState('thinking');
+    setVoiceState('thinking', 'running tools');
+    setConversationPanelActive(true, this.audioSuppressed ? 'text-only // tool call' : 'direct mode live // thinking');
     showVoiceToast('DIRECT MODE', '<span class="vt-dots"></span>', 'thinking', 0);
 
     let result;
@@ -2733,7 +3965,10 @@ class RealtimeVoiceSession {
   fail(message) {
     const friendly = formatRealtimeErrorMessage(message);
     if (!this.active && !this.sessionId) {
-      setVoiceState('idle');
+      _voiceSessionEngaged = false;
+      setVoiceState('idle', '');
+      updateVoiceButtonHint('tap TALK to wake');
+      setConversationPanelActive(false);
       showVoiceToast('DIRECT MODE', escapeHtml(friendly), 'dismissed', 7000);
       pushTermLine('realtime failed // ' + friendly, 'warn');
       return;
@@ -2744,10 +3979,17 @@ class RealtimeVoiceSession {
   end(reason = 'direct mode closed') {
     if (this.isClosing) return;
     this.isClosing = true;
+    _voiceSessionEngaged = false;
     clearTimeout(this.idleTimer);
+    this.pendingUserTranscript = '';
+    this.pendingAssistantTranscript = '';
+    clearVoiceHudInterim();
+    setVoiceState('dismissed', 'closed');
     this.postVoiceEvent('dismissed', { text: reason, session_state: 'closing' });
     pushTermLine(reason, 'warn');
     showVoiceToast('DIRECT MODE', escapeHtml(reason), 'dismissed', 2500);
+    updateVoiceButtonHint('tap TALK to wake');
+    setConversationPanelActive(false);
     if (this.dc) {
       try { this.dc.close(); } catch (e) {}
     }
@@ -2769,14 +4011,16 @@ class RealtimeVoiceSession {
     this.audioEl = null;
     this.sessionId = null;
     this.serverSession = null;
+    this.audioSuppressed = false;
     setTimeout(() => {
       this.isClosing = false;
-      setVoiceState('idle');
+      setVoiceState('idle', '');
     }, 350);
   }
 }
 
 const realtimeVoice = new RealtimeVoiceSession();
+updateQuickWakeButton();
 
 async function pollVoiceEvents() {
   try {
@@ -2791,36 +4035,45 @@ async function pollVoiceEvents() {
         _voiceMode = ev.mode || 'voice';
         switch (ev.type) {
           case 'wake':
-            setVoiceState('wake');
+            setVoiceState('wake', 'wake word');
+            if (_voiceMode === 'direct') setConversationPanelActive(true, 'direct mode wake // listening');
             showVoiceToast(voiceLabel('ALFREDO'), ev.text || 'Wake word detected', '', 0); // no auto-dismiss
             pushTermLine((_voiceMode === 'direct' ? 'direct // ' : '') + (ev.text || 'wake word detected'), 'sys');
             break;
           case 'listening':
-            setVoiceState('listening');
+            setVoiceState('listening', 'hearing you');
+            if (_voiceMode === 'direct') setConversationPanelActive(true, 'direct mode live // listening');
             showVoiceToast(voiceLabel('LISTENING'), '<span class="vt-dots"></span>', 'listening', 0);
             pushTermLine((_voiceMode === 'direct' ? 'direct // ' : '') + 'listening for command', 'sys');
             break;
           case 'command':
-            setVoiceState('thinking');
+            setVoiceState('thinking', 'working on it');
+            if (_voiceMode === 'direct') setConversationPanelActive(true, 'direct mode live // thinking');
             showVoiceToast(voiceLabel('THINKING'), '<span class="vt-dots"></span>', 'thinking', 0);
             pushTermLine('> ' + (ev.text || 'voice command'), 'user');
+            setVoiceHudLine('user', ev.text || 'voice command', { interim: false });
             break;
           case 'reply':
-            setVoiceState('reply');
+            setVoiceState('reply', 'talking');
+            if (_voiceMode === 'direct') setConversationPanelActive(true, 'direct mode live // reply');
             showVoiceToast(voiceLabel('ALFREDO'), ev.reply || ev.text || '...', '', 10000);
             pushTermLine(ev.reply || ev.text || '...', 'reply');
+            setVoiceHudLine('assistant', ev.reply || ev.text || '...', { interim: false });
             break;
           case 'session':
-            setVoiceState('listening');
-            showVoiceToast(voiceLabel('ALFREDO'), ev.text || 'direct mode active', '', 4000);
-            pushTermLine(ev.text || 'direct mode active', 'good');
+            setVoiceState('listening', 'ready');
+            if (_voiceMode === 'direct') setConversationPanelActive(true, 'alfredo live');
+            showVoiceToast(voiceLabel('ALFREDO'), ev.text || 'All right, what now?', '', 4000);
+            pushTermLine(ev.text || 'All right, what now?', 'good');
+            setVoiceHudLine('assistant', ev.text || 'All right, what now?', { interim: false });
             break;
           case 'idle':
-            setVoiceState('idle');
+            setVoiceState('idle', '');
             showVoiceToast(voiceLabel('ALFREDO'), ev.text || '...', '', 5000);
             pushTermLine(ev.text || 'idle', 'sys');
             break;
           case 'dismissed':
+            setConversationPanelActive(false);
             dismissVoice();
             showVoiceToast(voiceLabel('ALFREDO'), ev.text || 'fine, shutting up.', 'dismissed', 3000);
             pushTermLine(ev.text || 'dismissed', 'warn');
@@ -2845,7 +4098,13 @@ function updateMuteUI(muted) {
   muteBtn.title = muted ? 'double-tap to unmute' : 'double-tap to mute';
   voiceBtn.className = 'voice-btn' + (muted ? ' muted' : '');
   if (!muted && realtimeVoice.active) voiceBtn.classList.add('active');
+  updateVoiceButtonHint(
+    muted ? 'muted' :
+    realtimeVoice.active ? (realtimeVoice.audioSuppressed ? 'text-only mode' : 'single tap stops audio') :
+    'tap TALK to wake'
+  );
   if (sdMic) sdMic.className = 'status-dot ' + (muted ? 'warn' : 'on');
+  updateQuickWakeButton();
 }
 
 let _muteTapTime = 0;
@@ -2868,6 +4127,7 @@ muteBtn.addEventListener('click', async () => {
 // Check initial mute state
 fetch('/proxy/voice-mute').then(r=>r.json()).then(d=>updateMuteUI(d.muted)).catch(()=>{});
 queueDirectContextSync();
+setTimeout(() => startKeyboardClickAssist(), 1200);
 
 function enforceHiddenCursor(deep = false) {
   document.documentElement.style.cursor = 'none';
@@ -2883,27 +4143,29 @@ document.addEventListener('DOMContentLoaded', () => enforceHiddenCursor(true));
 window.addEventListener('load', () => enforceHiddenCursor(true));
 document.addEventListener('mousemove', () => enforceHiddenCursor(false), { passive: true });
 document.addEventListener('pointermove', () => enforceHiddenCursor(false), { passive: true });
+document.addEventListener('pointerdown', () => noteUserInteraction('pointer input', { wakeDisplay: true }), { passive: true });
+document.addEventListener('touchstart', () => noteUserInteraction('touch input', { wakeDisplay: true }), { passive: true });
+window.addEventListener('keydown', () => noteUserInteraction('keyboard input', { wakeDisplay: true }));
+window.addEventListener('keydown', (event) => {
+  if (!(event.ctrlKey && event.code === 'Space')) return;
+  event.preventDefault();
+  triggerAlfredoDirect(event);
+});
+document.addEventListener('pointerdown', () => {
+  if (_keyboardAssistContext && _keyboardAssistContext.state === 'suspended') {
+    _keyboardAssistContext.resume().catch(() => {});
+  }
+}, { passive: true });
 setInterval(() => enforceHiddenCursor(true), 3000);
 
-document.getElementById('voiceBtn').addEventListener('click', () => {
-  if (_voiceMuted) {
-    showVoiceToast('MUTED', 'alfredo is muted. double-tap 🔇 to unmute.', 'dismissed', 3000);
-  } else {
-    if (realtimeVoice.active) {
-      realtimeVoice.end('direct mode closed');
-    } else {
-      realtimeVoice.start('push-to-talk');
-    }
-  }
-});
-
-wakeHotspot.addEventListener('pointerup', (event) => {
-  event.preventDefault();
-  handleWakeHotspotTap();
-});
+// Wake-word only mode: no tap/double-tap activation listeners.
 
 window.addEventListener('beforeunload', () => {
   if (realtimeVoice.active) realtimeVoice.end('page closed');
+});
+window.addEventListener('load', () => {
+  setTimeout(() => placeButlerAvoidingOverlap(), 200);
+  setTimeout(() => placeButlerAvoidingOverlap(), 1200);
 });
 
 // ── Modal ───────────────────────────────────────────────────

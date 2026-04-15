@@ -108,6 +108,24 @@ If Claude or Codex is already in a subsystem, leave a baton-pass note instead of
 2. `alfredo/.claude/memory.md`
 3. `alfredo/Scratchpad.md`
 4. `docs/HANDOFF.md`
+5. `docs/SESSION-START.md`
+
+---
+
+## Fresh-session shorthand
+
+If Todd says:
+
+`Let's work on Project Alfredo.`
+
+Treat that as shorthand for:
+
+1. check `git status`
+2. read `docs/HANDOFF.md`
+3. read `alfredo/.claude/memory.md`
+4. read `docs/UI-BRIEFING.md`
+5. read `docs/SESSION-START.md`
+6. inspect live diffs before editing anything active
 
 ---
 

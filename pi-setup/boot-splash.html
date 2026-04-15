@@ -265,6 +265,10 @@ let flavorIdx = 0;
 let flavorPass = 0;
 const termlog = document.getElementById('termlog');
 let flavorTimer = null;
+const CHECK_STAGGER_MS = 220;
+const CHECK_MIN_VISIBLE_MS = 900;
+const RETRY_STAGGER_MS = 650;
+const RETRY_WAIT_MS = 4000;
 
 function startFlavorTicker() {
   termlog.className = 'terminal-log active';
@@ -304,10 +308,17 @@ async function runChecks() {
 
   // Phase 1: Check all services sequentially with staggered timing
   for (const c of CHECKS) {
-    updateRow(c.id, 'checking', '');
-    await delay(300);  // stagger for visual effect
+    updateRow(c.id, 'checking', 'probing...');
+    msg.textContent = `Checking ${c.name}... ${completed}/${CHECKS.length}`;
+    termlog.textContent = `> probing ${c.name.toLowerCase()}...`;
+    const startedAt = Date.now();
+    await delay(CHECK_STAGGER_MS);
 
     const result = await c.check();
+    const elapsed = Date.now() - startedAt;
+    if (elapsed < CHECK_MIN_VISIBLE_MS) {
+      await delay(CHECK_MIN_VISIBLE_MS - elapsed);
+    }
     updateRow(c.id, result.state, result.detail);
 
     if (result.state === 'fail') { failures++; failedChecks.push(c); }
@@ -316,19 +327,27 @@ async function runChecks() {
 
     progress.style.width = ((completed / CHECKS.length) * 80) + '%';
     msg.textContent = `Checking services... ${completed}/${CHECKS.length}`;
+    termlog.textContent = `> ${c.name.toLowerCase()} ${result.state}`;
   }
 
   // Phase 2: Retry failed services (up to 3 rounds, 5s apart)
   if (failedChecks.length > 0) {
     for (let round = 1; round <= 3 && failedChecks.length > 0; round++) {
       msg.textContent = `Retrying ${failedChecks.length} service${failedChecks.length > 1 ? 's' : ''}... (${round}/3)`;
-      await delay(5000);
+      termlog.textContent = `> retry round ${round} for ${failedChecks.length} service${failedChecks.length > 1 ? 's' : ''}`;
+      await delay(RETRY_WAIT_MS);
 
       const stillFailed = [];
       for (const c of failedChecks) {
         updateRow(c.id, 'retry', `retry ${round}/3...`);
-        await delay(500);
+        termlog.textContent = `> retrying ${c.name.toLowerCase()}...`;
+        const startedAt = Date.now();
+        await delay(RETRY_STAGGER_MS);
         const result = await c.check();
+        const elapsed = Date.now() - startedAt;
+        if (elapsed < CHECK_MIN_VISIBLE_MS) {
+          await delay(CHECK_MIN_VISIBLE_MS - elapsed);
+        }
         updateRow(c.id, result.state, result.detail);
         if (result.state === 'fail') {
           stillFailed.push(c);
@@ -336,6 +355,7 @@ async function runChecks() {
           failures--;
           if (result.state === 'warn') warnings++;
         }
+        termlog.textContent = `> ${c.name.toLowerCase()} ${result.state}`;
       }
       failedChecks.length = 0;
       failedChecks.push(...stillFailed);

@@ -70,6 +70,7 @@
   .kiosk-canvas {
     width:1024px; height:600px; position:relative;
     background:var(--bg); border-radius:4px; overflow:hidden; flex-shrink:0;
+    touch-action:none;
   }
 
   /* Persistent guides */
@@ -112,6 +113,7 @@
     position:absolute; border:1px solid var(--accent-border); border-radius:6px;
     background:var(--surface); cursor:move; user-select:none;
     display:flex; flex-direction:column; transition:box-shadow 0.15s; z-index:10;
+    touch-action:none;
   }
   .ew:hover { box-shadow:0 0 0 1px var(--accent); }
   .ew.selected { box-shadow:0 0 0 2px var(--accent), 0 0 12px rgba(97,175,239,0.2); z-index:20; }
@@ -161,6 +163,25 @@
   }
   .gap-line.h { height:1px; left:0; right:0; }
   .gap-line.v { width:1px; top:0; bottom:0; }
+
+  /* Reserved area for Alfred (top-right) */
+  .reserved-zone {
+    position:absolute;
+    border:1px dashed rgba(229,192,123,0.45);
+    background:linear-gradient(180deg, rgba(229,192,123,0.08), rgba(229,192,123,0.03));
+    border-radius:8px;
+    z-index:9;
+    pointer-events:none;
+  }
+  .reserved-zone .rz-label {
+    position:absolute;
+    top:4px;
+    left:6px;
+    font-size:7px;
+    letter-spacing:1px;
+    color:rgba(229,192,123,0.85);
+    text-transform:uppercase;
+  }
 
   /* Status bar mock */
   .kiosk-statusbar {
@@ -237,6 +258,9 @@
     <div class="guide-line v third-v2"></div>
     <div class="guide-line h third-h1"></div>
     <div class="guide-line h third-h2"></div>
+    <div class="reserved-zone" id="reservedButlerZone">
+      <div class="rz-label">ALFRED RESERVED</div>
+    </div>
 
     <div class="kiosk-statusbar">
       BRIDGE &middot; WS &middot; NET &middot; ICLOUD &middot; TAILSCALE &middot; SYNC &middot; NEARBY
@@ -487,6 +511,103 @@ const CANVAS_W = 1024;
 const CANVAS_H = 572; // minus statusbar
 const MARGIN_L = 16, MARGIN_R = 16, MARGIN_T = 8, MARGIN_B = 8;
 const API_BASE = window.location.origin;  // http://localhost:8430 or http://pihub.local:8430
+const RESERVED_ZONES = [
+  { id: 'alfred', left: 796, top: 14, width: 212, height: 168, label: 'ALFRED RESERVED' }
+];
+const SUPPORTS_POINTER = typeof window !== 'undefined' && ('PointerEvent' in window);
+
+function addStartListener(el, handler) {
+  if (!el) return;
+  if (SUPPORTS_POINTER) {
+    el.addEventListener('pointerdown', handler);
+    return;
+  }
+  el.addEventListener('mousedown', handler);
+  el.addEventListener('touchstart', handler, { passive: false });
+}
+
+function addDragListeners(onMove, onUp) {
+  if (SUPPORTS_POINTER) {
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+    return () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('touchend', onUp);
+  document.addEventListener('touchcancel', onUp);
+  return () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onUp);
+    document.removeEventListener('touchcancel', onUp);
+  };
+}
+
+function overlapsRect(a, b) {
+  return a.left < b.left + b.width && a.left + a.width > b.left && a.top < b.top + b.height && a.top + a.height > b.top;
+}
+
+function paintReservedZones() {
+  const zoneEl = document.getElementById('reservedButlerZone');
+  if (!zoneEl) return;
+  const zone = RESERVED_ZONES[0];
+  zoneEl.style.left = zone.left + 'px';
+  zoneEl.style.top = zone.top + 'px';
+  zoneEl.style.width = zone.width + 'px';
+  zoneEl.style.height = zone.height + 'px';
+  const label = zoneEl.querySelector('.rz-label');
+  if (label) label.textContent = zone.label;
+}
+
+function keepRectOutOfReserved(left, top, width, height) {
+  let x = Math.round(left);
+  let y = Math.round(top);
+  let moved = false;
+  for (const zone of RESERVED_ZONES) {
+    const box = {left: x, top: y, width, height};
+    if (!overlapsRect(box, zone)) continue;
+    moved = true;
+    const pad = 8;
+    const options = [
+      { left: zone.left - width - pad, top: y },                       // left of zone
+      { left: zone.left + zone.width + pad, top: y },                  // right of zone
+      { left: x, top: zone.top - height - pad },                       // above zone
+      { left: x, top: zone.top + zone.height + pad },                  // below zone
+      { left: zone.left - width - pad, top: zone.top + zone.height + pad }, // diagonal fallback
+      { left: MARGIN_L, top: MARGIN_T },                               // safe fallback
+    ];
+
+    let best = null;
+    let bestCost = Number.POSITIVE_INFINITY;
+    for (const opt of options) {
+      const clampedLeft = Math.max(0, Math.min(CANVAS_W - width, Math.round(opt.left)));
+      const clampedTop = Math.max(0, Math.min(CANVAS_H - height, Math.round(opt.top)));
+      const candidate = { left: clampedLeft, top: clampedTop, width, height };
+      if (overlapsRect(candidate, zone)) continue;
+      const cost = Math.abs(clampedLeft - x) + Math.abs(clampedTop - y);
+      if (cost < bestCost) {
+        best = { left: clampedLeft, top: clampedTop };
+        bestCost = cost;
+      }
+    }
+    if (best) {
+      x = best.left;
+      y = best.top;
+    } else {
+      x = Math.max(0, Math.min(CANVAS_W - width, x));
+      y = Math.max(0, Math.min(CANVAS_H - height, y));
+    }
+  }
+  return { left: x, top: y, moved };
+}
 
 // ── State (deep clone current layout) ───────────────────────
 let state = JSON.parse(JSON.stringify(layouts[currentMode]));
@@ -494,6 +615,7 @@ let cleanSnapshot = JSON.stringify(state);  // snapshot at preset load for dirty
 
 // ── Init ────────────────────────────────────────────────────
 function init() {
+  paintReservedZones();
   renderModeTabs();
   renderPresetBar();
   renderCanvas();
@@ -656,6 +778,7 @@ function renderGapGuides() {
 function renderCanvas() {
   const canvas = document.getElementById('canvas');
   canvas.querySelectorAll('.ew, .snap-line, .gap-label, .gap-line').forEach(el => el.remove());
+  paintReservedZones();
 
   WIDGETS.forEach(w => {
     const s = state[w.id];
@@ -681,7 +804,7 @@ function renderCanvas() {
     `;
 
     // Drag
-    el.addEventListener('mousedown', e => {
+    addStartListener(el, e => {
       if (e.target.classList.contains('resize-handle')) return;
       e.preventDefault();
       selectWidget(w.id);
@@ -689,12 +812,12 @@ function renderCanvas() {
     });
 
     // Resize handles — all corners + edges
-    el.querySelector('.resize-tl').addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'tl'); });
-    el.querySelector('.resize-tr').addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'tr'); });
-    el.querySelector('.resize-bl').addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'bl'); });
-    el.querySelector('.resize-br').addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'br'); });
-    el.querySelector('.resize-r').addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'r'); });
-    el.querySelector('.resize-b').addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'b'); });
+    addStartListener(el.querySelector('.resize-tl'), e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'tl'); });
+    addStartListener(el.querySelector('.resize-tr'), e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'tr'); });
+    addStartListener(el.querySelector('.resize-bl'), e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'bl'); });
+    addStartListener(el.querySelector('.resize-br'), e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'br'); });
+    addStartListener(el.querySelector('.resize-r'), e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'r'); });
+    addStartListener(el.querySelector('.resize-b'), e => { e.preventDefault(); e.stopPropagation(); selectWidget(w.id); startResize(e, w.id, 'b'); });
 
     canvas.appendChild(el);
   });
@@ -763,28 +886,48 @@ function hideProps() {
     if (!selectedWidget || !state[selectedWidget]) return;
     const key = {propLeft:'left', propTop:'top', propWidth:'width', propHeight:'height'}[pid];
     state[selectedWidget][key] = parseInt(e.target.value) || 0;
+    const s = state[selectedWidget];
+    s.left = Math.max(0, Math.min(CANVAS_W - Math.max(80, s.width), Math.round(s.left)));
+    s.top = Math.max(0, Math.min(CANVAS_H - Math.max(50, s.height), Math.round(s.top)));
+    s.width = Math.max(80, Math.min(CANVAS_W - s.left, Math.round(s.width)));
+    s.height = Math.max(50, Math.min(CANVAS_H - s.top, Math.round(s.height)));
+    const reserved = keepRectOutOfReserved(s.left, s.top, s.width, s.height);
+    s.left = reserved.left;
+    s.top = reserved.top;
     renderCanvas();
   });
 });
 
 // ── Drag ────────────────────────────────────────────────────
+function eventPoint(e) {
+  if (e && e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  return { x: e.clientX, y: e.clientY };
+}
+
 function startDrag(e, id) {
   const s = state[id];
   const canvas = document.getElementById('canvas');
-  const startX = e.clientX, startY = e.clientY;
+  const start = eventPoint(e);
+  const startX = start.x, startY = start.y;
   const origLeft = s.left, origTop = s.top;
   const el = canvas.querySelector(`[data-id="${id}"]`);
   el.classList.add('dragging');
+  let removeDragListeners = null;
 
   function onMove(e) {
-    let newLeft = origLeft + (e.clientX - startX);
-    let newTop = origTop + (e.clientY - startY);
+    e.preventDefault();
+    const p = eventPoint(e);
+    let newLeft = origLeft + (p.x - startX);
+    let newTop = origTop + (p.y - startY);
     newLeft = Math.max(0, Math.min(CANVAS_W - s.width, newLeft));
     newTop = Math.max(0, Math.min(CANVAS_H - s.height, newTop));
 
     const snaps = calcSnaps(id, newLeft, newTop, s.width, s.height);
     if (snaps.snapX !== null) newLeft = snaps.snapX;
     if (snaps.snapY !== null) newTop = snaps.snapY;
+    const reserved = keepRectOutOfReserved(newLeft, newTop, s.width, s.height);
+    newLeft = reserved.left;
+    newTop = reserved.top;
     showSnapLines(snaps.lines);
 
     s.left = Math.round(newLeft);
@@ -797,13 +940,11 @@ function startDrag(e, id) {
   function onUp() {
     el.classList.remove('dragging');
     clearSnapLines();
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
+    if (removeDragListeners) removeDragListeners();
     renderWidgetList();
   }
 
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
+  removeDragListeners = addDragListeners(onMove, onUp);
 }
 
 // ── Resize (all corners + edges) ────────────────────────────
@@ -811,11 +952,15 @@ function startResize(e, id, handle) {
   const s = state[id];
   const canvas = document.getElementById('canvas');
   const el = canvas.querySelector(`[data-id="${id}"]`);
-  const startX = e.clientX, startY = e.clientY;
+  const start = eventPoint(e);
+  const startX = start.x, startY = start.y;
   const origL = s.left, origT = s.top, origW = s.width, origH = s.height;
+  let removeResizeListeners = null;
 
   function onMove(e) {
-    const dx = e.clientX - startX, dy = e.clientY - startY;
+    e.preventDefault();
+    const p = eventPoint(e);
+    const dx = p.x - startX, dy = p.y - startY;
 
     if (handle === 'br') {
       s.width = Math.max(80, origW + dx);
@@ -846,6 +991,9 @@ function startResize(e, id, handle) {
     s.height = Math.round(Math.min(s.height, CANVAS_H - s.top));
     s.left = Math.round(s.left);
     s.top = Math.round(s.top);
+    const reserved = keepRectOutOfReserved(s.left, s.top, s.width, s.height);
+    s.left = reserved.left;
+    s.top = reserved.top;
 
     el.style.left = s.left + 'px';
     el.style.top = s.top + 'px';
@@ -859,14 +1007,12 @@ function startResize(e, id, handle) {
 
   function onUp() {
     clearSnapLines();
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
+    if (removeResizeListeners) removeResizeListeners();
     renderCanvas();
     renderWidgetList();
   }
 
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
+  removeResizeListeners = addDragListeners(onMove, onUp);
 }
 
 // ── Snap logic ──────────────────────────────────────────────
@@ -891,6 +1037,12 @@ function calcSnaps(dragId, left, top, w, h) {
     { type:'h', pos:Math.round(CANVAS_H / 3) },
     { type:'h', pos:Math.round(CANVAS_H * 2 / 3) },
   ];
+  RESERVED_ZONES.forEach(zone => {
+    guides.push({ type:'v', pos: zone.left });
+    guides.push({ type:'v', pos: zone.left + zone.width });
+    guides.push({ type:'h', pos: zone.top });
+    guides.push({ type:'h', pos: zone.top + zone.height });
+  });
 
   // Collect other visible widget rects
   const others = [];
@@ -1133,16 +1285,20 @@ document.addEventListener('keydown', e => {
       return;
     default: return;
   }
+  const reserved = keepRectOutOfReserved(s.left, s.top, s.width, s.height);
+  s.left = reserved.left;
+  s.top = reserved.top;
   e.preventDefault();
   renderCanvas();
   showProps(selectedWidget);
 });
 
-// Click canvas to deselect
-document.getElementById('canvas').addEventListener('mousedown', e => {
+// Click/tap canvas to deselect
+addStartListener(document.getElementById('canvas'), e => {
   if (e.target.id === 'canvas' || e.target.classList.contains('kiosk-statusbar') ||
       e.target.classList.contains('canvas-border') || e.target.classList.contains('guide-line') ||
-      e.target.classList.contains('corner-mark')) {
+      e.target.classList.contains('corner-mark') || e.target.classList.contains('reserved-zone') ||
+      e.target.classList.contains('rz-label')) {
     selectedWidget = null;
     hideProps();
     renderCanvas();

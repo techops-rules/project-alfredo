@@ -27,6 +27,10 @@
   - `serve.py` now brokers short-lived Realtime sessions and dispatches Alfredo context/action tools
   - `index.html` now opens a WebRTC voice session, handles tool calls, and updates kiosk task/waiting state immediately from action results
   - realtime actions currently persist into kiosk local state first, then sync back into `/proxy/direct-context`
+- Codex also added an interim wake-word fallback on 2026-04-13:
+  - `alfredo-wake.py` now prefers Picovoice, then falls back to `openWakeWord` (`hey_jarvis`) before dropping to push-to-talk only
+  - `alfredo-wake.service` now reads `/etc/alfredo/alfredo-kiosk.env`
+  - `openwakeword` / `onnxruntime` were installed on `pihub.local`, and direct model init succeeded
 
 ## Open Threads
 - Voice path: ROADOM mic / wake listener -> kiosk voice event queue -> kiosk overlay + native polling -> Alfredo/Codex agent handoff.
@@ -35,7 +39,10 @@
 - Current UI pass compiles; remaining work is product refinement, not syntax rescue.
 - Direct Mode Slice 2 is still open: reminder/task capture, fuzzy-time resolution, optional Apple Reminders escalation, and location/travel timing.
 - The Pi is healthy again, but wake word still depends on `PICOVOICE_ACCESS_KEY`, and TTS still falls back until `piper` plus the voice model are installed on-device.
-- Realtime voice code is ready, but `OPENAI_API_KEY` is not configured on `pihub.local`, so the realtime path will report unavailable there until ops adds that env var.
+- Wake word no longer depends solely on Picovoice: openWakeWord is now the interim fallback, but it still needs live threshold/noise tuning in the actual kiosk room.
+- Realtime voice is now live on `pihub.local` using WebRTC; the current kiosk interaction model is: double-tap the top-right Alfredo mic button to wake, single-tap while live to pause mic/audio and continue in text-only mode, and watch `ALFREDO.TTY` expand into a centered transcript panel.
+- `openWakeWord` is now using buffered 1280-sample frames and no longer immediately throws inference errors after service restart; remaining wake-word work is room/noise tuning rather than crash repair.
+- Smart-light control is scaffolded as configurable bridge endpoints via `ALFREDO_HUE_CONTROL_URL` and `ALFREDO_GOVEE_CONTROL_URL`, but those endpoints are not configured yet so the tool will currently report unavailable.
 
 ## Parked
 - `WebSocketSession` cleanup race
@@ -60,7 +67,8 @@
 ## Next Step
 - When work resumes, check the current build outcome first.
 - If the UI pass compiles cleanly, continue with:
-  - live spoken validation of kiosk realtime voice after `OPENAI_API_KEY` is configured on the Pi
+  - live spoken validation/tuning of kiosk realtime voice + `openWakeWord`
   - native/iCloud-backed persistence for realtime-created tasks/reminders
   - location/travel actions
+  - actual Hue/Govee bridge configuration if light control should be live
   - kiosk task/calendar/project sync beyond local state

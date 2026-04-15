@@ -10,6 +10,7 @@ WorkingDirectory=/home/todd/alfredo-kiosk
 ExecStart=/usr/bin/python3 /home/todd/alfredo-kiosk/alfredo-wake.py
 Restart=always
 RestartSec=5
+EnvironmentFile=/etc/alfredo/alfredo-kiosk.env
 Environment=PYTHONUNBUFFERED=1
 Environment=PATH=/home/todd/.local/bin:/usr/local/bin:/usr/bin:/bin
 
