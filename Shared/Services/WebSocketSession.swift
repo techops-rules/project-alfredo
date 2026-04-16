@@ -230,12 +230,15 @@ final class WebSocketSession: ObservableObject {
     // MARK: - Cleanup
 
     private func cleanup() {
-        pingTask?.cancel()
+        let pt = pingTask
+        let rt = receiveTask
+        let rct = reconnectTask
         pingTask = nil
-        receiveTask?.cancel()
         receiveTask = nil
-        reconnectTask?.cancel()
         reconnectTask = nil
+        pt?.cancel()
+        rt?.cancel()
+        rct?.cancel()
         task?.cancel(with: .goingAway, reason: nil)
         task = nil
         urlSession?.invalidateAndCancel()
