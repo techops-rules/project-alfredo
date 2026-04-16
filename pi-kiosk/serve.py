@@ -870,31 +870,26 @@ def get_merged_calendar():
     now = time.time()
     mac_fresh = (now - cal_state["mac_push_time"]) < 600  # 10 min
     events = []
-    seen_keys = set()
 
-    # Mac events preferred when fresh (richer data: attendees, notes, organizer)
     if mac_fresh and cal_state["mac_events"]:
+        # Mac push is authoritative — skip iCal entirely to avoid stale events
         for e in cal_state["mac_events"]:
-            key = (e.get("title", ""), e.get("startTime", ""))
-            seen_keys.add(key)
             events.append({**e, "source": "mac"})
-
-    # Add iCal events not already covered by Mac push
-    for e in cal_state["ical_events"]:
-        key = (e.get("title", ""), e.get("startTime", ""))
-        if key not in seen_keys:
-            events.append(e)
-
-    # If iCal has no near events and Mac push isn't fresh, fall back to
-    # most recently cached Mac events so the calendar isn't blank after reboot.
-    source = "hybrid"
-    if not events and cal_state["mac_events"]:
-        source = "mac-cache"
+        source = "mac"
+    elif cal_state["mac_events"]:
+        # Mac data exists but stale — still prefer it over iCal
         for e in cal_state["mac_events"]:
             events.append({**e, "source": "mac-cache"})
+        source = "mac-cache"
+    elif cal_state["ical_events"]:
+        # No Mac data — fall back to iCal
+        events = list(cal_state["ical_events"])
+        source = "ical"
+    else:
+        source = "none"
 
-    # Sort by start time
-    events.sort(key=lambda e: e.get("startTime", ""))
+    # Sort by start time (handle both "start" and "startTime" keys)
+    events.sort(key=lambda e: e.get("start", e.get("startTime", "")))
     return {
         "events": events,
         "source": source,

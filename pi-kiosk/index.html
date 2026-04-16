@@ -4452,23 +4452,11 @@ function saveModal(){const v=document.getElementById('modalInput').value.trim();
 document.getElementById('modalInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveModal();if(e.key==='Escape')closeModal();});
 document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
 
-// ── Kiosk touch-only: block mouse input (touch passes through) ─────────────
-// Track pointer source so synthesized clicks from mice get suppressed while
-// touch-originated clicks still fire normally.
-let _lastPointerType = 'touch';
-document.addEventListener('pointerdown', e => {
-  _lastPointerType = e.pointerType || 'touch';
-  if (e.pointerType === 'mouse') { e.preventDefault(); e.stopPropagation(); }
-}, { capture: true, passive: false });
-['pointermove','pointerup','mousedown','mousemove','mouseup','click','dblclick','contextmenu','wheel'].forEach(type => {
-  document.addEventListener(type, e => {
-    const mouse = e.pointerType === 'mouse'
-               || type === 'wheel'
-               || type === 'contextmenu'
-               || (_lastPointerType === 'mouse' && (type === 'click' || type === 'dblclick'));
-    if (mouse) { e.preventDefault(); e.stopPropagation(); }
-  }, { capture: true, passive: false });
-});
+// ── Kiosk: block context menu and scroll wheel (touchscreen registers as mouse) ──
+// The ROADOM 7" USB touchscreen reports as pointerType 'mouse', so we can't
+// block all mouse events. Only suppress right-click and scroll wheel.
+document.addEventListener('contextmenu', e => { e.preventDefault(); }, { capture: true });
+document.addEventListener('wheel', e => { e.preventDefault(); e.stopPropagation(); }, { capture: true, passive: false });
 
 // ── Touch scroll indicator: hide native scrollbar, fade in on scroll/touch ─
 function attachScrollIndicator(el){
