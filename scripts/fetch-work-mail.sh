@@ -19,8 +19,8 @@ Source: Apple Mail via AppleScript (read-only)
 
 EOF
 
-osascript <<'APPLESCRIPT' >> "$OUT" 2>/dev/null || echo "_(AppleScript failed — check System Settings → Privacy & Security → Automation → Terminal →
-Mail)_" >> "$OUT"
+TMPRAW=$(mktemp)
+osascript <<'APPLESCRIPT' > "$TMPRAW" 2>/dev/null || echo "_(AppleScript failed — check System Settings → Privacy & Security → Automation → Terminal → Mail)_" > "$TMPRAW"
 tell application "Mail"
     set cutoff to (current date) - (1 * days)
     set acct to account "Google"
@@ -44,6 +44,14 @@ tell application "Mail"
 end tell
 APPLESCRIPT
 
-cp "$OUT" "$ARCHIVE"
+# AppleScript `return` emits \r — normalize to \n
+tr '\r' '\n' < "$TMPRAW" >> "$OUT"
+rm -f "$TMPRAW"
+
+# Archive: append to dated file (don't overwrite earlier runs)
+if [ -f "$ARCHIVE" ]; then
+    printf '\n---\n\n' >> "$ARCHIVE"
+fi
+cat "$OUT" >> "$ARCHIVE"
 echo "wrote: $OUT"
 echo "archived: $ARCHIVE"
