@@ -143,7 +143,7 @@
     padding:1px 6px; border-radius:999px; background:rgba(97,175,239,0.12); border:1px solid rgba(97,175,239,0.18);
   }
   .zone { margin-left:auto; font-size:calc(var(--widget-caption-size) - 1px); color:var(--text-secondary); opacity:0.7; letter-spacing:1px; }
-  .widget-body { padding:var(--widget-pad); flex:1; overflow-y:auto; overflow-x:hidden; zoom:var(--content-zoom,1); position:relative; z-index:1; }
+  .widget-body { padding:var(--widget-pad); flex:1; overflow-y:auto; overflow-x:hidden; zoom:var(--content-zoom,1); position:relative; z-index:1; cursor:default; }
   .widget[data-size="compact"] { --widget-pad: 8px; --widget-header-x: 8px; --widget-header-y: 5px; --widget-title-size: 9px; --widget-body-size: 10px; --widget-caption-size: 8px; }
   .widget[data-size="regular"] { --widget-pad: 10px; --widget-header-x: 10px; --widget-header-y: 6px; --widget-title-size: 10px; --widget-body-size: 11px; --widget-caption-size: 9px; }
   .widget[data-size="expanded"] { --widget-pad: 12px; --widget-header-x: 12px; --widget-header-y: 7px; --widget-title-size: 11px; --widget-body-size: 12px; --widget-caption-size: 9px; }
@@ -1314,19 +1314,19 @@ function renderTasks(cid, bid, tasks, key) {
       queueDirectContextSync();
     });
 
-    // Swipe to complete/archive
+    // Swipe to complete/archive (pointer events for ROADOM touchscreen compatibility)
     let startX = 0, swiping = false;
-    row.addEventListener('touchstart', e => { startX = e.touches[0].clientX; swiping = true; }, { passive: true });
-    row.addEventListener('touchmove', e => {
+    row.addEventListener('pointerdown', e => { startX = e.clientX; swiping = true; row.setPointerCapture(e.pointerId); }, { passive: true });
+    row.addEventListener('pointermove', e => {
       if (!swiping) return;
-      const dx = e.touches[0].clientX - startX;
+      const dx = e.clientX - startX;
       if (dx > 30) { row.style.transform = `translateX(${Math.min(dx, 120)}px)`; row.style.opacity = Math.max(0.3, 1 - dx / 200); }
       if (dx < -30) { row.style.transform = `translateX(${Math.max(dx, -120)}px)`; row.style.opacity = Math.max(0.3, 1 + dx / 200); }
     }, { passive: true });
-    row.addEventListener('touchend', e => {
+    row.addEventListener('pointerup', e => {
       if (!swiping) return;
       swiping = false;
-      const dx = e.changedTouches[0].clientX - startX;
+      const dx = e.clientX - startX;
       if (dx > 80) {
         // Swipe right: complete
         row.style.transform = 'translateX(200px)'; row.style.opacity = '0';
@@ -2236,9 +2236,9 @@ function closeWdModal(){
 (function(){
   const sh=document.getElementById('wdSheet');
   let startY=0,curY=0;
-  sh.addEventListener('touchstart',e=>{startY=e.touches[0].clientY;curY=startY;});
-  sh.addEventListener('touchmove',e=>{curY=e.touches[0].clientY;const dy=curY-startY;if(dy>0)sh.style.transform='translateY('+dy+'px)';});
-  sh.addEventListener('touchend',()=>{if(curY-startY>80)closeWdModal();else sh.style.transform='';});
+  sh.addEventListener('pointerdown',e=>{startY=e.clientY;curY=startY;sh.setPointerCapture(e.pointerId);});
+  sh.addEventListener('pointermove',e=>{curY=e.clientY;const dy=curY-startY;if(dy>0)sh.style.transform='translateY('+dy+'px)';});
+  sh.addEventListener('pointerup',()=>{if(curY-startY>80)closeWdModal();else sh.style.transform='';});
 })();
 
 // ── Task detail sheet ───────────────────────────────────────
@@ -2282,9 +2282,9 @@ function setTaskStatus(status){
 (function(){
   const sh=document.getElementById('tdSheet');
   let startY=0,curY=0;
-  sh.addEventListener('touchstart',e=>{startY=e.touches[0].clientY;curY=startY;});
-  sh.addEventListener('touchmove',e=>{curY=e.touches[0].clientY;const dy=curY-startY;if(dy>0)sh.style.transform='translateY('+dy+'px)';});
-  sh.addEventListener('touchend',()=>{if(curY-startY>80)closeTd();else sh.style.transform='';});
+  sh.addEventListener('pointerdown',e=>{startY=e.clientY;curY=startY;sh.setPointerCapture(e.pointerId);});
+  sh.addEventListener('pointermove',e=>{curY=e.clientY;const dy=curY-startY;if(dy>0)sh.style.transform='translateY('+dy+'px)';});
+  sh.addEventListener('pointerup',()=>{if(curY-startY>80)closeTd();else sh.style.transform='';});
 })();
 
 // ── Uptime ──────────────────────────────────────────────────
@@ -4458,6 +4458,37 @@ document.getElementById('modal').addEventListener('click',e=>{if(e.target===docu
 document.addEventListener('contextmenu', e => { e.preventDefault(); }, { capture: true });
 document.addEventListener('wheel', e => { e.preventDefault(); e.stopPropagation(); }, { capture: true, passive: false });
 document.addEventListener('selectstart', e => { e.preventDefault(); }, { capture: true });
+
+// ── Drag-to-scroll for scrollable containers ──────────────────────────────
+// The ROADOM touchscreen has no touch events (only mouse), so native scroll
+// doesn't work. This makes any overflow-y:auto container draggable to scroll.
+(function(){
+  let dragging = null;   // { el, startY, scrollTop }
+  const isScrollable = el => {
+    while (el && el !== document.body) {
+      const s = getComputedStyle(el);
+      if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && el.scrollHeight > el.clientHeight) return el;
+      el = el.parentElement;
+    }
+    return null;
+  };
+  document.addEventListener('pointerdown', e => {
+    const sc = isScrollable(e.target);
+    if (!sc) return;
+    dragging = { el: sc, startY: e.clientY, scrollTop: sc.scrollTop };
+    sc.style.scrollBehavior = 'auto';
+  });
+  document.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dy = dragging.startY - e.clientY;
+    if (Math.abs(dy) > 3) {
+      dragging.el.scrollTop = dragging.scrollTop + dy;
+      e.preventDefault();
+    }
+  });
+  document.addEventListener('pointerup', () => { dragging = null; });
+  document.addEventListener('pointercancel', () => { dragging = null; });
+})();
 
 // ── Touch scroll indicator: hide native scrollbar, fade in on scroll/touch ─
 function attachScrollIndicator(el){
