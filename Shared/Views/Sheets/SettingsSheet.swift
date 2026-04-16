@@ -8,6 +8,7 @@ struct SettingsSheet: View {
     var onOpenDirectMode: (() -> Void)? = nil
     var onToggleWidget: ((WidgetID) -> Void)? = nil
     var widgetVisibility: WidgetVisibility = WidgetVisibility()
+    var isEditMode: Binding<Bool>? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -178,6 +179,15 @@ struct SettingsSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .padding(.horizontal, 20)
                         .padding(.bottom, 16)
+                        sectionDivider
+                    }
+
+                    // MARK: - Edit Layout toggle
+                    if let editBinding = isEditMode {
+                        sectionHeader("EDIT LAYOUT")
+                        editLayoutToggleRow(editBinding)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 16)
                         sectionDivider
                     }
 
@@ -475,6 +485,47 @@ struct SettingsSheet: View {
                 onToggleWidget?(w)
             }
         }
+    }
+
+    // MARK: - Edit Layout toggle
+
+    private func editLayoutToggleRow(_ binding: Binding<Bool>) -> some View {
+        Button {
+            binding.wrappedValue.toggle()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: binding.wrappedValue ? "lock.open" : "lock")
+                    .font(.system(size: 14))
+                    .foregroundColor(binding.wrappedValue ? theme.accentFull : ThemeManager.textSecondary)
+                    .frame(width: 20)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(binding.wrappedValue ? "UNLOCKED" : "LOCKED")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundColor(binding.wrappedValue ? theme.accentFull : ThemeManager.textEmphasis)
+                        .tracking(1)
+                    Text(binding.wrappedValue
+                         ? "Drag to move, corner to resize. Tap again to lock."
+                         : "Widgets locked in place. Tap to enable layout editing.")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(ThemeManager.textSecondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                Text(binding.wrappedValue ? "ON" : "OFF")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(binding.wrappedValue ? theme.accentFull : ThemeManager.textSecondary)
+                    .tracking(1)
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .background(binding.wrappedValue ? theme.accentFull.opacity(0.08) : ThemeManager.textSecondary.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Chip button

@@ -5,6 +5,7 @@ struct BreadcrumbBar: View {
     let tasks: [AppTask]
     let onStartTask: (AppTask) -> Void
     var onSync: (() -> Void)? = nil
+    var isEditMode: Binding<Bool>? = nil
 
     @Environment(\.theme) private var theme
     @State private var showingSuggestion = false
@@ -105,6 +106,33 @@ struct BreadcrumbBar: View {
             }
 
             Spacer()
+
+            // Edit Layout toggle (macOS — gates drag/resize)
+            if let editBinding = isEditMode {
+                Button {
+                    editBinding.wrappedValue.toggle()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: editBinding.wrappedValue ? "lock.open" : "lock")
+                            .font(.system(size: 11, weight: .medium))
+                        Text(editBinding.wrappedValue ? "EDITING" : "EDIT")
+                            .font(.system(size: theme.fontSize - 2, weight: .bold, design: .monospaced))
+                            .tracking(1)
+                    }
+                    .foregroundColor(editBinding.wrappedValue ? theme.accentFull : ThemeManager.textSecondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .strokeBorder(
+                                editBinding.wrappedValue ? theme.accentFull.opacity(0.6) : ThemeManager.textSecondary.opacity(0.3),
+                                lineWidth: 1
+                            )
+                    )
+                }
+                .buttonStyle(.plain)
+                .help(editBinding.wrappedValue ? "Lock layout" : "Unlock to drag / resize widgets")
+            }
 
             // Sync button
             Button {

@@ -21,7 +21,7 @@ struct DashboardView: View {
     @State private var canvasScale: CGFloat = 1.0
     @State private var baseScale: CGFloat = 1.0
 
-    // Edit mode (iOS)
+    // Edit mode — widgets can only be moved/resized when true (both iOS + macOS)
     @State private var isEditMode = false
 
     // Context-aware layout
@@ -63,13 +63,9 @@ struct DashboardView: View {
     @State private var minimapVisible = false
     @State private var minimapHideTask: Task<Void, Never>?
 
-    // Platform-specific edit mode: macOS always allows drag/resize, iOS requires edit mode
+    // Widgets are only movable/resizable while edit mode is on (both platforms).
     private var widgetsEditable: Bool {
-        #if os(iOS)
-        return isEditMode
-        #else
-        return true
-        #endif
+        isEditMode
     }
 
     private var worldSize: CGSize {
@@ -121,7 +117,8 @@ struct DashboardView: View {
                         engine: whatNext,
                         tasks: taskBoard.todayTasks,
                         onStartTask: { _ in },
-                        onSync: { syncAll() }
+                        onSync: { syncAll() },
+                        isEditMode: $isEditMode
                     )
                     #endif
 
@@ -165,17 +162,6 @@ struct DashboardView: View {
                                 baseScale = canvasScale
                             }
                     , including: isEditMode ? .subviews : .gesture
-                    )
-                    .simultaneousGesture(
-                        LongPressGesture(minimumDuration: 0.5)
-                            .onEnded { _ in
-                                guard !isEditMode else { return }
-                                let generator = UIImpactFeedbackGenerator(style: .medium)
-                                generator.impactOccurred()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                    isEditMode = true
-                                }
-                            }
                     )
                     #endif
                 }
@@ -221,7 +207,8 @@ struct DashboardView: View {
                     showDirectModeSheet = true
                 },
                 onToggleWidget: { widgetVisibility.toggle($0) },
-                widgetVisibility: widgetVisibility
+                widgetVisibility: widgetVisibility,
+                isEditMode: $isEditMode
             )
             .environment(\.theme, ThemeManager.shared)
             .presentationDetents([.large])
@@ -255,7 +242,8 @@ struct DashboardView: View {
                     showDirectModeSheet = true
                 },
                 onToggleWidget: { widgetVisibility.toggle($0) },
-                widgetVisibility: widgetVisibility
+                widgetVisibility: widgetVisibility,
+                isEditMode: $isEditMode
             )
             .environment(\.theme, ThemeManager.shared)
             .frame(minWidth: 360, minHeight: 600)
@@ -735,7 +723,12 @@ struct DashboardView: View {
     private let iosHalfWidth: CGFloat = 182
     private let iosFlowGap: CGFloat = 11
     private let iosFlowSpacing: CGFloat = 5
-    private let iosScreen2OriginX: CGFloat = 395
+    // Screens stack vertically on iOS — screen 2 starts below screen 1's content.
+    private let iosScreenGapY: CGFloat = 48
+
+    private var iosScreen2OriginY: CGFloat {
+        flowExtent(for: screen1Slots, xBase: 0).height + iosScreenGapY
+    }
 
     private var screen1Slots: [WidgetSlot] {
         #if os(iOS)
@@ -818,11 +811,11 @@ struct DashboardView: View {
 
     private var iOSWorldSize: CGSize {
         let screen1Extent = flowExtent(for: screen1Slots, xBase: 0)
-        let screen2Extent = flowExtent(for: screen2Slots, xBase: iosScreen2OriginX)
-
+        let screen2Extent = flowExtent(for: screen2Slots, xBase: 0)
+        let totalHeight = screen1Extent.height + iosScreenGapY + screen2Extent.height + 40
         return CGSize(
-            width: max(iosScreen2OriginX + iosFullWidth + 28, max(screen1Extent.width, screen2Extent.width) + 20),
-            height: max(1100, max(screen1Extent.height, screen2Extent.height) + 56)
+            width: iosFullWidth,
+            height: max(1100, totalHeight)
         )
     }
 
@@ -832,6 +825,7 @@ struct DashboardView: View {
             for: widgetId,
             in: screen1Slots,
             xBase: 0,
+            yBase: 0,
             fw: iosFullWidth,
             hw: iosHalfWidth,
             gap: iosFlowGap,
@@ -840,11 +834,12 @@ struct DashboardView: View {
             return result
         }
 
-        // Flow screen 2
+        // Flow screen 2 — stacked below screen 1
         if let result = flowPosition(
             for: widgetId,
             in: screen2Slots,
-            xBase: iosScreen2OriginX,
+            xBase: 0,
+            yBase: iosScreen2OriginY,
             fw: iosFullWidth,
             hw: iosHalfWidth,
             gap: iosFlowGap,
@@ -858,8 +853,8 @@ struct DashboardView: View {
         return WidgetLayoutState(position: CGPoint(x: -1000, y: -1000), size: CGSize(width: 0, height: 0))
     }
 
-    private func flowPosition(for widgetId: String, in slots: [WidgetSlot], xBase: CGFloat, fw: CGFloat, hw: CGFloat, gap: CGFloat, spacing: CGFloat) -> WidgetLayoutState? {
-        var y: CGFloat = 0
+    private func flowPosition(for widgetId: String, in slots: [WidgetSlot], xBase: CGFloat, yBase: CGFloat = 0, fw: CGFloat, hw: CGFloat, gap: CGFloat, spacing: CGFloat) -> WidgetLayoutState? {
+        var y: CGFloat = yBase
         var i = 0
 
         while i < slots.count {

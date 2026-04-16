@@ -40,35 +40,41 @@ final class CalendarService {
     private func requestAccess() {
         let status = EKEventStore.authorizationStatus(for: .event)
 
-        // Already have access — just load
+        // Already have access — just load.
         if status == .fullAccess || status == .authorized {
             isAuthorized = true
             loadEvents()
             return
         }
 
-        // Denied or restricted — don't prompt
+        // Denied or restricted — don't prompt.
         if status == .denied || status == .restricted {
             isAuthorized = false
             return
         }
 
-        // writeOnly (macOS 14+) — treat as needing upgrade, but don't prompt every time
+        // writeOnly (macOS 14+/iOS 17+) means we can write but not read.
+        // We should request full access upgrade once.
         if #available(macOS 14.0, iOS 17.0, *) {
             if status == .writeOnly {
-                // We have write but not read — need to request full access once
                 let hasAsked = UserDefaults.standard.bool(forKey: "calendar.fullAccessAsked")
                 if hasAsked {
                     isAuthorized = false
                     return
                 }
                 UserDefaults.standard.set(true, forKey: "calendar.fullAccessAsked")
+                eventStore.requestFullAccessToEvents { [weak self] granted, _ in
+                    DispatchQueue.main.async {
+                        self?.isAuthorized = granted
+                        if granted { self?.loadEvents() }
+                    }
+                }
+                return
             }
         }
 
-        // Only reach here for .notDetermined (or first writeOnly upgrade)
+        // Only prompt on first run.
         if status != .notDetermined {
-            // Unknown status — don't prompt
             isAuthorized = false
             return
         }
