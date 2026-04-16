@@ -21,7 +21,7 @@ struct HabitWidget: View {
                     Button {
                         habit.isDoneToday.toggle()
                     } label: {
-                        HStack(spacing: 10) {
+                        HStack(spacing: metrics.isCompact ? 8 : 10) {
                             Circle()
                                 .fill(habit.isDoneToday ? ThemeManager.success : Color.clear)
                                 .overlay(
@@ -30,7 +30,7 @@ struct HabitWidget: View {
                                         lineWidth: 1.5
                                     )
                                 )
-                                .frame(width: 14, height: 14)
+                                .frame(width: metrics.isCompact ? 12 : 14, height: metrics.isCompact ? 12 : 14)
 
                             Text(habit.name)
                                 .font(.system(size: metrics.bodyFontSize, design: .monospaced))

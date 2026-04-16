@@ -7,6 +7,7 @@ import SwiftUI
 /// disconnected, and auto-sends when the Pi becomes reachable.
 struct TerminalWidget: View {
     @Environment(\.theme) private var theme
+    @Environment(\.widgetMetrics) private var metrics
     @StateObject private var session = TerminalSession()
 
     var body: some View {
@@ -16,19 +17,19 @@ struct TerminalWidget: View {
                 HStack(spacing: 6) {
                     Circle()
                         .fill(session.statusColor)
-                        .frame(width: 5, height: 5)
+                        .frame(width: metrics.isCompact ? 4 : 5, height: metrics.isCompact ? 4 : 5)
                     Text(session.connectionLabel)
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .font(.system(size: metrics.captionFontSize, weight: .medium, design: .monospaced))
                         .foregroundColor(ThemeManager.textSecondary)
                     Spacer()
                     if !session.pendingCount.isEmpty {
                         Text(session.pendingCount)
-                            .font(.system(size: 9, design: .monospaced))
+                            .font(.system(size: metrics.captionFontSize, design: .monospaced))
                             .foregroundColor(ThemeManager.warning)
                     }
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
+                .padding(.horizontal, metrics.isCompact ? 8 : 10)
+                .padding(.vertical, metrics.isCompact ? 3 : 4)
                 .background(ThemeManager.surface.opacity(0.4))
 
                 // Output area
@@ -40,8 +41,8 @@ struct TerminalWidget: View {
                                     .id(line.id)
                             }
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, metrics.isCompact ? 6 : 8)
+                        .padding(.vertical, metrics.isCompact ? 3 : 4)
                     }
                     .onChange(of: session.lines.count) { _, _ in
                         if let last = session.lines.last {
@@ -58,23 +59,22 @@ struct TerminalWidget: View {
 
                 HStack(spacing: 6) {
                     Text(">")
-                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .font(.system(size: metrics.bodyFontSize + 1, weight: .bold, design: .monospaced))
                         .foregroundColor(theme.accentFull)
 
                     TerminalTextField(
                         text: $session.inputText,
-                        placeholder: "ask claude...",
+                        placeholder: metrics.isCompact ? "ask..." : "ask claude...",
                         onSubmit: { session.send() }
                     )
                     .frame(maxWidth: .infinity)
 
-                    // Status indicator
                     Circle()
                         .fill(session.statusColor)
-                        .frame(width: 6, height: 6)
+                        .frame(width: metrics.isCompact ? 5 : 6, height: metrics.isCompact ? 5 : 6)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+                .padding(.horizontal, metrics.isCompact ? 8 : 10)
+                .padding(.vertical, metrics.isCompact ? 6 : 8)
                 .background(ThemeManager.background.opacity(0.5))
             }
         }
@@ -85,19 +85,19 @@ struct TerminalWidget: View {
         HStack(alignment: .top, spacing: 6) {
             if line.isUser {
                 Text(">")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.system(size: metrics.bodyFontSize, weight: .bold, design: .monospaced))
                     .foregroundColor(theme.accentFull)
             } else if line.isSystem {
                 Text("#")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.system(size: metrics.bodyFontSize, weight: .bold, design: .monospaced))
                     .foregroundColor(ThemeManager.textSecondary)
             } else {
                 Text(" ")
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(.system(size: metrics.bodyFontSize, design: .monospaced))
             }
 
             Text(line.text)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.system(size: metrics.bodyFontSize, design: .monospaced))
                 .foregroundColor(line.color)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)

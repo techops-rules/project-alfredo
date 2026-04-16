@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FunFactWidget: View {
     @Environment(\.theme) private var theme
+    @Environment(\.widgetMetrics) private var metrics
     @State private var currentFact: String
     @State private var factIndex: Int
 
@@ -38,9 +39,9 @@ struct FunFactWidget: View {
 
     var body: some View {
         WidgetShell(title: "FUNFACT.TXT", zone: "secondary") {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: metrics.rowSpacing) {
                 Text(currentFact)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(.system(size: metrics.bodyFontSize, design: .monospaced))
                     .foregroundColor(ThemeManager.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -53,7 +54,7 @@ struct FunFactWidget: View {
                         }
                     } label: {
                         Text("tap for another >")
-                            .font(.system(size: 9, design: .monospaced))
+                            .font(.system(size: metrics.captionFontSize, design: .monospaced))
                             .foregroundColor(ThemeManager.textSecondary.opacity(0.5))
                     }
                     .buttonStyle(.plain)

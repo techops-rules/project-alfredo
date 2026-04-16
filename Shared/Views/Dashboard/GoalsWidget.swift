@@ -10,7 +10,7 @@ struct GoalsWidget: View {
         WidgetShell(title: "GOALS.SYS", badge: "\(goals.count)", zone: "right") {
             VStack(spacing: metrics.sectionSpacing) {
                 ForEach(goals.prefix(metrics.secondaryListLimit)) { goal in
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: metrics.isCompact ? 4 : 6) {
                         HStack(alignment: .firstTextBaseline) {
                             Text(goal.name)
                                 .font(.system(size: metrics.bodyFontSize, weight: .medium, design: .monospaced))
@@ -28,13 +28,13 @@ struct GoalsWidget: View {
                             ZStack(alignment: .leading) {
                                 RoundedRectangle(cornerRadius: 3)
                                     .fill(theme.accentTrack)
-                                    .frame(height: 6)
+                                    .frame(height: metrics.isCompact ? 4 : 6)
                                 RoundedRectangle(cornerRadius: 3)
                                     .fill(theme.accentFull)
-                                    .frame(width: geo.size.width * CGFloat(goal.progressPercent) / 100, height: 6)
+                                    .frame(width: geo.size.width * CGFloat(goal.progressPercent) / 100, height: metrics.isCompact ? 4 : 6)
                             }
                         }
-                        .frame(height: 6)
+                        .frame(height: metrics.isCompact ? 4 : 6)
 
                         Text("\(goal.progressPercent)%")
                             .font(.system(size: metrics.captionFontSize, design: .monospaced))

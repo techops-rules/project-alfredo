@@ -99,7 +99,7 @@ struct HotlistRow: View {
     @Environment(\.widgetMetrics) private var metrics
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: metrics.isCompact ? 6 : 8) {
             urgencyDot
 
             switch item {
@@ -141,14 +141,16 @@ struct HotlistRow: View {
     private var urgencyDot: some View {
         switch item {
         case .task(let task):
+            let dotSize: CGFloat = metrics.isCompact ? 6 : 8
             Circle()
                 .fill(theme.accentFull)
-                .frame(width: 8, height: 8)
+                .frame(width: dotSize, height: dotSize)
                 .shadow(color: task.isDone ? .clear : theme.accentFull.opacity(0.5), radius: 3)
         case .event:
+            let dotSize: CGFloat = metrics.isCompact ? 6 : 8
             Circle()
                 .strokeBorder(theme.accentFull, lineWidth: 1.5)
-                .frame(width: 8, height: 8)
+                .frame(width: dotSize, height: dotSize)
                 .opacity(0.6)
         }
     }
