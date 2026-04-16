@@ -16,7 +16,7 @@
     --font: "JetBrains Mono", monospace;
     --fs: 13px;
   }
-  body { background: var(--bg); color: var(--text-primary); font-family: var(--font); font-size: var(--fs); height: 100vh; width: 100vw; overflow: hidden; display: flex; flex-direction: column; }
+  body { background: var(--bg); color: var(--text-primary); font-family: var(--font); font-size: var(--fs); height: 100vh; width: 100vw; overflow: hidden; display: flex; flex-direction: column; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   body::before { content:''; position:fixed; inset:0; background-image: linear-gradient(var(--accent-grid) 1px,transparent 1px), linear-gradient(90deg,var(--accent-grid) 1px,transparent 1px); background-size:80px 80px; pointer-events:none; z-index:0; }
 
   /* Status bar */
@@ -4452,11 +4452,12 @@ function saveModal(){const v=document.getElementById('modalInput').value.trim();
 document.getElementById('modalInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveModal();if(e.key==='Escape')closeModal();});
 document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
 
-// ── Kiosk: block context menu and scroll wheel (touchscreen registers as mouse) ──
-// The ROADOM 7" USB touchscreen reports as pointerType 'mouse', so we can't
-// block all mouse events. Only suppress right-click and scroll wheel.
+// ── Kiosk: touchscreen registers as mouse — prevent text selection and context menu ──
+// The ROADOM 7" USB touchscreen reports as pointerType 'mouse', so we disable
+// text selection, context menu, and scroll wheel to keep it feeling like a touch UI.
 document.addEventListener('contextmenu', e => { e.preventDefault(); }, { capture: true });
 document.addEventListener('wheel', e => { e.preventDefault(); e.stopPropagation(); }, { capture: true, passive: false });
+document.addEventListener('selectstart', e => { e.preventDefault(); }, { capture: true });
 
 // ── Touch scroll indicator: hide native scrollbar, fade in on scroll/touch ─
 function attachScrollIndicator(el){
