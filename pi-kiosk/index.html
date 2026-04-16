@@ -313,6 +313,12 @@
   .cal-bar { width:2px; height:16px; background:var(--accent); border-radius:1px; flex-shrink:0; }
   .cal-title { font-size:var(--widget-body-size); color:var(--text-primary); }
   .cal-event.past .cal-time, .cal-event.past .cal-title { opacity:0.4; }
+  /* RSVP-based dimming: NEEDS-ACTION and TENTATIVE look lighter; DECLINED struck through */
+  .cal-event.rsvp-tentative .cal-title, .cal-event.rsvp-tentative .cal-time,
+  .cal-event.rsvp-needs-action .cal-title, .cal-event.rsvp-needs-action .cal-time { opacity:0.55; font-style:italic; }
+  .cal-event.rsvp-declined .cal-title, .cal-event.rsvp-declined .cal-time { opacity:0.3; text-decoration:line-through; }
+  .cal-earlier-toggle { cursor:pointer; -webkit-tap-highlight-color:transparent; font-size:9px; letter-spacing:1.5px; color:var(--text-secondary); padding:4px 0 6px 0; opacity:0.6; user-select:none; }
+  .cal-earlier-toggle:hover { opacity:1; }
   .cal-event.past .cal-bar { opacity:0.3; }
   .cal-event.live .cal-bar { background:var(--accent); box-shadow:0 0 6px var(--accent); }
   .cal-event.live .cal-title { font-weight:bold; }
@@ -321,6 +327,39 @@
   .cal-event.personal.live .cal-bar { background:#7c6eff; box-shadow:0 0 6px #7c6eff; }
   .cal-section-label { font-size:8px; color:var(--text-secondary); letter-spacing:1px; margin:6px 0 2px; opacity:0.6; }
   .cal-section-label:first-child { margin-top:0; }
+
+  /* Calendar dot-bar (tap to reveal past events) */
+  .cal-dotbar { display:flex; align-items:center; gap:6px; padding:2px 0 6px 0; border-bottom:1px dashed rgba(97,175,239,0.18); margin-bottom:6px; -webkit-tap-highlight-color:transparent; user-select:none; min-height:14px; }
+  .cal-dots { display:flex; gap:4px; flex:1; align-items:center; flex-wrap:wrap; }
+  .cal-dot-spacer { flex:1 1 auto; min-width:8px; }
+  .cal-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; transition:all 0.3s; }
+  .cal-dot.future { background:var(--text-secondary); opacity:0.65; }
+  .cal-dot.past { background:var(--success); opacity:0.85; }
+  .cal-dot.live { background:#fff; box-shadow:0 0 6px rgba(255,255,255,0.85); animation:caldotPulse 2s ease-in-out infinite; }
+  .cal-dot.unresponded { background:transparent; border:1.5px solid var(--text-secondary); opacity:0.55; }
+  .cal-dot.allday { background:transparent; border:1.5px solid var(--accent); opacity:0.7; }
+  .cal-dotbar-label { font-size:8px; color:var(--text-secondary); letter-spacing:1px; opacity:0.55; white-space:nowrap; }
+  @keyframes caldotPulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.6; transform:scale(1.2)} }
+
+  /* Calendar grid: timed on left, all-day on right rail */
+  .cal-grid { display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:start; }
+  .cal-grid.single { grid-template-columns: 1fr; }
+  .cal-allday-col { min-width:64px; max-width:110px; padding-left:6px; border-left:1px dashed rgba(97,175,239,0.18); display:flex; flex-direction:column; gap:2px; }
+  .cal-allday-col .cal-event-wrap { padding:2px 0; }
+  .cal-allday-col .cal-time { display:none; }
+  .cal-allday-col .cal-title { font-size:calc(var(--widget-body-size) - 1px); }
+  /* Same-time concurrent events become side-by-side columns */
+  .cal-row-cols { display:flex; gap:6px; align-items:stretch; }
+  .cal-row-cols > .cal-col { flex:1; min-width:0; overflow:hidden; }
+  .cal-row-cols .cal-time { width:auto; }
+  .cal-row-cols .cal-title { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* Scroll indicator (translucent bar, appears on scroll/touch) */
+  .scroll-ind { position:absolute; right:2px; width:3px; background:rgba(97,175,239,0.55); border-radius:2px; opacity:0; transition:opacity 0.25s ease; pointer-events:none; z-index:25; }
+  .scroll-ind.visible { opacity:0.85; }
+  /* Hide native scrollbars everywhere on the kiosk (touch only) */
+  *::-webkit-scrollbar { width:0; height:0; display:none; }
+  * { scrollbar-width:none; -ms-overflow-style:none; }
 
   /* TODAY.EXE dots */
   .today-rows { display:flex; flex-direction:column; gap:6px; }
@@ -962,7 +1001,7 @@
   <div class="spacer"></div>
   <span class="mode-indicator" id="modeIndicator">WORK</span>
   <button class="alfredo-btn" id="alfredoQuickBtn" title="start alfredo">TALK</button>
-  <span style="font-size:10px;color:var(--text-secondary);opacity:0.5;margin-right:6px">v0.51.0</span>
+  <span style="font-size:10px;color:var(--text-secondary);opacity:0.5;margin-right:6px">v0.52.0</span>
   <button class="hbg-btn" id="hbgToggle">☰</button>
 </div>
 
@@ -1331,6 +1370,60 @@ function renderTasks(cid, bid, tasks, key) {
 renderTasks('workTasks','workBadge',workTasks,'workTasks');
 renderTasks('lifeTasks','lifeBadge',lifeTasks,'lifeTasks');
 
+// --- Vault sync (bi-directional with ~/obsidian/todos via serve.py) ---
+let vaultPushTimer = null;
+let lastVaultVersion = -1;
+const origSaveData = saveData;
+saveData = function(key, val) {
+  origSaveData(key, val);
+  if (key === 'workTasks' || key === 'lifeTasks') {
+    clearTimeout(vaultPushTimer);
+    vaultPushTimer = setTimeout(pushVault, 500);
+  }
+};
+function pushVault() {
+  fetch('/proxy/vault-push', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      work: workTasks.map(t => ({text: t.text, done: !!t.done, hot: !!t.hot, line: t.line || null})),
+      personal: lifeTasks.map(t => ({text: t.text, done: !!t.done, hot: !!t.hot, line: t.line || null}))
+    })
+  }).then(r => r.json()).then(d => { if (d && d.version) lastVaultVersion = d.version; }).catch(()=>{});
+}
+function syncFromVault() {
+  fetch('/proxy/vault-tasks').then(r => r.json()).then(d => {
+    if (!d || typeof d.version !== 'number') return;
+    const remoteWork = Array.isArray(d.work) ? d.work : [];
+    const remotePersonal = Array.isArray(d.personal) ? d.personal : [];
+    // Guard against empty bootstraps after proxy restart:
+    // don't wipe local tasks when Pi has never received a real vault snapshot.
+    if (d.version === 0 && (d.last_edit_ts || 0) === 0 && remoteWork.length === 0 && remotePersonal.length === 0) {
+      if (workTasks.length || lifeTasks.length) {
+        pushVault(); // seed Pi after reboot so tasks stay in sync
+      }
+      return;
+    }
+    // Skip if nothing changed on Pi since our last known version
+    if (d.version === lastVaultVersion) return;
+    // Skip if Pi's latest edit was from kiosk (us) — avoids overwriting our local state
+    if (d.last_edit_src === 'kiosk') { lastVaultVersion = d.version; return; }
+    // Pi is ahead (Mac pushed new state). Replace local arrays in-place.
+    workTasks.length = 0;
+    remoteWork.forEach(t => workTasks.push({text: t.text, done: !!t.done, hot: !!t.hot, line: t.line, priority: t.hot ? 'high' : 'med'}));
+    lifeTasks.length = 0;
+    remotePersonal.forEach(t => lifeTasks.push({text: t.text, done: !!t.done, hot: !!t.hot, line: t.line, priority: t.hot ? 'high' : 'med'}));
+    origSaveData('workTasks', workTasks);
+    origSaveData('lifeTasks', lifeTasks);
+    lastVaultVersion = d.version;
+    renderTasks('workTasks','workBadge',workTasks,'workTasks');
+    renderTasks('lifeTasks','lifeBadge',lifeTasks,'lifeTasks');
+    updateTodayBar();
+  }).catch(()=>{});
+}
+syncFromVault();
+setInterval(syncFromVault, 3000);
+
 // Visual staleness indicator — dims widget + appends "STALE" to header
 function setTaskStale(stale) {
   const w = document.getElementById('w-work');
@@ -1388,12 +1481,14 @@ function renderCalEvent(e,now){
   const past=d<now?' past':'';
   const live=(d<=now&&end>now)?' live':'';
   const personal=isPersonal(e)?' personal':'';
+  const rsvpMap={'TENTATIVE':' rsvp-tentative','NEEDS-ACTION':' rsvp-needs-action','DECLINED':' rsvp-declined'};
+  const rsvp=rsvpMap[e.rsvp]||'';
   const rec=e.recurring?'<span class="cal-rec">REC</span>':'';
   const briefText=e.brief||(time+endTime+' · '+(e.calendar||'Calendar'));
   const fullText=e.longContext||(e.location?'📍 '+escHtml(e.location):'No additional context available');
   const prev=e.prevBrief?'<hr><div style="font-size:8px;letter-spacing:1px;color:var(--text-secondary);margin-bottom:2px">PREV SESSION</div>'+escHtml(e.prevBrief):'';
   return '<div class="cal-event-wrap" data-state="collapsed" onclick="cycleMeetingState(this)">'
-    +'<div class="cal-event'+past+live+personal+'"><span class="cal-time">'+time+'</span><div class="cal-bar"></div><span class="cal-title">'+escHtml(e.title)+rec+'</span></div>'
+    +'<div class="cal-event'+past+live+personal+rsvp+'"><span class="cal-time">'+time+'</span><div class="cal-bar"></div><span class="cal-title">'+escHtml(e.title)+rec+'</span></div>'
     +'<div class="meeting-hint">tap for brief</div>'
     +'<div class="meeting-brief">'+briefText+'</div>'
     +'<div class="meeting-full">'+fullText+prev+'</div>'
@@ -1434,35 +1529,77 @@ function renderCalendar(events){
     queueDirectContextSync();
     return;
   }
-  if(!events||!events.length){
-    el.innerHTML='<div class="cal-event"><span class="cal-time">--</span><div class="cal-bar"></div><span class="cal-title dim">no events today</span></div>';
-    queueDirectContextSync();
-    return;
-  }
   if(!today.length){
-    el.innerHTML='<div class="cal-event"><span class="cal-time">--</span><div class="cal-bar"></div><span class="cal-title dim">no events today</span></div>';
+    el.innerHTML='<div class="cal-dotbar"></div><div class="cal-event"><span class="cal-time">--</span><div class="cal-bar"></div><span class="cal-title dim">no events today</span></div>';
     queueDirectContextSync();
     return;
   }
-  const work=today.filter(e=>!isPersonal(e));
-  const personal=today.filter(e=>isPersonal(e));
-  let html='';
-  if(work.length){
-    html+='<div class="cal-section-label">WORK</div>';
-    html+=work.map(e=>renderCalEvent(e,now)).join('');
+
+  const isOver  = e => !e.isAllDay && new Date(e.endTime)<=now;
+  const isLive  = e => !e.isAllDay && new Date(e.startTime)<=now && new Date(e.endTime)>now;
+  const isUnresp= e => e.rsvp==='NEEDS-ACTION' || e.rsvp==='TENTATIVE';
+  // Default to showing past only when no upcoming timed events exist (end of day)
+  const hasUpcoming = today.some(e => !e.isAllDay && !isOver(e));
+  const showPast = el.dataset.showPast==='1' || !hasUpcoming;
+
+  // ── Top dot-bar: one dot per event (grey/white/green + hollow for unresponded/all-day, right-aligned)
+  const timedSorted = today.filter(e=>!e.isAllDay).sort((a,b)=>new Date(a.startTime)-new Date(b.startTime));
+  const allDay = today.filter(e=>e.isAllDay);
+  const dot = (e, cls) => '<span class="cal-dot '+cls+'" title="'+escHtml(e.title||'')+'"></span>';
+  const leftDots = timedSorted.filter(e=>!isUnresp(e)).map(e => dot(e, isLive(e)?'live':isOver(e)?'past':'future'));
+  const rightDots = [
+    ...timedSorted.filter(isUnresp).map(e => dot(e, 'unresponded')),
+    ...allDay.map(e => dot(e, 'allday')),
+  ];
+  const dotsHtml = leftDots.join('') + (rightDots.length ? '<span class="cal-dot-spacer"></span>' + rightDots.join('') : '');
+  const pastCount = timedSorted.filter(isOver).length;
+  const toggleLabel = pastCount ? '<span class="cal-dotbar-label">'+(showPast?'▼ hide':'▲ '+pastCount+' past')+'</span>' : '';
+  const dotBar = '<div class="cal-dotbar" onclick="togglePastCal(event)"><div class="cal-dots">'+dotsHtml+'</div>'+toggleLabel+'</div>';
+
+  // ── Timed events: filter past unless revealed, group by start time for column layout
+  const timedVisible = timedSorted.filter(e => showPast || !isOver(e));
+  const groupMap = {};
+  const groupOrder = [];
+  timedVisible.forEach(e => {
+    const k = e.startTime;
+    if (!groupMap[k]) { groupMap[k] = []; groupOrder.push(k); }
+    groupMap[k].push(e);
+  });
+  let timedHtml = '';
+  groupOrder.forEach(k => {
+    const grp = groupMap[k];
+    if (grp.length === 1) {
+      timedHtml += renderCalEvent(grp[0], now);
+    } else {
+      timedHtml += '<div class="cal-row-cols">' + grp.map(e => '<div class="cal-col">'+renderCalEvent(e,now)+'</div>').join('') + '</div>';
+    }
+  });
+  if (!timedHtml && !allDay.length) {
+    timedHtml = '<div class="cal-event"><span class="cal-time">--</span><div class="cal-bar"></div><span class="cal-title dim">nothing upcoming</span></div>';
   }
-  if(personal.length){
-    html+='<div class="cal-section-label">PERSONAL</div>';
-    html+=personal.map(e=>renderCalEvent(e,now)).join('');
+
+  // ── All-day → dedicated right rail (only when present)
+  const gridClass = allDay.length ? 'cal-grid' : 'cal-grid single';
+  let gridHtml = '<div class="'+gridClass+'"><div class="cal-timed-col">'+timedHtml+'</div>';
+  if (allDay.length) {
+    gridHtml += '<div class="cal-allday-col">'+allDay.map(e=>renderCalEvent(e,now)).join('')+'</div>';
   }
-  el.innerHTML=html;
-  // Update meetings dots
-  const meetings=today.filter(e=>!e.isAllDay);
-  const pastMeetings=meetings.filter(e=>new Date(e.endTime)<=now).length;
-  renderDots('dotsMeetings',meetings.length,pastMeetings);
+  gridHtml += '</div>';
+
+  el.innerHTML = dotBar + gridHtml;
+
+  // Update TODAY.EXE meetings dots (existing widget — unchanged semantics)
+  const meetings = timedSorted;
+  renderDots('dotsMeetings', meetings.length, meetings.filter(isOver).length);
   queueDirectContextSync();
 }
 function escHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function togglePastCal(ev){
+  if(ev){ev.stopPropagation();}
+  const el=document.getElementById('calendarBody');
+  el.dataset.showPast = el.dataset.showPast==='1' ? '0' : '1';
+  renderCalendar(currentCalendarEvents||[]);
+}
 function fetchCalendar(){
   fetch('/proxy/calendar').then(r=>r.json()).then(d=>{
     renderCalendar(d.events||[]);
@@ -2918,26 +3055,165 @@ document.addEventListener('click', (e) => {
 // System buttons
 document.getElementById('btnRefresh').addEventListener('click',()=>{ closeHbg(); location.reload(); });
 function showRebootOverlay(){
-  document.body.innerHTML = '<div id="rebootOverlay" style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:var(--font);color:var(--warning);font-size:14px;letter-spacing:2px;flex-direction:column;gap:10px">REBOOTING...<div style="font-size:10px;color:var(--text-secondary);letter-spacing:1px">waiting for kiosk to come back</div></div>';
+  document.body.innerHTML = `
+    <style id="rebootOverlayStyles">
+      .rb-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        font-family: var(--font);
+        color: var(--warning);
+        flex-direction: column;
+        gap: 10px;
+        letter-spacing: 1px;
+      }
+      .rb-title { font-size: 14px; letter-spacing: 2px; color: var(--warning); }
+      .rb-sub { font-size: 10px; color: var(--text-secondary); letter-spacing: 1px; }
+      .rb-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin-top: 6px;
+      }
+      .rb-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        min-width: 44px;
+      }
+      .rb-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 1px solid rgba(97,175,239,0.35);
+        background: rgba(92,99,112,0.25);
+        box-shadow: 0 0 0 1px rgba(97,175,239,0.05);
+        transition: all 0.25s ease;
+      }
+      .rb-dot.pending { background: rgba(92,99,112,0.25); opacity: 0.55; }
+      .rb-dot.on {
+        background: var(--success);
+        border-color: var(--success);
+        box-shadow: 0 0 9px rgba(152,195,121,0.75);
+        opacity: 1;
+      }
+      .rb-dot.warn {
+        background: var(--warning);
+        border-color: var(--warning);
+        box-shadow: 0 0 8px rgba(229,192,123,0.6);
+        opacity: 1;
+      }
+      .rb-dot.off {
+        background: var(--danger);
+        border-color: var(--danger);
+        box-shadow: 0 0 8px rgba(224,108,117,0.55);
+        opacity: 0.9;
+      }
+      .rb-label {
+        font-size: 8px;
+        letter-spacing: 1px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+      }
+      .rb-check {
+        min-height: 14px;
+        font-size: 11px;
+        color: var(--success);
+        letter-spacing: 1px;
+      }
+    </style>
+    <div id="rebootOverlay" class="rb-wrap">
+      <div class="rb-title">REBOOTING ALFREDO...</div>
+      <div class="rb-sub" id="rbSub">bringing services online</div>
+      <div class="rb-row">
+        <div class="rb-item"><div class="rb-dot pending" id="rb-bridge"></div><div class="rb-label">bridge</div></div>
+        <div class="rb-item"><div class="rb-dot pending" id="rb-ws"></div><div class="rb-label">ws</div></div>
+        <div class="rb-item"><div class="rb-dot pending" id="rb-net"></div><div class="rb-label">net</div></div>
+        <div class="rb-item"><div class="rb-dot pending" id="rb-icloud"></div><div class="rb-label">icloud</div></div>
+        <div class="rb-item"><div class="rb-dot pending" id="rb-ts"></div><div class="rb-label">tailscale</div></div>
+        <div class="rb-item"><div class="rb-dot pending" id="rb-sync"></div><div class="rb-label">sync</div></div>
+      </div>
+      <div class="rb-check" id="rbCheck"></div>
+      <div class="rb-sub">waiting for kiosk proxy on :8430</div>
+    </div>
+  `;
+
+  const bootOrder = ['rb-bridge', 'rb-ws', 'rb-net', 'rb-icloud', 'rb-ts', 'rb-sync'];
+  const rbSub = document.getElementById('rbSub');
+  const rbCheck = document.getElementById('rbCheck');
+
+  function setRbDot(id, state) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'rb-dot ' + state;
+  }
+
+  let waveIndex = 0;
+  const bootWave = setInterval(() => {
+    bootOrder.forEach((id) => setRbDot(id, 'pending'));
+    setRbDot(bootOrder[waveIndex % bootOrder.length], 'on');
+    waveIndex += 1;
+  }, 420);
+
+  async function probe(url) {
+    try {
+      const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(2500) });
+      if (!response.ok) return { ok: false };
+      const body = await response.json().catch(() => ({}));
+      return { ok: body.ok !== false && body.status !== 'offline', body };
+    } catch (error) {
+      return { ok: false };
+    }
+  }
+
   let attempts = 0;
   const poll = setInterval(async () => {
     attempts += 1;
-    try {
-      const response = await fetch('/proxy/health', { cache: 'no-store' });
-      if (response.ok) {
-        clearInterval(poll);
-        location.reload();
-        return;
+    const health = await probe('/proxy/health');
+    if (health.ok) {
+      clearInterval(poll);
+      clearInterval(bootWave);
+      if (rbSub) rbSub.textContent = 'proxy detected, verifying services';
+
+      setRbDot('rb-bridge', 'on');
+      setRbDot('rb-ws', 'on');
+      setRbDot('rb-net', 'on');
+
+      const [icloud, tailscale] = await Promise.all([
+        probe('/proxy/icloud'),
+        probe('/proxy/tailscale'),
+      ]);
+
+      setRbDot('rb-icloud', icloud.ok ? 'on' : 'warn');
+      setRbDot('rb-ts', tailscale.ok ? 'on' : 'warn');
+
+      const allHealthy = health.ok && icloud.ok && tailscale.ok;
+      setRbDot('rb-sync', allHealthy ? 'on' : 'warn');
+
+      if (rbCheck) {
+        rbCheck.textContent = allHealthy ? '✓ services online' : '✓ booted (some services still warming up)';
+        rbCheck.style.color = allHealthy ? 'var(--success)' : 'var(--warning)';
       }
-    } catch (error) {}
+
+      setTimeout(() => location.reload(), allHealthy ? 1200 : 1800);
+      return;
+    }
+
     if (attempts > 120) {
       clearInterval(poll);
-      const overlay = document.getElementById('rebootOverlay');
-      if (overlay) {
-        overlay.innerHTML = 'REBOOT MAY BE DONE<div style="font-size:10px;color:var(--text-secondary);letter-spacing:1px">tap refresh if this screen lingers</div>';
+      clearInterval(bootWave);
+      if (rbSub) rbSub.textContent = 'reboot may be done. tap refresh if this lingers.';
+      bootOrder.forEach((id) => setRbDot(id, 'warn'));
+      if (rbCheck) {
+        rbCheck.textContent = 'still waiting for proxy response';
+        rbCheck.style.color = 'var(--warning)';
       }
     }
-  }, 3000);
+  }, 2200);
 }
 document.getElementById('btnReboot').addEventListener('click',()=>{
   if(!confirm('Reboot Pi?')) return;
@@ -4175,6 +4451,57 @@ function closeModal(){document.getElementById('modal').classList.remove('show');
 function saveModal(){const v=document.getElementById('modalInput').value.trim();if(_cb)_cb(v);closeModal();}
 document.getElementById('modalInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveModal();if(e.key==='Escape')closeModal();});
 document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+
+// ── Kiosk touch-only: block mouse input (touch passes through) ─────────────
+// Track pointer source so synthesized clicks from mice get suppressed while
+// touch-originated clicks still fire normally.
+let _lastPointerType = 'touch';
+document.addEventListener('pointerdown', e => {
+  _lastPointerType = e.pointerType || 'touch';
+  if (e.pointerType === 'mouse') { e.preventDefault(); e.stopPropagation(); }
+}, { capture: true, passive: false });
+['pointermove','pointerup','mousedown','mousemove','mouseup','click','dblclick','contextmenu','wheel'].forEach(type => {
+  document.addEventListener(type, e => {
+    const mouse = e.pointerType === 'mouse'
+               || type === 'wheel'
+               || type === 'contextmenu'
+               || (_lastPointerType === 'mouse' && (type === 'click' || type === 'dblclick'));
+    if (mouse) { e.preventDefault(); e.stopPropagation(); }
+  }, { capture: true, passive: false });
+});
+
+// ── Touch scroll indicator: hide native scrollbar, fade in on scroll/touch ─
+function attachScrollIndicator(el){
+  if (el.dataset.siReady === '1') return;
+  el.dataset.siReady = '1';
+  const cs = getComputedStyle(el);
+  if (cs.position === 'static') el.style.position = 'relative';
+  const ind = document.createElement('div');
+  ind.className = 'scroll-ind';
+  el.appendChild(ind);
+  let fadeTimer = null;
+  const update = () => {
+    const sh = el.scrollHeight, ch = el.clientHeight;
+    if (sh <= ch + 2) { ind.classList.remove('visible'); return; }
+    const ratio = ch / sh;
+    const indH = Math.max(24, Math.floor(ch * ratio));
+    const maxTop = ch - indH;
+    const top = maxTop * (el.scrollTop / (sh - ch));
+    ind.style.height = indH + 'px';
+    ind.style.top = top + 'px';
+    ind.classList.add('visible');
+    clearTimeout(fadeTimer);
+    fadeTimer = setTimeout(() => ind.classList.remove('visible'), 750);
+  };
+  el.addEventListener('scroll', update, { passive: true });
+  el.addEventListener('touchstart', update, { passive: true });
+  el.addEventListener('touchmove', update, { passive: true });
+}
+function attachAllScrollIndicators(){
+  document.querySelectorAll('.widget-body, .task-list, .term-output, .hotlist-body, .scratch-body, .wd-sheet').forEach(attachScrollIndicator);
+}
+attachAllScrollIndicators();
+setInterval(attachAllScrollIndicators, 2500);
 </script>
 </body>
 </html>

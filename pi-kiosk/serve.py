@@ -29,6 +29,53 @@ voice_muted = False
 # Push-to-talk activation — set True from kiosk/phone, cleared by wake listener
 voice_push_active = False
 
+# Vault-synced todos (source of truth: Mac's ~/obsidian/todos/*.md)
+# Mac pushes every 30s; kiosk edits round-trip back to Mac on next push.
+vault_state = {
+    "work": [],
+    "personal": [],
+    "version": 0,
+    "last_edit_src": "mac",    # "mac" or "kiosk"
+    "last_edit_ts": 0.0,
+    "mac_push_ts": 0.0,
+}
+vault_lock = threading.Lock()
+VAULT_CACHE_FILE = "vault-cache.json"
+
+def save_vault_cache_locked():
+    """Persist vault state to disk.
+    Caller must hold vault_lock."""
+    try:
+        with open(VAULT_CACHE_FILE, "w") as f:
+            json.dump({
+                "work": vault_state.get("work", []),
+                "personal": vault_state.get("personal", []),
+                "version": int(vault_state.get("version", 0)),
+                "last_edit_src": vault_state.get("last_edit_src", "mac"),
+                "last_edit_ts": float(vault_state.get("last_edit_ts", 0.0)),
+                "mac_push_ts": float(vault_state.get("mac_push_ts", 0.0)),
+                "saved_at": time.time(),
+            }, f)
+    except Exception as ex:
+        print(f"[vault] cache save failed: {ex}")
+
+def load_vault_cache():
+    try:
+        with open(VAULT_CACHE_FILE) as f:
+            cached = json.load(f)
+        with vault_lock:
+            vault_state["work"] = cached.get("work", []) or []
+            vault_state["personal"] = cached.get("personal", []) or []
+            vault_state["version"] = int(cached.get("version", 0) or 0)
+            vault_state["last_edit_src"] = cached.get("last_edit_src", "mac")
+            vault_state["last_edit_ts"] = float(cached.get("last_edit_ts", 0.0) or 0.0)
+            vault_state["mac_push_ts"] = float(cached.get("mac_push_ts", 0.0) or 0.0)
+        print(f"[vault] loaded cache: work={len(vault_state['work'])} personal={len(vault_state['personal'])} v={vault_state['version']}")
+    except Exception:
+        pass
+
+load_vault_cache()
+
 # Kiosk-side context snapshot for Direct Mode
 direct_context = {
     "workTasks": [],
@@ -40,6 +87,16 @@ direct_context = {
     "calendar": [],
     "updatedAt": 0,
 }
+
+# Layouts pushed by the settings-page editor for native apps (mac, iphone).
+# Kept in memory + backed by a file so layouts survive restarts.
+APP_LAYOUTS_FILE = Path(os.path.expanduser("~/alfredo-kiosk/app-layouts.json"))
+app_layouts = {}  # target -> {"name": str, "layout": {...}, "updated_at": float}
+try:
+    if APP_LAYOUTS_FILE.exists():
+        app_layouts = json.loads(APP_LAYOUTS_FILE.read_text())
+except Exception:
+    app_layouts = {}
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 REALTIME_MODEL = os.environ.get("ALFREDO_REALTIME_MODEL", "gpt-realtime")
@@ -500,6 +557,19 @@ cal_state = {
     "ical_fetch_time": 0,    # epoch when iCal last fetched
 }
 
+def save_calendar_cache():
+    try:
+        with open(CALENDAR_CACHE_FILE, "w") as f:
+            json.dump({
+                "ical": cal_state.get("ical_events", []),
+                "ical_ts": cal_state.get("ical_fetch_time", 0),
+                "mac": cal_state.get("mac_events", []),
+                "mac_ts": cal_state.get("mac_push_time", 0),
+                "ts": time.time(),  # legacy key for older readers
+            }, f)
+    except Exception as ex:
+        print(f"[cal] cache save failed: {ex}")
+
 def load_ical_feeds():
     """Load configured iCal feed URLs."""
     try:
@@ -519,7 +589,7 @@ def parse_ical(ics_text):
     # Use Pi local time so "today" matches the user's timezone
     now_local = datetime.now()
     today_start = now_local.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=1)
-    tomorrow_end = today_start + timedelta(days=3)
+    tomorrow_end = today_start + timedelta(days=14)
 
     # Unfold long lines (RFC 5545 §3.1)
     ics_text = re.sub(r'\r?\n[ \t]', '', ics_text)
@@ -532,16 +602,14 @@ def parse_ical(ics_text):
 
         def prop(name):
             # Match property with optional params: DTSTART;TZID=...:20260410T090000
-            m = re.search(rf'^{name}[;:](.*)$', block, re.MULTILINE)
+            m = re.search(rf'^{name}(?:;[^:]*)?:(.*)$', block, re.MULTILINE)
             if not m:
                 return None
-            val = m.group(1)
-            # Strip params — value is after last colon if params present
-            if ';' in name or ':' in val:
-                parts = val.split(':')
-                if len(parts) > 1:
-                    val = parts[-1]
-            return val.strip()
+            return m.group(1).strip()
+
+        def props(name):
+            matches = re.findall(rf'^{name}(?:;[^:]*)?:(.*)$', block, re.MULTILINE)
+            return [m.strip() for m in matches]
 
         summary = prop('SUMMARY') or '(no title)'
         location = prop('LOCATION')
@@ -549,6 +617,8 @@ def parse_ical(ics_text):
 
         dtstart_raw = prop('DTSTART')
         dtend_raw = prop('DTEND')
+        rrule_raw = prop('RRULE')
+        exdate_raw = props('EXDATE')
 
         if not dtstart_raw:
             continue
@@ -559,22 +629,174 @@ def parse_ical(ics_text):
         if not start:
             continue
 
-        # Filter to today + tomorrow only
-        if end < today_start or start > tomorrow_end:
+        is_all_day = len(dtstart_raw) == 8  # 20260410 vs 20260410T090000Z
+        duration = end - start
+
+        # Find Todd's RSVP status for this event (PARTSTAT on the ATTENDEE line that matches his email)
+        todd_rsvp = None
+        for line in block.split('\n'):
+            if line.startswith('ATTENDEE') and ('tmichel@omnidian.com' in line.lower() or 'todd375@gmail.com' in line.lower()):
+                m = re.search(r'PARTSTAT=([A-Z-]+)', line)
+                if m:
+                    todd_rsvp = m.group(1)
+                    break
+
+        # Parse EXDATEs for recurrence exclusions
+        exdates = set()
+        for ex in exdate_raw:
+            for token in ex.split(","):
+                dt = parse_ical_dt(token.strip())
+                if dt:
+                    exdates.add(dt.replace(microsecond=0).isoformat())
+
+        def append_event(start_dt):
+            start_dt = start_dt.replace(microsecond=0)
+            if start_dt.replace(microsecond=0).isoformat() in exdates:
+                return
+            end_dt = start_dt + duration
+            if end_dt < today_start or start_dt > tomorrow_end:
+                return
+            events.append({
+                "title": summary,
+                "startTime": start_dt.isoformat(),
+                "endTime": end_dt.isoformat(),
+                "location": location,
+                "isAllDay": is_all_day,
+                "source": "ical",
+                "rsvp": todd_rsvp,
+            })
+
+        if not rrule_raw:
+            append_event(start)
             continue
 
-        is_all_day = len(dtstart_raw) == 8  # 20260410 vs 20260410T090000Z
+        # Recurrence expansion (window-limited) for common RRULEs.
+        parts = {}
+        for part in rrule_raw.split(";"):
+            if "=" not in part:
+                continue
+            k, v = part.split("=", 1)
+            parts[k.upper()] = v
+        freq = parts.get("FREQ", "").upper()
+        interval = int(parts.get("INTERVAL", "1") or "1")
+        count_limit = int(parts.get("COUNT", "0") or "0")
+        until = parse_ical_dt(parts.get("UNTIL", "")) if parts.get("UNTIL") else None
+        byday_tokens = [x.strip().upper() for x in parts.get("BYDAY", "").split(",") if x.strip()]
+        bymonthday_tokens = [x.strip() for x in parts.get("BYMONTHDAY", "").split(",") if x.strip()]
+        bymonth_tokens = [x.strip() for x in parts.get("BYMONTH", "").split(",") if x.strip()]
 
-        events.append({
-            "title": summary,
-            "startTime": start.isoformat(),
-            "endTime": end.isoformat(),
-            "location": location,
-            "isAllDay": is_all_day,
-            "source": "ical",
-        })
+        weekday_map = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
+        weekday_token_for_start = {v: k for k, v in weekday_map.items()}.get(start.weekday(), "MO")
+        if not byday_tokens and freq == "WEEKLY":
+            byday_tokens = [weekday_token_for_start]
 
-    return events
+        range_start = max(today_start, start)
+        current_day = range_start.date()
+        last_day = tomorrow_end.date()
+
+        # Bound total generated instances to protect from malformed rules.
+        generated = 0
+        cap = 512
+
+        while current_day <= last_day and generated < cap:
+            candidate = datetime(
+                current_day.year, current_day.month, current_day.day,
+                start.hour, start.minute, start.second
+            )
+            if candidate < start:
+                current_day += timedelta(days=1)
+                continue
+            if until and candidate > until:
+                current_day += timedelta(days=1)
+                continue
+            if bymonth_tokens and candidate.month not in {int(x) for x in bymonth_tokens if x.lstrip("-").isdigit()}:
+                current_day += timedelta(days=1)
+                continue
+
+            is_match = False
+            if freq == "DAILY":
+                delta_days = (candidate.date() - start.date()).days
+                if delta_days >= 0 and delta_days % max(interval, 1) == 0:
+                    if byday_tokens:
+                        wd = {v: k for k, v in weekday_map.items()}[candidate.weekday()]
+                        is_match = wd in [t[-2:] for t in byday_tokens]
+                    else:
+                        is_match = True
+            elif freq == "WEEKLY":
+                start_week = start.date() - timedelta(days=start.weekday())
+                cand_week = candidate.date() - timedelta(days=candidate.weekday())
+                week_delta = (cand_week - start_week).days // 7
+                wd = {v: k for k, v in weekday_map.items()}[candidate.weekday()]
+                allowed = [t[-2:] for t in byday_tokens] if byday_tokens else [weekday_token_for_start]
+                if week_delta >= 0 and week_delta % max(interval, 1) == 0 and wd in allowed:
+                    is_match = True
+            elif freq == "MONTHLY":
+                month_delta = (candidate.year - start.year) * 12 + (candidate.month - start.month)
+                if month_delta >= 0 and month_delta % max(interval, 1) == 0:
+                    if bymonthday_tokens:
+                        month_len = (candidate.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+                        day_matches = set()
+                        for tok in bymonthday_tokens:
+                            if not tok.lstrip("-").isdigit():
+                                continue
+                            n = int(tok)
+                            if n > 0:
+                                day_matches.add(n)
+                            elif n < 0:
+                                day_matches.add(month_len.day + 1 + n)
+                        is_match = candidate.day in day_matches
+                    elif byday_tokens:
+                        for tok in byday_tokens:
+                            wd_code = tok[-2:]
+                            wd = weekday_map.get(wd_code)
+                            if wd is None or candidate.weekday() != wd:
+                                continue
+                            prefix = tok[:-2]
+                            if not prefix:
+                                is_match = True
+                                break
+                            if prefix.lstrip("-").isdigit():
+                                n = int(prefix)
+                                if n > 0:
+                                    nth = (candidate.day - 1) // 7 + 1
+                                    if nth == n:
+                                        is_match = True
+                                        break
+                                elif n < 0:
+                                    month_len = (candidate.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+                                    nth_from_end = (month_len.day - candidate.day) // 7 + 1
+                                    if nth_from_end == abs(n):
+                                        is_match = True
+                                        break
+                    else:
+                        is_match = candidate.day == start.day
+            elif freq == "YEARLY":
+                year_delta = candidate.year - start.year
+                if year_delta >= 0 and year_delta % max(interval, 1) == 0:
+                    is_match = (candidate.month, candidate.day) == (start.month, start.day)
+            else:
+                # Unknown rule frequency: fall back to seed instance if in range.
+                is_match = candidate.date() == start.date()
+
+            if is_match:
+                append_event(candidate)
+                generated += 1
+                if count_limit and generated >= count_limit:
+                    break
+
+            current_day += timedelta(days=1)
+
+    # De-dupe (title + start + end) to avoid duplicates from recurrence + detached instances.
+    deduped = []
+    seen = set()
+    for e in events:
+        key = (e.get("title", ""), e.get("startTime", ""), e.get("endTime", ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(e)
+
+    return deduped
 
 def parse_ical_dt(raw):
     """Parse iCal datetime to naive local datetime for display.
@@ -586,7 +808,15 @@ def parse_ical_dt(raw):
     raw = raw.rstrip('Z')
     try:
         if 'T' in raw:
-            dt = datetime.strptime(raw, '%Y%m%dT%H%M%S')
+            dt = None
+            for fmt in ('%Y%m%dT%H%M%S', '%Y%m%dT%H%M'):
+                try:
+                    dt = datetime.strptime(raw, fmt)
+                    break
+                except Exception:
+                    continue
+            if dt is None:
+                return None
         else:
             dt = datetime.strptime(raw, '%Y%m%d')
         if is_utc:
@@ -600,27 +830,31 @@ def fetch_ical_feeds():
     """Fetch all configured iCal feeds and parse events."""
     feeds = load_ical_feeds()
     all_events = []
+    successful_fetches = 0
     for feed in feeds:
         url = feed.get("url", "")
         label = feed.get("label", "calendar")
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "alfredo-kiosk/1.0"})
-            with urllib.request.urlopen(req, timeout=10) as r:
+            with urllib.request.urlopen(req, timeout=25) as r:
                 ics = r.read().decode("utf-8", errors="replace")
             events = parse_ical(ics)
             for e in events:
                 e["calendar"] = label
             all_events.extend(events)
+            successful_fetches += 1
         except Exception as ex:
             print(f"[cal] Failed to fetch {label}: {ex}")
+
+    # Don't nuke existing events if all feeds fail in this round.
+    if successful_fetches == 0:
+        print("[cal] all feed fetches failed; keeping previous cache")
+        return
+
     cal_state["ical_events"] = all_events
     cal_state["ical_fetch_time"] = time.time()
     # Persist to disk for fast startup
-    try:
-        with open(CALENDAR_CACHE_FILE, "w") as f:
-            json.dump({"ical": all_events, "ts": time.time()}, f)
-    except Exception:
-        pass
+    save_calendar_cache()
 
 def calendar_fetch_loop():
     """Background thread: fetch iCal feeds every 5 min."""
@@ -651,11 +885,19 @@ def get_merged_calendar():
         if key not in seen_keys:
             events.append(e)
 
+    # If iCal has no near events and Mac push isn't fresh, fall back to
+    # most recently cached Mac events so the calendar isn't blank after reboot.
+    source = "hybrid"
+    if not events and cal_state["mac_events"]:
+        source = "mac-cache"
+        for e in cal_state["mac_events"]:
+            events.append({**e, "source": "mac-cache"})
+
     # Sort by start time
     events.sort(key=lambda e: e.get("startTime", ""))
     return {
         "events": events,
-        "source": "hybrid",
+        "source": source,
         "mac_fresh": mac_fresh,
         "ical_fetch_age": round(now - cal_state["ical_fetch_time"]) if cal_state["ical_fetch_time"] else None,
         "mac_push_age": round(now - cal_state["mac_push_time"]) if cal_state["mac_push_time"] else None,
@@ -666,7 +908,9 @@ try:
     with open(CALENDAR_CACHE_FILE) as f:
         cached = json.load(f)
         cal_state["ical_events"] = cached.get("ical", [])
-        cal_state["ical_fetch_time"] = cached.get("ts", 0)
+        cal_state["ical_fetch_time"] = cached.get("ical_ts", cached.get("ts", 0))
+        cal_state["mac_events"] = cached.get("mac", [])
+        cal_state["mac_push_time"] = cached.get("mac_ts", 0)
 except Exception:
     pass
 
@@ -734,12 +978,96 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             PRESENCE_HOSTS = hosts
             self.send_response(200); self.end_headers()
             self.wfile.write(json.dumps({"ok": True}).encode())
+        elif self.path == "/proxy/vault-sync":
+            body = self._read_json_body()
+            if body is None: return
+            with vault_lock:
+                now = time.time()
+                kiosk_newer = (
+                    vault_state["last_edit_src"] == "kiosk"
+                    and vault_state["last_edit_ts"] > vault_state["mac_push_ts"]
+                )
+                if not kiosk_newer:
+                    vault_state["work"] = body.get("work", [])
+                    vault_state["personal"] = body.get("personal", [])
+                    vault_state["version"] += 1
+                    vault_state["last_edit_src"] = "mac"
+                    vault_state["last_edit_ts"] = now
+                vault_state["mac_push_ts"] = now
+                save_vault_cache_locked()
+                resp = {
+                    "work": vault_state["work"],
+                    "personal": vault_state["personal"],
+                    "version": vault_state["version"],
+                    "kiosk_has_edits": kiosk_newer,
+                    "last_edit_src": vault_state["last_edit_src"],
+                    "last_edit_ts": vault_state["last_edit_ts"],
+                }
+            self._json(resp)
+        elif self.path == "/proxy/vault-push":
+            # Kiosk → Pi: kiosk pushes the full task arrays after any local edit.
+            # Treat as a "kiosk" edit so Mac write-back picks it up.
+            body = self._read_json_body()
+            if body is None: return
+            with vault_lock:
+                vault_state["work"] = body.get("work", vault_state["work"])
+                vault_state["personal"] = body.get("personal", vault_state["personal"])
+                vault_state["version"] += 1
+                vault_state["last_edit_src"] = "kiosk"
+                vault_state["last_edit_ts"] = time.time()
+                save_vault_cache_locked()
+            self._json({"ok": True, "version": vault_state["version"]})
+        elif self.path == "/proxy/vault-edit":
+            body = self._read_json_body()
+            if body is None: return
+            scope = body.get("scope", "")
+            if scope not in ("work", "personal"):
+                self._json({"ok": False, "error": "bad scope"}, code=400); return
+            action = body.get("action", "toggle")
+            with vault_lock:
+                tasks = vault_state[scope]
+                if action == "toggle":
+                    line = body.get("line")
+                    text = body.get("text")
+                    done = bool(body.get("done"))
+                    for t in tasks:
+                        if (line is not None and t.get("line") == line) or (text is not None and t.get("text") == text):
+                            t["done"] = done
+                            break
+                elif action == "add":
+                    tasks.append({
+                        "text": (body.get("text") or "").strip(),
+                        "done": False,
+                        "hot": bool(body.get("hot", False)),
+                        "line": None,
+                    })
+                elif action == "delete":
+                    line = body.get("line")
+                    text = body.get("text")
+                    vault_state[scope] = [
+                        t for t in tasks
+                        if not ((line is not None and t.get("line") == line) or (text is not None and t.get("text") == text))
+                    ]
+                elif action == "update":
+                    line = body.get("line")
+                    new_text = body.get("text")
+                    for t in tasks:
+                        if t.get("line") == line and new_text is not None:
+                            t["text"] = new_text
+                            break
+                vault_state["version"] += 1
+                vault_state["last_edit_src"] = "kiosk"
+                vault_state["last_edit_ts"] = time.time()
+                save_vault_cache_locked()
+                resp = {"ok": True, "version": vault_state["version"]}
+            self._json(resp)
         elif self.path == "/proxy/calendar":
             # Mac pushes richer EventKit events here
             body = self._read_json_body()
             if body is None: return
             cal_state["mac_events"] = body.get("events", [])
             cal_state["mac_push_time"] = time.time()
+            save_calendar_cache()
             self._json({"ok": True, "count": len(cal_state["mac_events"])})
         elif self.path == "/proxy/calendar-feeds":
             # Configure iCal feed URLs
@@ -871,6 +1199,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if len(voice_events) > VOICE_EVENT_MAX:
                 voice_events.pop(0)
             self._json({"ok": True})
+        elif self.path.startswith("/proxy/app-layout"):
+            # Save a layout for a target (mac | iphone | kiosk)
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            target = (qs.get("target", [""])[0] or "").strip().lower()
+            if target not in ("kiosk", "mac", "iphone"):
+                self._json({"ok": False, "error": "invalid target"}, code=400); return
+            body = self._read_json_body()
+            if body is None: return
+            app_layouts[target] = {
+                "name": body.get("name", "custom"),
+                "layout": body.get("layout", {}),
+                "updated_at": time.time(),
+            }
+            try:
+                APP_LAYOUTS_FILE.write_text(json.dumps(app_layouts, indent=2))
+            except Exception as e:
+                print(f"[app-layout] write failed: {e}")
+            self._json({"ok": True, "target": target, "name": app_layouts[target]["name"]})
         elif self.path == "/proxy/direct-context":
             body = self._read_json_body()
             if body is None: return
@@ -1050,10 +1397,29 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json({"muted": voice_muted})
         elif self.path == "/proxy/voice-activate":
             self._json({"active": voice_push_active})
+        elif self.path == "/proxy/vault-tasks":
+            with vault_lock:
+                self._json({
+                    "work": vault_state["work"],
+                    "personal": vault_state["personal"],
+                    "version": vault_state["version"],
+                    "last_edit_src": vault_state["last_edit_src"],
+                    "last_edit_ts": vault_state["last_edit_ts"],
+                })
         elif self.path == "/proxy/direct-context":
             snapshot = dict(direct_context)
             snapshot["calendar"] = get_merged_calendar().get("events", [])
             self._json(snapshot)
+        elif self.path.startswith("/proxy/app-layout"):
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            target = (qs.get("target", [""])[0] or "").strip().lower()
+            if target in ("kiosk", "mac", "iphone") and target in app_layouts:
+                self._json(app_layouts[target])
+            elif target in ("kiosk", "mac", "iphone"):
+                self._json({"name": None, "layout": {}, "updated_at": 0})
+            else:
+                self._json({"targets": list(app_layouts.keys()), "all": app_layouts})
         else:
             super().do_GET()
 

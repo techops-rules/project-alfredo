@@ -66,7 +66,15 @@ done
 
 if $RESTART_SERVE; then
     echo -e "${D}[$(date +%H:%M:%S)]${R} ${Y}RESTART${R}  serve.py (config changed)..."
-    ssh "$PI" "pkill -f 'python.*serve.py' 2>/dev/null; sleep 1; cd $KIOSK_DIR && nohup python3 serve.py > /tmp/serve.log 2>&1 &"
+    ssh "$PI" "
+      if systemctl list-unit-files --type=service 2>/dev/null | grep -q '^alfredo-kiosk-web.service'; then
+        sudo systemctl restart alfredo-kiosk-web.service
+      else
+        pkill -f 'python.*serve.py' 2>/dev/null || true
+        sleep 1
+        cd $KIOSK_DIR && nohup python3 serve.py > /tmp/serve.log 2>&1 &
+      fi
+    "
     sleep 2
     HEALTH=$(ssh "$PI" "curl -s http://localhost:8430/proxy/health 2>/dev/null" || echo '{"status":"offline"}')
     echo -e "${D}[$(date +%H:%M:%S)]${R} ${G}HEALTH${R}  bridge: $HEALTH"

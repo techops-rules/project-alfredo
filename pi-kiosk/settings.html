@@ -90,6 +90,10 @@
   .le-resize { position:absolute; bottom:0; right:0; width:10px; height:10px; cursor:se-resize; }
   .le-resize::after { content:''; position:absolute; bottom:2px; right:2px; width:5px; height:5px; border-right:1.5px solid var(--accent); border-bottom:1.5px solid var(--accent); }
   .le-widget.hidden-w { opacity:0.2; border-style:dashed; }
+  .le-target-bar { display:flex; gap:0; margin-bottom:10px; border-bottom:1px solid var(--accent-border); }
+  .le-target-tab { font-family:var(--font); font-size:10px; font-weight:700; letter-spacing:2px; padding:8px 18px; border:none; background:transparent; color:var(--text2); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .le-target-tab:hover { color:var(--text); }
+  .le-target-tab.active { color:var(--accent); border-bottom-color:var(--accent); background:rgba(97,175,239,0.04); }
   .le-toolbar { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
   .le-size-label { font-size:9px; color:var(--text2); }
   .le-presets-row { display:flex; gap:6px; align-items:center; margin-top:8px; flex-wrap:wrap; }
@@ -199,8 +203,10 @@
       <div class="section-title">LAYOUT EDITOR</div>
       <div class="section-desc">Drag widgets to reposition · drag corner to resize · click to select · toggle visibility</div>
 
+      <div class="le-target-bar" id="leTargetTabs"></div>
+
       <div class="le-toolbar">
-        <span class="le-size-label">CANVAS: 1024×572 (screen minus statusbar)</span>
+        <span class="le-size-label">CANVAS: 1024×572 · Pi display</span>
         <button class="btn" onclick="leResetLayout()">RESET</button>
         <button class="btn" onclick="leToggleSelected()">TOGGLE VISIBILITY</button>
         <span id="leSelLabel" style="font-size:9px;color:var(--text2);margin-left:4px"></span>
@@ -210,17 +216,15 @@
 
       <div class="le-presets-row">
         <span style="font-size:9px;color:var(--text2);letter-spacing:1px">LOAD PRESET:</span>
-        <button class="le-preset-chip" data-le-preset="default">DEFAULT</button>
-        <button class="le-preset-chip" data-le-preset="focus">FOCUS</button>
-        <button class="le-preset-chip" data-le-preset="terminal">TERMINAL</button>
-        <div id="customPresetBtns"></div>
+        <div id="lePresetChips" style="display:inline-flex;gap:6px"></div>
+        <div id="customPresetBtns" style="display:inline-flex;gap:4px;margin-left:8px"></div>
       </div>
 
       <div class="le-save-row">
         <input class="le-name-input" id="leLayoutName" placeholder="layout name..." maxlength="20">
         <button class="btn primary" onclick="leSaveLayout()">SAVE AS NEW LAYOUT</button>
         <button class="btn" onclick="leUpdateLayout()">UPDATE CURRENT</button>
-        <button class="btn" onclick="leApplyToKiosk()">▶ APPLY TO KIOSK</button>
+        <button class="btn" id="leApplyBtn" onclick="leApply()">▶ APPLY TO KIOSK</button>
       </div>
     </div>
 
@@ -493,98 +497,309 @@ async function reloadKiosk(){await fetch('/reload-kiosk',{method:'POST'}).catch(
 // ═══════════════════════════════════════════════════════════
 // LAYOUT EDITOR
 // ═══════════════════════════════════════════════════════════
-const LE_W=1024, LE_H=572;  // kiosk canvas size
-const LE_SCALE=0.72;        // editor scale factor
-
-const LE_WIDGET_DEFS = {
-  'w-clock':   {label:'CLOCK.SYS'},
-  'w-today':   {label:'TODAY.EXE'},
-  'w-work':    {label:'WORK.TODO'},
-  'w-life':    {label:'LIFE.TODO'},
-  'w-cal':     {label:'CALENDAR.DAT'},
-  'w-tty':     {label:'CLAUDE.TTY'},
-  'w-stats':   {label:'STATS.DAT'},
-  'w-scratch': {label:'SCRATCH.PAD'},
+// ── Multi-target layout editor config ──────────────────────────────────
+// Each target has its own canvas size, widget IDs, presets, and storage key.
+// KIOSK applies live via broadcast(); MAC + IPHONE save locally and will be
+// fetched by the native apps via /proxy/app-layout (follow-up wire-up).
+const LE_TARGETS = {
+  kiosk: {
+    label: 'KIOSK', sub: 'Pi display', w: 1024, h: 572, scale: 0.72,
+    storageKey: 'customLayouts_kiosk', applyLive: true,
+    widgetDefs: {
+      'w-clock':   {label:'CLOCK.SYS'},
+      'w-today':   {label:'TODAY.EXE'},
+      'w-work':    {label:'WORK.TODO'},
+      'w-life':    {label:'LIFE.TODO'},
+      'w-cal':     {label:'CALENDAR.DAT'},
+      'w-tty':     {label:'CLAUDE.TTY'},
+      'w-stats':   {label:'STATS.DAT'},
+      'w-scratch': {label:'SCRATCH.PAD'},
+    },
+    presets: {
+      default: {
+        'w-clock':   {x:16,  y:8,   w:280, h:90,  vis:true},
+        'w-today':   {x:310, y:8,   w:698, h:90,  vis:true},
+        'w-work':    {x:16,  y:110, w:310, h:230, vis:true},
+        'w-life':    {x:340, y:110, w:310, h:230, vis:true},
+        'w-cal':     {x:16,  y:352, w:310, h:195, vis:true},
+        'w-tty':     {x:340, y:352, w:310, h:195, vis:true},
+        'w-stats':   {x:668, y:110, w:340, h:165, vis:true},
+        'w-scratch': {x:668, y:287, w:340, h:260, vis:true},
+      },
+      focus: {
+        'w-clock':   {x:16,  y:8,   w:340, h:90,  vis:true},
+        'w-today':   {x:370, y:8,   w:638, h:90,  vis:true},
+        'w-work':    {x:16,  y:110, w:490, h:440, vis:true},
+        'w-life':    {x:520, y:110, w:490, h:440, vis:true},
+        'w-cal':     {x:0,   y:0,   w:300, h:200, vis:false},
+        'w-tty':     {x:0,   y:0,   w:300, h:200, vis:false},
+        'w-stats':   {x:0,   y:0,   w:300, h:200, vis:false},
+        'w-scratch': {x:0,   y:0,   w:300, h:200, vis:false},
+      },
+      terminal: {
+        'w-clock':   {x:16,  y:8,   w:280, h:90,  vis:true},
+        'w-today':   {x:310, y:8,   w:698, h:90,  vis:true},
+        'w-work':    {x:16,  y:110, w:300, h:440, vis:true},
+        'w-life':    {x:0,   y:0,   w:300, h:200, vis:false},
+        'w-cal':     {x:0,   y:0,   w:300, h:200, vis:false},
+        'w-tty':     {x:330, y:110, w:678, h:440, vis:true},
+        'w-stats':   {x:0,   y:0,   w:300, h:200, vis:false},
+        'w-scratch': {x:0,   y:0,   w:300, h:200, vis:false},
+      },
+    },
+  },
+  mac: {
+    label: 'MAC', sub: 'free-form canvas', w: 1280, h: 800, scale: 0.55,
+    storageKey: 'customLayouts_mac', applyLive: false,
+    widgetDefs: {
+      'clock':        {label:'CLOCK'},
+      'todayBar':     {label:'TODAY'},
+      'weather':      {label:'WEATHER'},
+      'workTasks':    {label:'WORK.TODO'},
+      'lifeTasks':    {label:'LIFE.TODO'},
+      'calendar':     {label:'CALENDAR'},
+      'hotlist':      {label:'HOTLIST'},
+      'terminal':     {label:'ALFREDO.TTY'},
+      'scratchpad':   {label:'SCRATCH'},
+      'habits':       {label:'HABITS'},
+      'projects':     {label:'PROJECTS'},
+      'goals':        {label:'GOALS'},
+      'stats':        {label:'STATS'},
+    },
+    presets: {
+      command: {
+        'clock':      {x:24,   y:16,  w:220, h:120, vis:true},
+        'todayBar':   {x:260,  y:16,  w:700, h:120, vis:true},
+        'weather':    {x:980,  y:16,  w:276, h:200, vis:true},
+        'workTasks':  {x:24,   y:156, w:460, h:320, vis:true},
+        'lifeTasks':  {x:500,  y:156, w:460, h:320, vis:true},
+        'calendar':   {x:24,   y:496, w:460, h:280, vis:true},
+        'hotlist':    {x:500,  y:496, w:460, h:280, vis:true},
+        'terminal':   {x:980,  y:236, w:276, h:280, vis:true},
+        'scratchpad': {x:980,  y:536, w:276, h:240, vis:true},
+        'habits':     {x:0,    y:0,   w:260, h:180, vis:false},
+        'projects':   {x:0,    y:0,   w:260, h:180, vis:false},
+        'goals':      {x:0,    y:0,   w:260, h:180, vis:false},
+        'stats':      {x:0,    y:0,   w:260, h:180, vis:false},
+      },
+      focus: {
+        'clock':      {x:24,   y:16,  w:260, h:100, vis:true},
+        'todayBar':   {x:300,  y:16,  w:960, h:100, vis:true},
+        'weather':    {x:0,    y:0,   w:260, h:180, vis:false},
+        'workTasks':  {x:24,   y:136, w:620, h:640, vis:true},
+        'lifeTasks':  {x:0,    y:0,   w:260, h:180, vis:false},
+        'calendar':   {x:660,  y:136, w:300, h:320, vis:true},
+        'hotlist':    {x:660,  y:476, w:300, h:300, vis:true},
+        'terminal':   {x:980,  y:136, w:280, h:640, vis:true},
+        'scratchpad': {x:0,    y:0,   w:260, h:180, vis:false},
+        'habits':     {x:0,    y:0,   w:260, h:180, vis:false},
+        'projects':   {x:0,    y:0,   w:260, h:180, vis:false},
+        'goals':      {x:0,    y:0,   w:260, h:180, vis:false},
+        'stats':      {x:0,    y:0,   w:260, h:180, vis:false},
+      },
+      clean: {
+        'clock':      {x:24,   y:16,  w:260, h:140, vis:true},
+        'todayBar':   {x:300,  y:16,  w:620, h:140, vis:true},
+        'weather':    {x:940,  y:16,  w:316, h:240, vis:true},
+        'workTasks':  {x:24,   y:180, w:448, h:596, vis:true},
+        'lifeTasks':  {x:488,  y:180, w:432, h:596, vis:true},
+        'calendar':   {x:940,  y:276, w:316, h:500, vis:true},
+        'hotlist':    {x:0,    y:0,   w:260, h:180, vis:false},
+        'terminal':   {x:0,    y:0,   w:260, h:180, vis:false},
+        'scratchpad': {x:0,    y:0,   w:260, h:180, vis:false},
+        'habits':     {x:0,    y:0,   w:260, h:180, vis:false},
+        'projects':   {x:0,    y:0,   w:260, h:180, vis:false},
+        'goals':      {x:0,    y:0,   w:260, h:180, vis:false},
+        'stats':      {x:0,    y:0,   w:260, h:180, vis:false},
+      },
+    },
+  },
+  iphone: {
+    label: 'IPHONE', sub: 'two vertical screens', w: 390, h: 1688, scale: 0.38,
+    storageKey: 'customLayouts_iphone', applyLive: false,
+    widgetDefs: {
+      'weather':      {label:'WEATHER'},
+      'hotlist':      {label:'HOTLIST'},
+      'calendar':     {label:'CALENDAR'},
+      'workTasks':    {label:'WORK.TODO'},
+      'lifeTasks':    {label:'LIFE.TODO'},
+      'habits':       {label:'HABITS'},
+      'projects':     {label:'PROJECTS'},
+      'goals':        {label:'GOALS'},
+      'stats':        {label:'STATS'},
+      'scratchpad':   {label:'SCRATCH'},
+      'deferredTasks':{label:'DEFERRED'},
+      'waitingTasks': {label:'WAITING'},
+      'longTermTasks':{label:'LONG-TERM'},
+      'funFact':      {label:'FUN.FACT'},
+    },
+    presets: {
+      dashboard: {
+        // Screen 1 (top)
+        'weather':      {x:8,  y:8,    w:374, h:130, vis:true},
+        'hotlist':      {x:8,  y:143,  w:374, h:220, vis:true},
+        'calendar':     {x:8,  y:368,  w:374, h:250, vis:true},
+        'workTasks':    {x:8,  y:623,  w:374, h:280, vis:true},
+        // Screen 2 (below)
+        'lifeTasks':    {x:8,  y:960,  w:374, h:230, vis:true},
+        'habits':       {x:8,  y:1195, w:374, h:180, vis:true},
+        'projects':     {x:8,  y:1380, w:374, h:160, vis:true},
+        'goals':        {x:8,  y:1545, w:374, h:140, vis:true},
+        'stats':        {x:0, y:0, w:180, h:160, vis:false},
+        'scratchpad':   {x:0, y:0, w:180, h:160, vis:false},
+        'deferredTasks':{x:0, y:0, w:180, h:160, vis:false},
+        'waitingTasks': {x:0, y:0, w:180, h:160, vis:false},
+        'longTermTasks':{x:0, y:0, w:180, h:160, vis:false},
+        'funFact':      {x:0, y:0, w:180, h:160, vis:false},
+      },
+      focus: {
+        'weather':      {x:8,  y:8,    w:374, h:100, vis:true},
+        'hotlist':      {x:8,  y:113,  w:374, h:200, vis:true},
+        'workTasks':    {x:8,  y:318,  w:374, h:560, vis:true},
+        'calendar':     {x:8,  y:910,  w:374, h:260, vis:true},
+        'lifeTasks':    {x:0, y:0, w:180, h:160, vis:false},
+        'habits':       {x:0, y:0, w:180, h:160, vis:false},
+        'projects':     {x:0, y:0, w:180, h:160, vis:false},
+        'goals':        {x:0, y:0, w:180, h:160, vis:false},
+        'stats':        {x:0, y:0, w:180, h:160, vis:false},
+        'scratchpad':   {x:0, y:0, w:180, h:160, vis:false},
+        'deferredTasks':{x:0, y:0, w:180, h:160, vis:false},
+        'waitingTasks': {x:0, y:0, w:180, h:160, vis:false},
+        'longTermTasks':{x:0, y:0, w:180, h:160, vis:false},
+        'funFact':      {x:0, y:0, w:180, h:160, vis:false},
+      },
+      minimal: {
+        'weather':      {x:8,  y:8,    w:374, h:130, vis:true},
+        'hotlist':      {x:8,  y:143,  w:374, h:260, vis:true},
+        'calendar':     {x:8,  y:408,  w:374, h:220, vis:true},
+        'workTasks':    {x:0, y:0, w:180, h:160, vis:false},
+        'lifeTasks':    {x:0, y:0, w:180, h:160, vis:false},
+        'habits':       {x:0, y:0, w:180, h:160, vis:false},
+        'projects':     {x:0, y:0, w:180, h:160, vis:false},
+        'goals':        {x:0, y:0, w:180, h:160, vis:false},
+        'stats':        {x:0, y:0, w:180, h:160, vis:false},
+        'scratchpad':   {x:0, y:0, w:180, h:160, vis:false},
+        'deferredTasks':{x:0, y:0, w:180, h:160, vis:false},
+        'waitingTasks': {x:0, y:0, w:180, h:160, vis:false},
+        'longTermTasks':{x:0, y:0, w:180, h:160, vis:false},
+        'funFact':      {x:0, y:0, w:180, h:160, vis:false},
+      },
+    },
+  },
 };
 
-const LE_PRESETS = {
-  default: {
-    'w-clock':   {x:16,  y:8,   w:280, h:90,  vis:true},
-    'w-today':   {x:310, y:8,   w:698, h:90,  vis:true},
-    'w-work':    {x:16,  y:110, w:310, h:230, vis:true},
-    'w-life':    {x:340, y:110, w:310, h:230, vis:true},
-    'w-cal':     {x:16,  y:352, w:310, h:195, vis:true},
-    'w-tty':     {x:340, y:352, w:310, h:195, vis:true},
-    'w-stats':   {x:668, y:110, w:340, h:165, vis:true},
-    'w-scratch': {x:668, y:287, w:340, h:260, vis:true},
-  },
-  focus: {
-    'w-clock':   {x:16,  y:8,   w:340, h:90,  vis:true},
-    'w-today':   {x:370, y:8,   w:638, h:90,  vis:true},
-    'w-work':    {x:16,  y:110, w:490, h:440, vis:true},
-    'w-life':    {x:520, y:110, w:490, h:440, vis:true},
-    'w-cal':     {x:0,   y:0,   w:300, h:200, vis:false},
-    'w-tty':     {x:0,   y:0,   w:300, h:200, vis:false},
-    'w-stats':   {x:0,   y:0,   w:300, h:200, vis:false},
-    'w-scratch': {x:0,   y:0,   w:300, h:200, vis:false},
-  },
-  terminal: {
-    'w-clock':   {x:16,  y:8,   w:280, h:90,  vis:true},
-    'w-today':   {x:310, y:8,   w:698, h:90,  vis:true},
-    'w-work':    {x:16,  y:110, w:300, h:440, vis:true},
-    'w-life':    {x:0,   y:0,   w:300, h:200, vis:false},
-    'w-cal':     {x:0,   y:0,   w:300, h:200, vis:false},
-    'w-tty':     {x:330, y:110, w:678, h:440, vis:true},
-    'w-stats':   {x:0,   y:0,   w:300, h:200, vis:false},
-    'w-scratch': {x:0,   y:0,   w:300, h:200, vis:false},
-  },
-};
+let leTarget = 'kiosk';
+function leCfg(){ return LE_TARGETS[leTarget]; }
+function leW(){ return leCfg().w; }
+function leH(){ return leCfg().h; }
+function leScale(){ return leCfg().scale; }
+function leWidgetDefs(){ return leCfg().widgetDefs; }
+function lePresets(){ return leCfg().presets; }
+function leFirstPreset(){ return Object.keys(leCfg().presets)[0]; }
 
 let leState = {};        // id → {x,y,w,h,vis}
 let leSelected = null;
 let leDrag = null;       // {id, startX, startY, origX, origY}
 let leResize = null;     // {id, startX, startY, origW, origH}
 let leCurrentPreset = 'default';
-let leCustomLayouts = {};
+let leCustomLayouts = {};   // layouts for current target only
+
+function leActiveLayoutKey(){ return 'activeLayout_' + leTarget; }
+
+function loadCustomsForTarget(){
+  leCustomLayouts = getLS(leCfg().storageKey, {});
+}
 
 function initLayoutEditor(){
-  leCustomLayouts = getLS('customLayouts', {});
-  renderCustomPresetBtns();
+  renderTargetTabs();
+  switchTarget(leTarget, /*silent*/ true);
+}
 
-  const activeLayout = getLS('activeLayout','default');
-  // Load from kiosk localStorage if custom, else from preset
-  if(LE_PRESETS[activeLayout]){
-    leState = JSON.parse(JSON.stringify(LE_PRESETS[activeLayout]));
+function switchTarget(t, silent){
+  if (!LE_TARGETS[t]) return;
+  leTarget = t;
+  leSelected = null;
+  loadCustomsForTarget();
+  const presets = lePresets();
+  const presetKeys = Object.keys(presets);
+  const activeLayout = getLS(leActiveLayoutKey(), presetKeys[0]);
+  if (presets[activeLayout]) {
+    leState = JSON.parse(JSON.stringify(presets[activeLayout]));
     leCurrentPreset = activeLayout;
-  } else if(leCustomLayouts[activeLayout]){
+  } else if (leCustomLayouts[activeLayout]) {
     leState = JSON.parse(JSON.stringify(leCustomLayouts[activeLayout]));
     leCurrentPreset = activeLayout;
   } else {
-    leState = JSON.parse(JSON.stringify(LE_PRESETS.default));
-    leCurrentPreset = 'default';
+    leState = JSON.parse(JSON.stringify(presets[presetKeys[0]]));
+    leCurrentPreset = presetKeys[0];
   }
+  renderTargetTabs();
+  renderPresetChips();
+  renderCustomPresetBtns();
   renderLeCanvas();
   highlightLePreset(leCurrentPreset);
+  updateApplyButton();
+  const sizeLabel = document.querySelector('.le-size-label');
+  if (sizeLabel) sizeLabel.textContent = 'CANVAS: ' + leW() + '×' + leH() + ' · ' + leCfg().sub;
+}
+
+function renderTargetTabs(){
+  const bar = document.getElementById('leTargetTabs');
+  if (!bar) return;
+  bar.innerHTML = Object.entries(LE_TARGETS).map(([k,v]) =>
+    '<button class="le-target-tab' + (k===leTarget?' active':'') + '" data-le-target="'+k+'">'+v.label+'</button>'
+  ).join('');
+  bar.querySelectorAll('[data-le-target]').forEach(b => {
+    b.addEventListener('click', () => switchTarget(b.dataset.leTarget));
+  });
+}
+
+function renderPresetChips(){
+  const bar = document.getElementById('lePresetChips');
+  if (!bar) return;
+  bar.innerHTML = Object.keys(lePresets()).map(p =>
+    '<button class="le-preset-chip" data-le-preset="'+p+'">'+p.toUpperCase()+'</button>'
+  ).join('');
+  bar.querySelectorAll('[data-le-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = btn.dataset.lePreset;
+      const src = lePresets()[p];
+      if (src) { leState=JSON.parse(JSON.stringify(src)); leCurrentPreset=p; renderLeCanvas(); highlightLePreset(p); }
+    });
+  });
+}
+
+function updateApplyButton(){
+  const btn = document.getElementById('leApplyBtn');
+  if (!btn) return;
+  if (leCfg().applyLive) {
+    btn.textContent = '▶ APPLY TO KIOSK';
+    btn.style.display = '';
+  } else {
+    btn.textContent = '▶ SAVE FOR ' + leCfg().label;
+    btn.style.display = '';
+  }
 }
 
 function renderLeCanvas(){
   const canvas = document.getElementById('leCanvas');
-  const cw = Math.floor(LE_W * LE_SCALE);
-  const ch = Math.floor(LE_H * LE_SCALE);
+  const scale = leScale();
+  const cw = Math.floor(leW() * scale);
+  const ch = Math.floor(leH() * scale);
   canvas.style.width = cw + 'px';
   canvas.style.height = ch + 'px';
   canvas.innerHTML = '';
 
-  Object.entries(LE_WIDGET_DEFS).forEach(([id, def])=>{
+  Object.entries(leWidgetDefs()).forEach(([id, def])=>{
     const s = leState[id];
     if(!s) return;
     const el = document.createElement('div');
     el.className = 'le-widget' + (s.vis?'':' hidden-w');
     el.id = 'le-'+id;
-    el.style.left   = Math.round(s.x * LE_SCALE) + 'px';
-    el.style.top    = Math.round(s.y * LE_SCALE) + 'px';
-    el.style.width  = Math.round(s.w * LE_SCALE) + 'px';
-    el.style.height = Math.round(s.h * LE_SCALE) + 'px';
+    el.style.left   = Math.round(s.x * scale) + 'px';
+    el.style.top    = Math.round(s.y * scale) + 'px';
+    el.style.width  = Math.round(s.w * scale) + 'px';
+    el.style.height = Math.round(s.h * scale) + 'px';
 
     const title = document.createElement('div');
     title.className = 'le-widget-title'; title.textContent = def.label;
@@ -594,19 +809,16 @@ function renderLeCanvas(){
     el.appendChild(title); el.appendChild(body); el.appendChild(resz);
     canvas.appendChild(el);
 
-    // Drag
     title.addEventListener('mousedown', e=>{
       if(e.button!==0) return;
       leSelected = id;
       updateLeSelLabel();
       document.querySelectorAll('.le-widget').forEach(w=>w.classList.remove('selected'));
       el.classList.add('selected');
-      const rect = canvas.getBoundingClientRect();
       leDrag = {id, startX: e.clientX, startY: e.clientY, origX: s.x, origY: s.y};
       e.preventDefault();
     });
 
-    // Resize
     resz.addEventListener('mousedown', e=>{
       if(e.button!==0) return;
       leSelected = id;
@@ -625,31 +837,32 @@ function renderLeCanvas(){
 
 function updateLeSelLabel(){
   const s = leState[leSelected];
-  const def = LE_WIDGET_DEFS[leSelected];
+  const def = leWidgetDefs()[leSelected];
   if(!s||!def) return;
   document.getElementById('leSelLabel').textContent =
     def.label + ' · ' + Math.round(s.x)+','+Math.round(s.y)+' '+Math.round(s.w)+'×'+Math.round(s.h) + (s.vis?' · VISIBLE':' · HIDDEN');
 }
 
 document.addEventListener('mousemove', e=>{
+  const scale = leScale();
   if(leDrag){
-    const dx = (e.clientX - leDrag.startX) / LE_SCALE;
-    const dy = (e.clientY - leDrag.startY) / LE_SCALE;
+    const dx = (e.clientX - leDrag.startX) / scale;
+    const dy = (e.clientY - leDrag.startY) / scale;
     const s = leState[leDrag.id];
     s.x = Math.max(0, Math.round(leDrag.origX + dx));
     s.y = Math.max(0, Math.round(leDrag.origY + dy));
     const el = document.getElementById('le-'+leDrag.id);
-    if(el){ el.style.left=Math.round(s.x*LE_SCALE)+'px'; el.style.top=Math.round(s.y*LE_SCALE)+'px'; }
+    if(el){ el.style.left=Math.round(s.x*scale)+'px'; el.style.top=Math.round(s.y*scale)+'px'; }
     updateLeSelLabel();
   }
   if(leResize){
-    const dx = (e.clientX - leResize.startX) / LE_SCALE;
-    const dy = (e.clientY - leResize.startY) / LE_SCALE;
+    const dx = (e.clientX - leResize.startX) / scale;
+    const dy = (e.clientY - leResize.startY) / scale;
     const s = leState[leResize.id];
     s.w = Math.max(60, Math.round(leResize.origW + dx));
     s.h = Math.max(40, Math.round(leResize.origH + dy));
     const el = document.getElementById('le-'+leResize.id);
-    if(el){ el.style.width=Math.round(s.w*LE_SCALE)+'px'; el.style.height=Math.round(s.h*LE_SCALE)+'px'; }
+    if(el){ el.style.width=Math.round(s.w*scale)+'px'; el.style.height=Math.round(s.h*scale)+'px'; }
     updateLeSelLabel();
   }
 });
@@ -663,18 +876,10 @@ function leToggleSelected(){
   updateLeSelLabel();
 }
 function leResetLayout(){
-  leState = JSON.parse(JSON.stringify(LE_PRESETS[leCurrentPreset]||LE_PRESETS.default));
+  const presets = lePresets();
+  leState = JSON.parse(JSON.stringify(presets[leCurrentPreset]||presets[leFirstPreset()]));
   renderLeCanvas();
 }
-
-// Preset buttons in editor
-document.querySelectorAll('[data-le-preset]').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    const p = btn.dataset.lePreset;
-    const src = LE_PRESETS[p] || leCustomLayouts[p];
-    if(src){ leState=JSON.parse(JSON.stringify(src)); leCurrentPreset=p; renderLeCanvas(); highlightLePreset(p);}
-  });
-});
 
 function highlightLePreset(name){
   document.querySelectorAll('[data-le-preset]').forEach(b=>b.classList.toggle('active',b.dataset.lePreset===name));
@@ -685,49 +890,57 @@ function leSaveLayout(){
   const name = document.getElementById('leLayoutName').value.trim();
   if(!name){alert('Enter a layout name first'); return;}
   leCustomLayouts[name] = JSON.parse(JSON.stringify(leState));
-  setLS('customLayouts', leCustomLayouts);
+  setLS(leCfg().storageKey, leCustomLayouts);
   leCurrentPreset = name;
   renderCustomPresetBtns();
   highlightLePreset(name);
-  leApplyToKiosk();
-  flashSaved();
+  leApply(); flashSaved();
 }
 function leUpdateLayout(){
   if(!leCurrentPreset){alert('No current layout to update'); return;}
-  if(LE_PRESETS[leCurrentPreset]){
-    // Don't overwrite built-in, save as copy
+  const presets = lePresets();
+  if(presets[leCurrentPreset]){
     const name = leCurrentPreset + '-custom';
     leCustomLayouts[name] = JSON.parse(JSON.stringify(leState));
-    setLS('customLayouts', leCustomLayouts);
+    setLS(leCfg().storageKey, leCustomLayouts);
     leCurrentPreset = name;
     renderCustomPresetBtns();
   } else {
     leCustomLayouts[leCurrentPreset] = JSON.parse(JSON.stringify(leState));
-    setLS('customLayouts', leCustomLayouts);
+    setLS(leCfg().storageKey, leCustomLayouts);
   }
-  leApplyToKiosk(); flashSaved();
+  leApply(); flashSaved();
 }
-function leApplyToKiosk(){
-  // Convert leState to kiosk layout format and broadcast
-  const kLayout = {};
-  Object.entries(leState).forEach(([id, s])=>{
-    const right = s.x + s.w;
-    kLayout[id] = {
-      x: s.x, y: s.y, w: s.w, h: s.h, show: s.vis,
-      left: s.x+'px', top: s.y+'px',
-      width: s.w+'px', height: s.h+'px',
-    };
-  });
-  setLS('activeLayout', leCurrentPreset);
-  setLS('customLayout_'+leCurrentPreset, kLayout);
-  const s = getSettings(); s.layout = leCurrentPreset; s.customLayouts = leCustomLayouts;
-  setLS('kioskSettings', s);
-  broadcast();
+
+function leApply(){
+  setLS(leActiveLayoutKey(), leCurrentPreset);
+  if (leCfg().applyLive) {
+    // Kiosk live-broadcast path
+    const kLayout = {};
+    Object.entries(leState).forEach(([id, s])=>{
+      kLayout[id] = { x:s.x, y:s.y, w:s.w, h:s.h, show:s.vis,
+        left:s.x+'px', top:s.y+'px', width:s.w+'px', height:s.h+'px' };
+    });
+    setLS('activeLayout', leCurrentPreset);
+    setLS('customLayout_'+leCurrentPreset, kLayout);
+    const ss = getSettings(); ss.layout = leCurrentPreset; ss.customLayouts = leCustomLayouts;
+    setLS('kioskSettings', ss);
+    broadcast();
+  } else {
+    // Mac/iPhone: POST the active layout to serve.py for native apps to pull later.
+    fetch('/proxy/app-layout?target=' + leTarget, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name: leCurrentPreset, layout: leState })
+    }).catch(()=>{ /* endpoint may not exist yet — layout still persists in localStorage */ });
+  }
   flashSaved();
 }
+// Keep old name as alias (called by other code paths)
+function leApplyToKiosk(){ leApply(); }
 
 function renderCustomPresetBtns(){
   const container = document.getElementById('customPresetBtns');
+  if (!container) return;
   container.innerHTML='';
   Object.keys(leCustomLayouts).forEach(name=>{
     const btn = document.createElement('button');
