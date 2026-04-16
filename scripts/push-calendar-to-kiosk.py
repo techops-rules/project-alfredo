@@ -91,10 +91,13 @@ def fetch_events(creds) -> list:
 
         events.append({
             "title": item.get("summary", "(no title)"),
+            "startTime": start_str,
+            "endTime": end_str,
             "start": start_str,
             "end": end_str,
             "startEpoch": int(start_dt.timestamp()) if start_dt else 0,
             "endEpoch": int(end_dt.timestamp()) if end_dt else 0,
+            "isAllDay": is_allday,
             "allDay": is_allday,
             "location": item.get("location", ""),
             "calendar": "Omnidian",
