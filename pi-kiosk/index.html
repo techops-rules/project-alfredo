@@ -506,6 +506,7 @@
   .cal-event-wrap[data-state="full"] .meeting-full { max-height:200px; padding:2px 0; }
   .meeting-full hr { border:none; border-top:1px dashed var(--accent-border); margin:6px 0; }
   .cal-rec { font-size:7px; font-weight:700; color:var(--accent); letter-spacing:1px; margin-left:6px; opacity:0.6; }
+  .cal-loc { font-size:8px; color:var(--text-secondary); margin-left:6px; opacity:0.7; font-style:italic; }
 
   /* Funfact (legacy — now uses #funfact-float) */
 
@@ -1473,6 +1474,16 @@ function cycleMeetingState(el){
   const cur=el.dataset.state||'collapsed';
   el.dataset.state=states[(states.indexOf(cur)+1)%states.length];
 }
+function isDefaultLocation(loc){
+  if(!loc) return true;
+  const n=loc.toLowerCase().replace(/[^a-z]/g,'');
+  return !n || n.includes('allentownpa') || n==='allentown' || n==='allentownpaus';
+}
+function briefLocation(loc){
+  if(!loc||isDefaultLocation(loc)) return '';
+  const short=loc.split(',')[0].trim();
+  return short.length>25?short.slice(0,23)+'…':short;
+}
 function renderCalEvent(e,now){
   const d=new Date(e.startTime);
   const end=new Date(e.endTime);
@@ -1484,11 +1495,14 @@ function renderCalEvent(e,now){
   const rsvpMap={'TENTATIVE':' rsvp-tentative','NEEDS-ACTION':' rsvp-needs-action','DECLINED':' rsvp-declined'};
   const rsvp=rsvpMap[e.rsvp]||'';
   const rec=e.recurring?'<span class="cal-rec">REC</span>':'';
+  const locBrief=briefLocation(e.location);
+  const locTag=locBrief?'<span class="cal-loc">'+escHtml(locBrief)+'</span>':'';
   const briefText=e.brief||(time+endTime+' · '+(e.calendar||'Calendar'));
-  const fullText=e.longContext||(e.location?'📍 '+escHtml(e.location):'No additional context available');
+  const hasNonDefaultLoc=e.location&&!isDefaultLocation(e.location);
+  const fullText=e.longContext||(hasNonDefaultLoc?'📍 '+escHtml(e.location):'No additional context available');
   const prev=e.prevBrief?'<hr><div style="font-size:8px;letter-spacing:1px;color:var(--text-secondary);margin-bottom:2px">PREV SESSION</div>'+escHtml(e.prevBrief):'';
   return '<div class="cal-event-wrap" data-state="collapsed" onclick="cycleMeetingState(this)">'
-    +'<div class="cal-event'+past+live+personal+rsvp+'"><span class="cal-time">'+time+'</span><div class="cal-bar"></div><span class="cal-title">'+escHtml(e.title)+rec+'</span></div>'
+    +'<div class="cal-event'+past+live+personal+rsvp+'"><span class="cal-time">'+time+'</span><div class="cal-bar"></div><span class="cal-title">'+escHtml(e.title)+rec+locTag+'</span></div>'
     +'<div class="meeting-hint">tap for brief</div>'
     +'<div class="meeting-brief">'+briefText+'</div>'
     +'<div class="meeting-full">'+fullText+prev+'</div>'

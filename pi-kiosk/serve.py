@@ -245,6 +245,13 @@ def current_context(snapshot=None):
     return state
 
 
+def _is_default_location(loc):
+    if not loc:
+        return True
+    normalized = "".join(c for c in loc.lower() if c.isalpha())
+    return normalized in ("", "allentown", "allentownpa", "allentownpaus")
+
+
 def format_event_summary(event):
     title = event.get("title", "(untitled)")
     start = event.get("startTime", "")
@@ -256,7 +263,7 @@ def format_event_summary(event):
         time_str = dt.strftime("%-I:%M %p").lower()
     except Exception:
         time_str = start or "time tbd"
-    suffix = f" @ {location}" if location else ""
+    suffix = f" @ {location}" if location and not _is_default_location(location) else ""
     return f"{time_str} {title}{suffix}"
 
 
