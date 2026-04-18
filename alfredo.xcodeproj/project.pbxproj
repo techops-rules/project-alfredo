@@ -180,6 +180,10 @@
 		FA81463946BB19C406A3BCD0 /* NewsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B12EEC3841F0947C3152718 /* NewsWidget.swift */; };
 		87CCAD14062B723500256BAA /* NewsStorySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7237CE34D4643311811EFEC3 /* NewsStorySheet.swift */; };
 		AEAE6F7242676F22D8162CF4 /* NewsStorySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7237CE34D4643311811EFEC3 /* NewsStorySheet.swift */; };
+		2DCDD517273E0660C1300863 /* LocationPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F1BD279188F160FC827135 /* LocationPreferences.swift */; };
+		1DBBEF0F54AB710BFF075051 /* LocationPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F1BD279188F160FC827135 /* LocationPreferences.swift */; };
+		CE0DF193778BF1A383D4E5DC /* WeatherLocationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DFA94FE898CD5220CA77FA2 /* WeatherLocationSection.swift */; };
+		84864D376ACE73EC67FB69C3 /* WeatherLocationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DFA94FE898CD5220CA77FA2 /* WeatherLocationSection.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -275,6 +279,8 @@
 		69E57357E8D9DE739D824DD1 /* ClaudeBridgeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeBridgeClient.swift; sourceTree = "<group>"; };
 		7B12EEC3841F0947C3152718 /* NewsWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsWidget.swift; sourceTree = "<group>"; };
 		7237CE34D4643311811EFEC3 /* NewsStorySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsStorySheet.swift; sourceTree = "<group>"; };
+		E8F1BD279188F160FC827135 /* LocationPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationPreferences.swift; sourceTree = "<group>"; };
+		0DFA94FE898CD5220CA77FA2 /* WeatherLocationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherLocationSection.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -345,6 +351,7 @@
 				B0CA21D8C7C819C5755A8FAA /* NewsService.swift */,
 				EBFB842A727146CC1EA5180F /* ReadingListService.swift */,
 				69E57357E8D9DE739D824DD1 /* ClaudeBridgeClient.swift */,
+				E8F1BD279188F160FC827135 /* LocationPreferences.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -486,6 +493,7 @@
 				AA00001100000002EMRP0001 /* EmailReplySheet.swift */,
 				DD11000300000000DMDS0000 /* DirectModeSheet.swift */,
 				7237CE34D4643311811EFEC3 /* NewsStorySheet.swift */,
+				0DFA94FE898CD5220CA77FA2 /* WeatherLocationSection.swift */,
 			);
 			path = Sheets;
 			sourceTree = "<group>";
@@ -681,6 +689,8 @@
 				2EFA7E864D338B6CA6A4E9D7 /* ClaudeBridgeClient.swift in Sources */,
 				FA81463946BB19C406A3BCD0 /* NewsWidget.swift in Sources */,
 				AEAE6F7242676F22D8162CF4 /* NewsStorySheet.swift in Sources */,
+				1DBBEF0F54AB710BFF075051 /* LocationPreferences.swift in Sources */,
+				84864D376ACE73EC67FB69C3 /* WeatherLocationSection.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -773,6 +783,8 @@
 				EAF035A39669BCD6DF432878 /* ClaudeBridgeClient.swift in Sources */,
 				B5A48202811364B0562BDEE9 /* NewsWidget.swift in Sources */,
 				87CCAD14062B723500256BAA /* NewsStorySheet.swift in Sources */,
+				2DCDD517273E0660C1300863 /* LocationPreferences.swift in Sources */,
+				CE0DF193778BF1A383D4E5DC /* WeatherLocationSection.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -789,7 +801,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "alfredo";
 				INFOPLIST_KEY_CFBundleShortVersionString = 0.1.0;
 				INFOPLIST_KEY_CFBundleVersion = 1;
-				INFOPLIST_KEY_NSCalendarsUsageDescription = "alfredo needs access to your calendar to sync events.";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "alfredo needs access to your calendar to sync events."; INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "alfredo uses your location to show local weather."; INFOPLIST_KEY_NSLocationUsageDescription = "alfredo uses your location to show local weather.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -889,7 +901,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "alfredo";
 				INFOPLIST_KEY_CFBundleShortVersionString = 0.1.0;
 				INFOPLIST_KEY_CFBundleVersion = 1;
-				INFOPLIST_KEY_NSCalendarsUsageDescription = "alfredo needs access to your calendar to sync events.";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "alfredo needs access to your calendar to sync events."; INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "alfredo uses your location to show local weather."; INFOPLIST_KEY_NSLocationUsageDescription = "alfredo uses your location to show local weather.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

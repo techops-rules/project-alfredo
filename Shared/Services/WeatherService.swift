@@ -43,9 +43,24 @@ final class WeatherService {
 
     private var fetchTimer: Timer?
     private let fetchInterval: TimeInterval = 600 // 10 minutes
-    // Seattle
-    private let lat = 47.61
-    private let lon = -122.33
+
+    // Default = Allentown, PA 18104. Overridable via LocationPreferences
+    // (zip lookup or current-location) persisted to UserDefaults.
+    static let defaultLat = 40.5994
+    static let defaultLon = -75.5394
+    static let defaultLabel = "18104"
+
+    private var lat: Double {
+        let stored = UserDefaults.standard.double(forKey: "weather.lat")
+        return stored == 0 ? Self.defaultLat : stored
+    }
+    private var lon: Double {
+        let stored = UserDefaults.standard.double(forKey: "weather.lon")
+        return stored == 0 ? Self.defaultLon : stored
+    }
+    var locationLabel: String {
+        UserDefaults.standard.string(forKey: "weather.label") ?? Self.defaultLabel
+    }
 
     private init() {}
 
@@ -74,6 +89,14 @@ final class WeatherService {
         }
     }
 
+    /// Update the stored location and re-fetch.
+    func setLocation(lat: Double, lon: Double, label: String) {
+        UserDefaults.standard.set(lat, forKey: "weather.lat")
+        UserDefaults.standard.set(lon, forKey: "weather.lon")
+        UserDefaults.standard.set(label, forKey: "weather.label")
+        fetch()
+    }
+
     // MARK: - Open-Meteo API
 
     private func fetchFromAPI() async throws -> WeatherData {
@@ -84,7 +107,7 @@ final class WeatherService {
             + "&temperature_unit=fahrenheit"
             + "&wind_speed_unit=mph"
             + "&forecast_days=2"
-            + "&timezone=America%2FLos_Angeles"
+            + "&timezone=auto"
 
         guard let url = URL(string: urlString) else {
             throw WeatherError.invalidURL

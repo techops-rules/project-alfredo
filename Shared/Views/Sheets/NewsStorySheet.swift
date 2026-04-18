@@ -83,26 +83,44 @@ struct NewsStorySheet: View {
     }
 
     private var actionsBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ActionButton(label: "OPEN AT SOURCE", icon: "arrow.up.right.square", tint: theme.accentFull) {
-                openExternal(item.url)
-            }
-            ActionButton(label: "GOOGLE IT", icon: "magnifyingglass", tint: ThemeManager.textPrimary) {
-                if let url = googleURL { openExternal(url) }
-            }
-            ActionButton(label: claudeState == .loading ? "ASKING…" : "ASK CLAUDE",
-                         icon: "sparkles",
-                         tint: Color(red: 0.78, green: 0.60, blue: 0.90)) {
-                askClaude()
-            }
-            .disabled(claudeState == .loading)
+        let saved = readingList.contains(item)
+        let claudePurple = Color(red: 0.78, green: 0.60, blue: 0.90)
+        let saveYellow = Color(red: 1, green: 0.72, blue: 0.30)
 
-            let saved = readingList.contains(item)
-            ActionButton(label: saved ? "SAVED · REMOVE" : "SAVE FOR LATER",
-                         icon: saved ? "bookmark.fill" : "bookmark",
-                         tint: saved ? Color(red: 1, green: 0.72, blue: 0.30) : ThemeManager.textSecondary) {
-                readingList.toggle(item)
+        return VStack(spacing: 10) {
+            // Primary action: go read it
+            ActionButton(
+                label: "OPEN AT SOURCE",
+                icon: "arrow.up.right.square.fill",
+                tint: theme.accentFull,
+                filled: true
+            ) { openExternal(item.url) }
+
+            // Row of two discovery actions
+            HStack(spacing: 10) {
+                ActionButton(
+                    label: "GOOGLE",
+                    icon: "magnifyingglass",
+                    tint: ThemeManager.textPrimary,
+                    filled: false
+                ) { if let url = googleURL { openExternal(url) } }
+
+                ActionButton(
+                    label: claudeState == .loading ? "ASKING…" : "ASK CLAUDE",
+                    icon: "sparkles",
+                    tint: claudePurple,
+                    filled: false
+                ) { askClaude() }
+                .disabled(claudeState == .loading)
             }
+
+            // Save toggle
+            ActionButton(
+                label: saved ? "SAVED · TAP TO REMOVE" : "SAVE FOR LATER",
+                icon: saved ? "bookmark.fill" : "bookmark",
+                tint: saved ? saveYellow : ThemeManager.textSecondary,
+                filled: saved
+            ) { readingList.toggle(item) }
         }
     }
 
@@ -201,24 +219,28 @@ private struct ActionButton: View {
     let label: String
     let icon: String
     let tint: Color
+    var filled: Bool = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
                 Text(label)
                     .tracking(1.2)
-                Spacer()
+                Spacer(minLength: 0)
             }
-            .font(.system(size: 11, weight: .bold, design: .monospaced))
-            .foregroundColor(tint)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .font(.system(size: 12, weight: .bold, design: .monospaced))
+            .foregroundColor(filled ? ThemeManager.surface : tint)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
             .frame(maxWidth: .infinity)
+            .background(filled ? tint : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(tint.opacity(0.45), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(tint.opacity(filled ? 0 : 0.6), lineWidth: 1.2)
             )
         }
         .buttonStyle(.plain)

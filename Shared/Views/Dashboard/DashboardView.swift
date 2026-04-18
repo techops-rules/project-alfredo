@@ -750,20 +750,26 @@ struct DashboardView: View {
         case .workFocus:
             return base + [
                 ("hotlist",   .full, 220),
+                ("news",      .full, 260),
                 ("calendar",  .full, 250),
                 ("workTasks", .full, 280),
             ]
         case .night:
-            return base + [("hotlist", .full, 220)]
+            return base + [
+                ("hotlist", .full, 220),
+                ("news",    .full, 260),
+            ]
         case .weekend:
             return base + [
                 ("hotlist",   .full, 200),
+                ("news",      .full, 260),
                 ("calendar",  .full, 220),
                 ("lifeTasks", .full, 280),
             ]
         case .personal:
             return base + [
                 ("hotlist",   .full, 200),
+                ("news",      .full, 260),
                 ("calendar",  .full, 220),
                 ("workTasks", .full, 240),
             ]
@@ -793,7 +799,6 @@ struct DashboardView: View {
                 ("waitingTasks",  .halfLeft,  160),
                 ("longTermTasks", .halfRight, 160),
                 ("funFact",       .full,      120),
-                ("news",          .full,      260),
             ]
         default:
             return [
@@ -806,7 +811,6 @@ struct DashboardView: View {
                 ("waitingTasks",  .halfLeft,  160),
                 ("longTermTasks", .halfRight, 160),
                 ("funFact",       .full,      120),
-                ("news",          .full,      260),
             ]
         }
         #else

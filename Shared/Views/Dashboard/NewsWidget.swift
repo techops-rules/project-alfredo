@@ -5,13 +5,18 @@ struct NewsWidget: View {
     @Environment(\.widgetMetrics) private var metrics
     @State private var news = NewsService.shared
     @State private var selected: NewsHeadline?
+    @State private var refreshing = false
 
     var body: some View {
-        WidgetShell(title: "TOP.STORIES", zone: "feed") {
+        WidgetShell(
+            title: "TOP.STORIES",
+            badgeView: AnyView(refreshButton),
+            zone: "feed"
+        ) {
             VStack(alignment: .leading, spacing: metrics.rowSpacing) {
                 let trio = news.currentTrio
                 if trio.isEmpty {
-                    Text("fetching headlines…")
+                    Text(refreshing ? "fetching headlines…" : "no headlines yet — tap refresh.")
                         .font(.system(size: metrics.captionFontSize, design: .monospaced))
                         .foregroundColor(ThemeManager.textSecondary.opacity(0.7))
                         .padding(.vertical, 8)
@@ -31,6 +36,23 @@ struct NewsWidget: View {
         .sheet(item: $selected) { item in
             NewsStorySheet(item: item)
         }
+    }
+
+    private var refreshButton: some View {
+        Button {
+            refreshing = true
+            Task {
+                await news.refresh()
+                refreshing = false
+            }
+        } label: {
+            Image(systemName: refreshing ? "arrow.triangle.2.circlepath.circle.fill" : "arrow.clockwise")
+                .font(.system(size: metrics.captionFontSize + 2, weight: .bold))
+                .foregroundColor(theme.accentFull)
+                .rotationEffect(.degrees(refreshing ? 360 : 0))
+                .animation(refreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: refreshing)
+        }
+        .buttonStyle(.plain)
     }
 }
 

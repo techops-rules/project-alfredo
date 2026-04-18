@@ -49,7 +49,7 @@ final class NewsService {
     private init() {}
 
     func start() {
-        Task { await refresh() }
+        Task { await refresh(force: false) }
         rotationTimer?.invalidate()
         rotationTimer = Timer.scheduledTimer(withTimeInterval: 22, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.rotate() }
@@ -70,8 +70,8 @@ final class NewsService {
         }
     }
 
-    func refresh() async {
-        if let last = lastFetch, Date().timeIntervalSince(last) < cacheTTL,
+    func refresh(force: Bool = true) async {
+        if !force, let last = lastFetch, Date().timeIntervalSince(last) < cacheTTL,
            feeds.allSatisfy({ !(headlinesBySource[$0.source]?.isEmpty ?? true) }) {
             return
         }

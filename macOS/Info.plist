@@ -28,6 +28,10 @@
 	<true/>
 	<key>NSCalendarsUsageDescription</key>
 	<string>alfredo shows your upcoming events on the dashboard.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>alfredo uses your location to show local weather.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>alfredo uses your location to show local weather.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

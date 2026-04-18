@@ -62,6 +62,13 @@ struct SettingsSheet: View {
                         sectionDivider
                     }
 
+                    // MARK: - Weather location
+                    sectionHeader("WEATHER LOCATION")
+                    WeatherLocationSection()
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 16)
+                    sectionDivider
+
                     // MARK: - Font size
                     sectionHeader("FONT SIZE")
                     VStack(spacing: 1) {
