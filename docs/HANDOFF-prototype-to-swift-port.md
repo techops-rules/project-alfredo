@@ -118,6 +118,8 @@ Widgets that should wire this up: HotlistWidget, TaskListWidget (all variants �
 2. Session B: Universal `ItemDetailSheet` — double-tap behavior wired to Hotlist first, then extended.
 3. Session C: Long-press reorder modal for Hotlist. Drag-shift cascade + auto-promote on completion. Persists to `TaskBoardService`.
 
+**Ordering note (user, 2026-04-18):** Session C (Hotlist reorder) is the higher-value ship. Collapse-reflow refactor of `DraggableWidgetContainer` + `flowPosition`/`flowExtent` can land before or after C — user's call. It's worth doing before C only if the collapsed-card visual the reorder modal reuses needs the layout fix to look right.
+
 Tie-in: this subsumes the "add-to-widget" gap — the detail popover is also where mobile users create new items per widget.
 
 ## Recommended port order (for the next session)
