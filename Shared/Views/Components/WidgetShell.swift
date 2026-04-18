@@ -124,7 +124,24 @@ struct WidgetShell<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     @Environment(\.theme) private var theme
-    @State private var isCollapsed = false
+    @Environment(\.widgetCollapseId) private var collapseId
+    @ObservedObject private var collapseService = WidgetCollapseService.shared
+    @State private var localCollapsed = false
+
+    private var isCollapsed: Bool {
+        if let id = collapseId { return collapseService.isCollapsed(id) }
+        return localCollapsed
+    }
+
+    private func toggleCollapsed() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            if let id = collapseId {
+                collapseService.toggle(id)
+            } else {
+                localCollapsed.toggle()
+            }
+        }
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -135,11 +152,7 @@ struct WidgetShell<Content: View>: View {
             )
 
             VStack(spacing: 0) {
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isCollapsed.toggle()
-                    }
-                }) {
+                Button(action: { toggleCollapsed() }) {
                     HStack(spacing: metrics.isCompact ? 6 : 8) {
                         Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
                             .font(.system(size: metrics.captionFontSize + 1, weight: .bold, design: .monospaced))
@@ -193,7 +206,9 @@ struct WidgetShell<Content: View>: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
             }
-            .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+            .frame(width: geo.size.width,
+                   height: isCollapsed ? WidgetCollapseService.collapsedHeight : geo.size.height,
+                   alignment: .topLeading)
             .background(.ultraThinMaterial.opacity(0.3))
             .background(ThemeManager.surface)
             .clipShape(RoundedRectangle(cornerRadius: 6))

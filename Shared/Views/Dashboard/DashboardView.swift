@@ -12,6 +12,7 @@ struct DashboardView: View {
     @State private var widgetVisibility = WidgetVisibility()
     @State private var sidebarExpanded = false
     @StateObject private var layoutManager = WidgetLayoutManager()
+    @ObservedObject private var collapseService = WidgetCollapseService.shared
     private let calendarService = CalendarService.shared
     private let updateService = UpdateService.shared
     private let prepService = MeetingPrepService.shared
@@ -873,6 +874,12 @@ struct DashboardView: View {
         return WidgetLayoutState(position: CGPoint(x: -1000, y: -1000), size: CGSize(width: 0, height: 0))
     }
 
+    /// Effective slot height — collapsed widgets shrink to header-only so
+    /// neighbors below can flow up.
+    private func effectiveHeight(for slot: WidgetSlot) -> CGFloat {
+        collapseService.isCollapsed(slot.id) ? WidgetCollapseService.collapsedHeight : slot.height
+    }
+
     private func flowPosition(for widgetId: String, in slots: [WidgetSlot], xBase: CGFloat, yBase: CGFloat = 0, fw: CGFloat, hw: CGFloat, gap: CGFloat, spacing: CGFloat) -> WidgetLayoutState? {
         var y: CGFloat = yBase
         var i = 0
@@ -886,7 +893,7 @@ struct DashboardView: View {
                 let rightSlot = slots[i + 1]
                 let leftVisible = isWidgetVisibleForFlow(leftSlot.id)
                 let rightVisible = isWidgetVisibleForFlow(rightSlot.id)
-                let pairHeight = max(leftSlot.height, rightSlot.height)
+                let pairHeight = max(effectiveHeight(for: leftSlot), effectiveHeight(for: rightSlot))
 
                 if leftVisible || rightVisible {
                     if widgetId == leftSlot.id {
@@ -913,10 +920,10 @@ struct DashboardView: View {
                 if widgetId == slot.id {
                     return WidgetLayoutState(
                         position: CGPoint(x: xBase, y: y),
-                        size: CGSize(width: fw, height: slot.height)
+                        size: CGSize(width: fw, height: effectiveHeight(for: slot))
                     )
                 }
-                y += slot.height + spacing
+                y += effectiveHeight(for: slot) + spacing
             }
             i += 1
         }
@@ -937,7 +944,7 @@ struct DashboardView: View {
                 let rightSlot = slots[i + 1]
                 let leftVisible = isWidgetVisibleForFlow(leftSlot.id)
                 let rightVisible = isWidgetVisibleForFlow(rightSlot.id)
-                let pairHeight = max(leftSlot.height, rightSlot.height)
+                let pairHeight = max(effectiveHeight(for: leftSlot), effectiveHeight(for: rightSlot))
 
                 if leftVisible || rightVisible {
                     if leftVisible {
@@ -956,7 +963,7 @@ struct DashboardView: View {
                 let width = slot.width == .full ? iosFullWidth : iosHalfWidth
                 let x = slot.width == .halfRight ? xBase + iosHalfWidth + iosFlowGap : xBase
                 maxX = max(maxX, x + width)
-                y += slot.height + iosFlowSpacing
+                y += effectiveHeight(for: slot) + iosFlowSpacing
             }
             i += 1
         }

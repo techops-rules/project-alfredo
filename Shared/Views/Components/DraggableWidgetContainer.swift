@@ -8,6 +8,8 @@ struct DraggableWidgetContainer<Content: View>: View {
     var isEditMode: Bool = true
     @ViewBuilder let content: () -> Content
 
+    @ObservedObject private var collapseService = WidgetCollapseService.shared
+
     @State private var dragStartPos: CGPoint = .zero
     @State private var isDragging = false
     @State private var resizeStartSize: CGSize = .zero
@@ -18,7 +20,15 @@ struct DraggableWidgetContainer<Content: View>: View {
     private let minHeight: CGFloat = 100
 
     private var layout: WidgetLayoutState {
-        layoutManager.getLayout(widgetId, default: defaultLayout)
+        let base = layoutManager.getLayout(widgetId, default: defaultLayout)
+        if collapseService.isCollapsed(widgetId) {
+            return WidgetLayoutState(
+                position: base.position,
+                size: CGSize(width: base.size.width,
+                             height: WidgetCollapseService.collapsedHeight)
+            )
+        }
+        return base
     }
 
     private var showHandles: Bool {
@@ -33,6 +43,7 @@ struct DraggableWidgetContainer<Content: View>: View {
         let layout = self.layout
         ZStack(alignment: .topLeading) {
             content()
+                .environment(\.widgetCollapseId, widgetId)
                 .frame(width: layout.size.width, height: layout.size.height)
                 .gesture(
                     isEditMode ?
