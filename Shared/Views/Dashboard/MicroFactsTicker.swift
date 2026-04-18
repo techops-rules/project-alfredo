@@ -10,11 +10,19 @@ struct MicroFactsTicker: View {
     private let tick = Timer.publish(every: 6, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            factLine(facts[safe: iA])
-                .id("a-\(iA)")
-            factLine(facts[safe: iB])
-                .id("b-\(iB)")
+        Group {
+            if facts.isEmpty {
+                EmptyView()
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    factLine(facts[safe: iA])
+                        .id("a-\(iA)")
+                    if facts.count > 1 {
+                        factLine(facts[safe: iB])
+                            .id("b-\(iB)")
+                    }
+                }
+            }
         }
         .onReceive(tick) { _ in
             guard !facts.isEmpty else { return }

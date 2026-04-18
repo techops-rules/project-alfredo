@@ -22,17 +22,11 @@ enum HeroCopy {
         "progress, not performance."
     ]
 
-    /// Deadpan, specific micro-facts that rotate alongside the headline.
-    static let microFacts: [String] = [
-        "you slept 5h 12m. brace.",
-        "2,400 steps. legs are drafting a resignation letter.",
-        "3 tasks shipped yesterday. respectable.",
-        "coffee #2 was at 10:14. we're tracking.",
-        "inbox: 6 live threads. four can wait.",
-        "last water log was 11:47. it's 14:02.",
-        "screen time: 4h 30m before noon. a choice.",
-        "EUROTRIP · 14 days out. pack list is empty."
-    ]
+    /// Micro-facts ticker slot. Intentionally empty — the prototype shipped
+    /// fake stats ("you slept 5h 12m. brace.") that had no data source. Facts
+    /// will populate once a real data source (health, tasks, calendar) is
+    /// wired, or via LLM refresh that can query live state.
+    static let microFacts: [String] = []
 
     // MARK: - Holidays
 

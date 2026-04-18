@@ -20,6 +20,7 @@ enum WidgetID: String, CaseIterable, Identifiable {
     case waitingTasks = "WAITING.TODO"
     case longTermTasks = "LONGTERM.TODO"
     case funFact = "FUNFACT.TXT"
+    case news = "TOP.STORIES"
 
     var id: String { rawValue }
 
@@ -42,6 +43,7 @@ enum WidgetID: String, CaseIterable, Identifiable {
         case .waitingTasks:  return "hourglass"
         case .longTermTasks: return "scope"
         case .funFact:       return "lightbulb"
+        case .news:          return "newspaper"
         }
     }
 }

@@ -460,6 +460,19 @@ struct DashboardView: View {
             .transition(.opacity)
         }
 
+        // News widget — top stories from NYT/BBC/HN
+        if widgetVisibility.isVisible(.news) {
+            DraggableWidgetContainer(
+                widgetId: "news",
+                layoutManager: layoutManager,
+                defaultLayout: defaultLayout("news"),
+                isEditMode: widgetsEditable
+            ) {
+                NewsWidget()
+            }
+            .transition(.opacity)
+        }
+
         // Terminal widget (macOS only on canvas; iOS uses pinned AlfredoInputBar)
         #if os(macOS)
         if widgetVisibility.isVisible(.terminal) {
@@ -482,7 +495,7 @@ struct DashboardView: View {
                 defaultLayout: defaultLayout("stats"),
                 isEditMode: widgetsEditable
             ) {
-                StatsWidget()
+                StatsWidget(taskBoard: taskBoard, scratchpad: scratchpadService, habits: habits)
             }
             .transition(.opacity)
         }
@@ -708,6 +721,7 @@ struct DashboardView: View {
         case "waitingTasks":  return WidgetLayoutState(position: CGPoint(x: 1840, y: 980), size: CGSize(width: 420, height: 200))
         case "longTermTasks": return WidgetLayoutState(position: CGPoint(x: 1320, y: 860), size: CGSize(width: 500, height: 200))
         case "funFact":       return WidgetLayoutState(position: CGPoint(x: 40, y: 1120), size: CGSize(width: 500, height: 120))
+        case "news":          return WidgetLayoutState(position: CGPoint(x: 560, y: 1120), size: CGSize(width: 700, height: 260))
         default:              return WidgetLayoutState(position: .zero, size: CGSize(width: 300, height: 200))
         }
     }
@@ -779,6 +793,7 @@ struct DashboardView: View {
                 ("waitingTasks",  .halfLeft,  160),
                 ("longTermTasks", .halfRight, 160),
                 ("funFact",       .full,      120),
+                ("news",          .full,      260),
             ]
         default:
             return [
@@ -791,6 +806,7 @@ struct DashboardView: View {
                 ("waitingTasks",  .halfLeft,  160),
                 ("longTermTasks", .halfRight, 160),
                 ("funFact",       .full,      120),
+                ("news",          .full,      260),
             ]
         }
         #else
@@ -804,6 +820,7 @@ struct DashboardView: View {
             ("waitingTasks",  .halfLeft,  160),
             ("longTermTasks", .halfRight, 160),
             ("funFact",       .full,      120),
+            ("news",          .full,      260),
         ]
         #endif
     }
@@ -969,6 +986,7 @@ struct DashboardView: View {
         case .waitingTasks: return "waitingTasks"
         case .longTermTasks: return "longTermTasks"
         case .funFact: return "funFact"
+        case .news: return "news"
         }
     }
 
