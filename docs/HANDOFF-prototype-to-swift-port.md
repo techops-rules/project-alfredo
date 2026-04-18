@@ -58,9 +58,22 @@ Prioritized by visibility and user impact:
 
 ## What's already begun on the Swift side
 
-- `Shared/Data/HeroCopy.swift` (NEW this session) — HEADLINES + MICRO_FACTS + US holiday computer + `describeDay()` weather quip helper. Compiles clean, not yet wired.
-- `MarkdownParser.parseTaskBoard` crash fix (from earlier this session) — `dropFirst(6)` replaces the unsafe `index(offsetBy:6)`. Already shipped and verified.
-- New app icon in `Resources/Assets.xcassets/AppIcon.appiconset/` — 11 slots regenerated from `Downloads/design_handoff_alfredo/icon-09-preview.html` via headless Chrome + sips. Already on the phone.
+- `Shared/Data/HeroCopy.swift` — HEADLINES + US holiday computer + `describeDay()` weather quip helper. `microFacts` intentionally empty until a real data source or LLM refresh lands.
+- `MarkdownParser.parseTaskBoard` crash fix — `dropFirst(6)` replaces the unsafe `index(offsetBy:6)`. Shipped.
+- New app icon in `Resources/Assets.xcassets/AppIcon.appiconset/`. Shipped.
+
+### Shipped 2026-04-18 (this branch, `design/alfredo-terminal-hud`):
+- **Weather Hero** (`Shared/Views/Dashboard/WeatherHero.swift`) — full iOS port of the prototype's IosHero: day/date, sun/moon with phase, mono temp centered on body, Monday-voice weather quip, star field at night, horizon silhouette, thunder lightning, rain/snow, day/night radial gradient.
+- **RotatingHeadline** + **MicroFactsTicker** — Swift rotators for `HeroCopy`. LLM refresh hooks stubbed (awaiting Swift `ClaudeService`).
+- **News widget** (`Shared/Views/Dashboard/NewsWidget.swift`) — pulls NYT + BBC + HN via a Foundation-only RSS parser. Rotates per-source every 22s. Manual refresh button in widget header.
+- **NewsStorySheet** — tap-to-open detail modal: source, dateline, feed summary, and four actions: OPEN AT SOURCE, GOOGLE IT, ASK CLAUDE (POSTs structured prompt to Pi bridge `/chat`), SAVE FOR LATER.
+- **ReadingListService** (`Shared/Services/ReadingListService.swift`) — JSON-backed saved-headlines store in `Documents/reading-list.json`.
+- **ClaudeBridgeClient** (`Shared/Services/ClaudeBridgeClient.swift`) — minimal `/chat` helper for the Pi bridge. First Swift caller for the bridge's chat endpoint.
+- **Weather location picker** — `WeatherService` default is now Allentown PA 18104 (40.5994, -75.5394), overridable via `UserDefaults`. `LocationPreferences` service geocodes zip/city queries (`CLGeocoder`) or resolves current location (`CLLocationManager`). `WeatherLocationSection` UI lives in the SettingsSheet. `NSLocation*UsageDescription` added to iOS + macOS plists.
+- **Placeholder purge:**
+  - `StatsWidget` now derives from `TaskBoardService` + habits + scratchpad; empty-state when no data.
+  - `HeroCopy.microFacts` emptied; ticker hides when pool is empty.
+- **iOS flow layout:** news slot lives directly under Hotlist on screen 1 (all contexts). Weather slot grew from 130 → 210pt to fit the hero.
 
 ## Sprint N+1 — Priority rework + universal detail popover + reorder gesture
 
@@ -98,10 +111,12 @@ A shared `ItemDetailSheet` that any widget can present. Fields:
 
 Widgets that should wire this up: HotlistWidget, TaskListWidget (all variants — work/life/deferred/waiting/longterm), HabitWidget, GoalsWidget, ProjectsWidget, ScratchpadWidget items.
 
+**Completion behavior (confirmed with user 2026-04-18):** when a numbered card is completed, **auto-promote** — the completed item loses its number and everything below shifts up (03 → 02, etc.). Slot does not stay sticky/empty.
+
 **Suggested split:**
 1. Session A: Priority refactor (`Priority` enum, parser, migration, chip rendering across task-bearing widgets). Ships the new `00/01/02/03` labels.
 2. Session B: Universal `ItemDetailSheet` — double-tap behavior wired to Hotlist first, then extended.
-3. Session C: Long-press reorder modal for Hotlist. Drag-shift cascade. Persists to `TaskBoardService`.
+3. Session C: Long-press reorder modal for Hotlist. Drag-shift cascade + auto-promote on completion. Persists to `TaskBoardService`.
 
 Tie-in: this subsumes the "add-to-widget" gap — the detail popover is also where mobile users create new items per widget.
 
