@@ -62,6 +62,49 @@ Prioritized by visibility and user impact:
 - `MarkdownParser.parseTaskBoard` crash fix (from earlier this session) — `dropFirst(6)` replaces the unsafe `index(offsetBy:6)`. Already shipped and verified.
 - New app icon in `Resources/Assets.xcassets/AppIcon.appiconset/` — 11 slots regenerated from `Downloads/design_handoff_alfredo/icon-09-preview.html` via headless Chrome + sips. Already on the phone.
 
+## Sprint N+1 — Priority rework + universal detail popover + reorder gesture
+
+Spec'd by user on 2026-04-18. Substantial enough to be its own session(s).
+
+**Priority model — reduced to 4 tiers, renamed to 2-digit labels:**
+- `00` (was P0) — critical, top of the day
+- `01` (was P1) — very important
+- `02` (was P2) — important
+- `03` (was P3) — next-up
+- (P4 removed — anything below `03` is unnumbered)
+
+Store in `Task.priority` as an enum `Priority: Int { case p00, p01, p02, p03, unranked }`. Migrate existing P0–P4 reads — map P4 → unranked.
+
+**Hotlist widget:**
+- Each card shows its priority tag at left: `00 01 02 03` in mono, color-coded (the existing P-meta palette). Unranked cards show no number.
+- Each card is **collapsible to a title bar** (tap the card chrome, or a chevron). Collapsed state persists per-item in `UserDefaults`.
+- **Double-tap** a card → universal detail popover (see below).
+- **Long-press** any hotlist card → full-screen reorder view:
+  - Up to 8 cards total, all collapsed-card style.
+  - Top 4 slots are the numbered priorities (00–03); remaining 4 are unnumbered.
+  - Drag-to-reorder. Moving a card into slot 00 pushes what was there to 01, 01 → 02, 02 → 03, 03 → first unnumbered. Cascade is a simple shift, not a swap.
+  - Dragging a numbered card down past slot 03 drops its number.
+  - Dragging an unnumbered card up to slot 03 (or higher) assigns the new number and cascades.
+
+**Universal detail popover (double-tap on any item across the app):**
+A shared `ItemDetailSheet` that any widget can present. Fields:
+- Title (editable)
+- Tags (chip input)
+- Reminder (date + time picker → writes to `UNUserNotificationCenter`)
+- Subtasks (recursive — the prototype's `SubtaskTree`)
+- Notes (freeform markdown)
+- Priority (picker: 00 / 01 / 02 / 03 / unranked)
+- Delete
+
+Widgets that should wire this up: HotlistWidget, TaskListWidget (all variants — work/life/deferred/waiting/longterm), HabitWidget, GoalsWidget, ProjectsWidget, ScratchpadWidget items.
+
+**Suggested split:**
+1. Session A: Priority refactor (`Priority` enum, parser, migration, chip rendering across task-bearing widgets). Ships the new `00/01/02/03` labels.
+2. Session B: Universal `ItemDetailSheet` — double-tap behavior wired to Hotlist first, then extended.
+3. Session C: Long-press reorder modal for Hotlist. Drag-shift cascade. Persists to `TaskBoardService`.
+
+Tie-in: this subsumes the "add-to-widget" gap — the detail popover is also where mobile users create new items per widget.
+
 ## Recommended port order (for the next session)
 
 Start where the user has explicitly noticed the gap:
