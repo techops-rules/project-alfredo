@@ -162,6 +162,14 @@
 		AA11CC3300000003PTKS0002 /* PushTokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11CC3300000001PTKS0001 /* PushTokenService.swift */; };
 		BB22DD4400000002VCES0001 /* VoiceEventService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22DD4400000001VCES0001 /* VoiceEventService.swift */; };
 		BB22DD4400000003VCES0002 /* VoiceEventService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22DD4400000001VCES0001 /* VoiceEventService.swift */; };
+		AE2AC6E69B110E5F226283FB /* HeroCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6CF09411951D747029B82BA /* HeroCopy.swift */; };
+		4A6C94C3AE9912C8C0D88CBA /* HeroCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6CF09411951D747029B82BA /* HeroCopy.swift */; };
+		02A402118B5D5868A89D8AC7 /* WeatherHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 424A7228AE93743B3E4D18A1 /* WeatherHero.swift */; };
+		322F7506BC7AB16C3604A99C /* WeatherHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 424A7228AE93743B3E4D18A1 /* WeatherHero.swift */; };
+		6EF969B649CB72FA4E4D47F7 /* RotatingHeadline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94648F6D0C69EB12DFD19CD8 /* RotatingHeadline.swift */; };
+		5ED541FB6AFC3F52E0F08E88 /* RotatingHeadline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94648F6D0C69EB12DFD19CD8 /* RotatingHeadline.swift */; };
+		95A02845E3CF601D520E652C /* MicroFactsTicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72FE8AAAC666C92723519E26 /* MicroFactsTicker.swift */; };
+		FD66876BB3F7B6878F578304 /* MicroFactsTicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72FE8AAAC666C92723519E26 /* MicroFactsTicker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -248,6 +256,10 @@
 		7AC5A2EE52AA48FBB92845A2 /* iOSTopChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSTopChrome.swift; sourceTree = "<group>"; };
 		1825F809E95D4E3AB132A4A0 /* AlfredoInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlfredoInputBar.swift; sourceTree = "<group>"; };
 		C543FCAEFDE440FFBCEF5FA6 /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
+		D6CF09411951D747029B82BA /* HeroCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeroCopy.swift; sourceTree = "<group>"; };
+		424A7228AE93743B3E4D18A1 /* WeatherHero.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherHero.swift; sourceTree = "<group>"; };
+		94648F6D0C69EB12DFD19CD8 /* RotatingHeadline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotatingHeadline.swift; sourceTree = "<group>"; };
+		72FE8AAAC666C92723519E26 /* MicroFactsTicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicroFactsTicker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -326,6 +338,7 @@
 				526838F5213AF94818CA5045 /* Services */,
 				DB9ED28D33929FBC2E22DB34 /* Theme */,
 				B87AEAB88365998A749E865C /* Views */,
+				79DC838D8ADEBDB30ED902F7 /* Data */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -427,7 +440,11 @@
 			
 				7188E16FE1A14C099AE5AFFF /* WeatherWidget.swift */,
 				190F7F07A7504BDD970CF448 /* FunFactWidget.swift */,
-				1B2E96FEDF3D46D981002C0D /* ProjectDetailSheet.swift */,);
+				1B2E96FEDF3D46D981002C0D /* ProjectDetailSheet.swift */,
+				424A7228AE93743B3E4D18A1 /* WeatherHero.swift */,
+				94648F6D0C69EB12DFD19CD8 /* RotatingHeadline.swift */,
+				72FE8AAAC666C92723519E26 /* MicroFactsTicker.swift */,
+			);
 			path = Dashboard;
 			sourceTree = "<group>";
 		};
@@ -450,6 +467,14 @@
 				DD11000300000000DMDS0000 /* DirectModeSheet.swift */,
 			);
 			path = Sheets;
+			sourceTree = "<group>";
+		};
+		79DC838D8ADEBDB30ED902F7 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				D6CF09411951D747029B82BA /* HeroCopy.swift */,
+			);
+			path = Data;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -626,6 +651,10 @@
 				E4960DE918108D3F54B8BB64 /* TerminalCache.swift in Sources */,
 				6211253D028BC39776761A1A /* ConnectionMonitor.swift in Sources */,
 				E6B720549CAB5FF45FBED327 /* WebSocketSession.swift in Sources */,
+				4A6C94C3AE9912C8C0D88CBA /* HeroCopy.swift in Sources */,
+				322F7506BC7AB16C3604A99C /* WeatherHero.swift in Sources */,
+				5ED541FB6AFC3F52E0F08E88 /* RotatingHeadline.swift in Sources */,
+				FD66876BB3F7B6878F578304 /* MicroFactsTicker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -709,6 +738,10 @@
 				9C2D56BC53A5EFF7F45F0554 /* ConnectionMonitor.swift in Sources */,
 				A834538746485861FF787F37 /* WebSocketSession.swift in Sources */,
 				0F30C7CDF430C0389CC192CB /* iOSApp.swift in Sources */,
+				AE2AC6E69B110E5F226283FB /* HeroCopy.swift in Sources */,
+				02A402118B5D5868A89D8AC7 /* WeatherHero.swift in Sources */,
+				6EF969B649CB72FA4E4D47F7 /* RotatingHeadline.swift in Sources */,
+				95A02845E3CF601D520E652C /* MicroFactsTicker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

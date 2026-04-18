@@ -454,9 +454,8 @@ struct DashboardView: View {
                 defaultLayout: defaultLayout("weather"),
                 isEditMode: widgetsEditable
             ) {
-                WidgetShell(title: "WEATHER.SYS", zone: "live") {
-                    WeatherWidget(weather: weatherService.current)
-                }
+                WeatherHero(weather: weatherService.current)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .transition(.opacity)
         }
@@ -732,7 +731,7 @@ struct DashboardView: View {
 
     private var screen1Slots: [WidgetSlot] {
         #if os(iOS)
-        let base: [WidgetSlot] = [("weather", .full, 130)]
+        let base: [WidgetSlot] = [("weather", .full, 210)]
         switch appContext {
         case .workFocus:
             return base + [
