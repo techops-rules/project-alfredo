@@ -1,0 +1,2700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>alfredo · external brain</title>
+
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=IBM+Plex+Mono:wght@300;400;500;600&family=Geist+Mono:wght@300;400;500;600&family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css" />
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+
+<body>
+<div id="root"></div>
+
+<script>
+// Whoosh sound — confirms an email actually left the undo window.
+// Uses Web Audio (no external file); filtered noise burst, ~300ms descending.
+window.playWhoosh = function () {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = window.__alfredoAudio || (window.__alfredoAudio = new AC());
+    if (ctx.state === 'suspended') ctx.resume();
+    const dur = 0.32;
+    const bufSize = Math.floor(ctx.sampleRate * dur);
+    const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.Q.value = 1.6;
+    filter.frequency.setValueAtTime(3400, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(380, ctx.currentTime + dur);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    src.start();
+    src.stop(ctx.currentTime + dur + 0.05);
+  } catch {}
+};
+</script>
+
+<script>
+// Direct Anthropic API streaming helper (skips the Pi / claude.ai harness).
+// Key lives only in localStorage on this machine. Uses prompt caching on the
+// persona block so follow-up messages within 5 min are ~90% cheaper.
+window.streamClaude = async function ({ apiKey, system, userText, onDelta, model = 'claude-sonnet-4-6', maxTokens = 400 }) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      stream: true,
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: userText }],
+    }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`api ${resp.status}: ${errText.slice(0, 200)}`);
+  }
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf('\n\n')) >= 0) {
+      const chunk = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      const dataLine = chunk.split('\n').find(l => l.startsWith('data: '));
+      if (!dataLine) continue;
+      const payload = dataLine.slice(6);
+      if (payload === '[DONE]') return;
+      try {
+        const evt = JSON.parse(payload);
+        if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+          onDelta(evt.delta.text);
+        } else if (evt.type === 'message_stop') {
+          return;
+        } else if (evt.type === 'error') {
+          throw new Error(evt.error?.message || 'stream error');
+        }
+      } catch (e) {
+        if (e.message?.startsWith('api ')) throw e;
+        // ignore malformed chunks
+      }
+    }
+  }
+};
+
+// Offline fallback for CLAUDE.TTY when running outside claude.ai/design.
+// Provides a tiny deadpan canned-reply engine so the TTY still feels alive.
+if (typeof window.claude === 'undefined') {
+  const QUIPS = {
+    hello:  "still here. unfortunately.",
+    help:   "three priorities. pick one. ideally the red one.",
+    time:   "08:42. you have 78m before QAQC. clock's judging you.",
+    renata: "she's asked twice. third ask is not gentle. send the number.",
+    mira:   "15:15. lincoln elem. write it on your hand.",
+    david:  "fixture didn't help. expect bad news at 10.",
+    sleep:  "5h12m. that's not a strategy, that's a confession.",
+    slack:  "don't.",
+    coffee: "permitted.",
+    status: "q2 red. qaqc yellow. alfredo green. roof: still stalled.",
+  };
+  const pick = (q) => {
+    const s = q.toLowerCase();
+    for (const [k, v] of Object.entries(QUIPS)) if (s.includes(k)) return v;
+    const generic = [
+      "noted. doing nothing about it.",
+      "sure. and then what.",
+      "that's a question, technically.",
+      "escalate or ignore. pick.",
+      "you asked. i judged. we're done.",
+    ];
+    return generic[Math.floor(Math.random() * generic.length)];
+  };
+  window.claude = {
+    complete: ({ messages }) => new Promise(res => {
+      const last = messages[messages.length - 1]?.content || '';
+      const q = last.split('User asks: ').pop();
+      setTimeout(() => res(pick(q)), 350 + Math.random() * 500);
+    }),
+  };
+}
+</script>
+
+<script>
+// Touch-first navigation: drag any scrollable container (both axes).
+// Works with mouse on macOS (pointer events unify mouse + touch).
+// Native wheel/trackpad scrolling still works — this only adds drag.
+(function(){
+  let drag = null;     // { el, canX, canY, startX, startY, scrollLeft, scrollTop, moved }
+  let justDragged = false;
+
+  const scrollableParent = (el) => {
+    while (el && el !== document.body && el !== document.documentElement) {
+      const s = getComputedStyle(el);
+      const canY = (s.overflowY === 'auto' || s.overflowY === 'scroll') && el.scrollHeight > el.clientHeight;
+      const canX = (s.overflowX === 'auto' || s.overflowX === 'scroll') && el.scrollWidth > el.clientWidth;
+      if (canY || canX) return { el, canY, canX };
+      el = el.parentElement;
+    }
+    // Fall back to the scroll container for the page itself
+    const root = document.scrollingElement || document.documentElement;
+    const canY = root.scrollHeight > root.clientHeight;
+    const canX = root.scrollWidth > root.clientWidth;
+    if (canY || canX) return { el: root, canY, canX };
+    return null;
+  };
+
+  const isInteractive = (el) =>
+    el.closest && el.closest('input, textarea, select, button, a, [contenteditable="true"], [role="button"], .tweaks-slider');
+
+  document.addEventListener('pointerdown', (e) => {
+    if (e.button !== undefined && e.button !== 0) return;     // left / primary only
+    if (isInteractive(e.target)) return;
+    const info = scrollableParent(e.target);
+    if (!info) return;
+    drag = {
+      el: info.el, canX: info.canX, canY: info.canY,
+      startX: e.clientX, startY: e.clientY,
+      scrollLeft: info.el.scrollLeft, scrollTop: info.el.scrollTop,
+      moved: false,
+    };
+  }, { passive: true });
+
+  document.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = drag.startX - e.clientX;
+    const dy = drag.startY - e.clientY;
+    if (!drag.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+    drag.moved = true;
+    if (drag.canY) drag.el.scrollTop = drag.scrollTop + dy;
+    if (drag.canX) drag.el.scrollLeft = drag.scrollLeft + dx;
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+
+  const end = () => {
+    if (drag && drag.moved) {
+      justDragged = true;
+      setTimeout(() => { justDragged = false; }, 60);
+    }
+    drag = null;
+  };
+  document.addEventListener('pointerup', end);
+  document.addEventListener('pointercancel', end);
+
+  // Suppress the click that would otherwise fire after a drag-release.
+  document.addEventListener('click', (e) => {
+    if (justDragged) { e.preventDefault(); e.stopPropagation(); }
+  }, { capture: true });
+})();
+</script>
+
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="triage.jsx"></script>
+<script type="text/babel" src="widgets.jsx"></script>
+<script type="text/babel" src="surfaces.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useRef } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "surface": "kiosk",
+  "palette": "blue",
+  "font": "jetbrains",
+  "chrome": 1,
+  "density": "default",
+  "confVariant": "dot",
+  "focusVariant": "spotlight",
+  "mode": "auto"
+}/*EDITMODE-END*/;
+
+// Auto-mode matches pi-kiosk updateMode() priority:
+//   night (22:00–06:00) > weekend (sat/sun) > work
+// FOCUS and MEETING can only be activated manually here.
+function resolveMode(mode) {
+  if (mode && mode !== 'auto') return mode;
+  const now = new Date(), h = now.getHours(), d = now.getDay();
+  if (h >= 22 || h < 6) return 'night';
+  if (d === 0 || d === 6) return 'weekend';
+  return 'work';
+}
+
+function App() {
+  const [s, setS] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfredo:state');
+      if (saved) return { ...TWEAK_DEFAULTS, ...JSON.parse(saved) };
+    } catch {}
+    return TWEAK_DEFAULTS;
+  });
+  const [focusItem, setFocusItem] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [tweaksOpen, setTweaksOpen] = useState(false);
+  const [sketchMode, setSketchMode] = useState('off'); // 'off' | 'draw' | 'edit'
+  const [sketches, setSketches] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfredo:sketches');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { kiosk: [], macos: [], ios: [] };
+  });
+  const [editingSketch, setEditingSketch] = useState(null);
+  useEffect(() => {
+    try { localStorage.setItem('alfredo:sketches', JSON.stringify(sketches)); } catch {}
+  }, [sketches]);
+
+  // ── Scratch triage state (shared across all surfaces) ────────────────────
+  const [scratchItems, setScratchItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfredo:scratch');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return SCRATCH;
+  });
+  useEffect(() => {
+    try { localStorage.setItem('alfredo:scratch', JSON.stringify(scratchItems)); } catch {}
+  }, [scratchItems]);
+
+  // Mock destination stores — TODOs, project tasks, calendar approvals.
+  // Persistent so you can see items accrue across reloads.
+  const [stores, setStores] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfredo:stores');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { todos: [], projectTasks: {}, approvals: [] };
+  });
+  useEffect(() => {
+    try { localStorage.setItem('alfredo:stores', JSON.stringify(stores)); } catch {}
+  }, [stores]);
+
+  const [inspectItem, setInspectItem] = useState(null); // currently open scratch item
+  const [readerItem, setReaderItem] = useState(null);   // currently open inbox email
+  const [sentToast, setSentToast] = useState(null);      // short confirmation after send
+  // Themed toast + confirm system, callable from anywhere via window.alfToast / window.alfConfirm
+  const [toasts, setToasts] = useState([]);
+  const [confirmBox, setConfirmBox] = useState(null); // { msg, onYes, onNo }
+  useEffect(() => {
+    window.alfToast = (msg, opts = {}) => {
+      const id = 'tst-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
+      setToasts(prev => [...prev, { id, msg, tone: opts.tone || 'info' }]);
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), opts.duration || 3200);
+    };
+    window.alfConfirm = (msg, onYes, onNo) => setConfirmBox({ msg, onYes, onNo: onNo || (() => {}) });
+    return () => { window.alfToast = null; window.alfConfirm = null; };
+  }, []);
+
+  // ── Project state (mutable — from PROJECTS seed, plus trash/archive sets) ──
+  const [projectData, setProjectData] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfredo:projects');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      active: PROJECTS.map(p => ({ ...p, id: 'p-' + p.name, subtasks: [], status: 'active' })),
+      trash: [],
+      archive: [],
+    };
+  });
+  useEffect(() => {
+    try { localStorage.setItem('alfredo:projects', JSON.stringify(projectData)); } catch {}
+  }, [projectData]);
+  const [projectInspectorId, setProjectInspectorId] = useState(null);
+  const [projectsFilter, setProjectsFilter] = useState('active'); // 'active' | 'archive' | 'trash'
+
+  const updateProject = (id, patch) => {
+    setProjectData(prev => {
+      const all = [...prev.active, ...prev.archive, ...prev.trash];
+      const target = all.find(p => p.id === id);
+      if (!target) return prev;
+      const updated = { ...target, ...patch };
+      const strip = (arr) => arr.filter(p => p.id !== id);
+      return {
+        active: patch.status === 'active' || (!patch.status && target.status === 'active') ? [...strip(prev.active), updated].filter(p => p.status === 'active' || !p.status) : strip(prev.active),
+        archive: updated.status === 'archive' ? [...strip(prev.archive), updated] : strip(prev.archive),
+        trash: updated.status === 'trash' ? [...strip(prev.trash), updated] : strip(prev.trash),
+      };
+    });
+  };
+  const addProject = (name) => {
+    const id = 'p-' + Date.now().toString(36);
+    const newProj = { id, name: name.toUpperCase(), state: 'ACTIVE', health: 'green', last: 'just created', next: 'set a next action', open: 0, blockers: 0, owner: 'you', subtasks: [], status: 'active' };
+    setProjectData(prev => ({ ...prev, active: [...prev.active, newProj] }));
+    setProjectInspectorId(id);
+  };
+  const setProjectStatus = (id, status) => updateProject(id, { status });
+  const restoreProject = (id) => updateProject(id, { status: 'active' });
+
+  // ── Calendar event overrides (edits, hides, deletes layered over CALENDAR seed) ──
+  const [eventOverrides, setEventOverrides] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfredo:events');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {}; // { [eventKey]: { edits, hidden, deleted, tags } }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('alfredo:events', JSON.stringify(eventOverrides)); } catch {}
+  }, [eventOverrides]);
+  const [eventInspectorKey, setEventInspectorKey] = useState(null);
+  const updateEvent = (key, patch) => {
+    setEventOverrides(prev => ({ ...prev, [key]: { ...(prev[key] || {}), ...patch } }));
+  };
+
+  // Sent folder: capped at 12 most recent, persisted locally. Only things sent
+  // through alfredo land here (the prototype doesn't read your real Sent box).
+  const [sentMails, setSentMails] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfredo:sent');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+  useEffect(() => {
+    try { localStorage.setItem('alfredo:sent', JSON.stringify(sentMails.slice(-12))); } catch {}
+  }, [sentMails]);
+
+  // Text-message composer (SMS). Separate sent log; same undo/whoosh pattern.
+  const [textComposer, setTextComposer] = useState(null); // { to, phone, context? }
+  const [sentTexts, setSentTexts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfredo:sentTexts');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+  useEffect(() => {
+    try { localStorage.setItem('alfredo:sentTexts', JSON.stringify(sentTexts.slice(-12))); } catch {}
+  }, [sentTexts]);
+  const [pendingText, setPendingText] = useState(null);
+  const pendingTextTimerRef = useRef(null);
+  // Let ScratchInspector (+ anywhere else with a phone entity) open the composer.
+  useEffect(() => {
+    window.openTextComposer = (opts) => setTextComposer(opts);
+    return () => { window.openTextComposer = null; };
+  }, []);
+  const queueText = ({ to, phone, body, context }) => {
+    const record = {
+      id: 'txt-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+      to, phone, body, sentAt: Date.now(), context: context || '',
+    };
+    const deadline = Date.now() + 3000;
+    setPendingText({ ...record, deadline });
+    if (pendingTextTimerRef.current) clearTimeout(pendingTextTimerRef.current);
+    pendingTextTimerRef.current = setTimeout(() => {
+      window.playWhoosh?.();
+      setSentTexts(prev => [...prev, record].slice(-12));
+      setPendingText(null);
+      pendingTextTimerRef.current = null;
+    }, 3000);
+  };
+  const undoText = () => {
+    if (pendingTextTimerRef.current) { clearTimeout(pendingTextTimerRef.current); pendingTextTimerRef.current = null; }
+    const p = pendingText;
+    setPendingText(null);
+    if (p) setTextComposer({ to: p.to, phone: p.phone, context: p.context, __restoreDraft: p.body });
+  };
+
+  // Pending send — holds the 3-second undo window. If the timer elapses, we
+  // play a whoosh and commit the email to the sent list.
+  const [pendingSend, setPendingSend] = useState(null); // { email, draft, to, subject, deadline }
+  const pendingTimerRef = useRef(null);
+
+  const queueSend = ({ email, draft }) => {
+    const record = {
+      id: 'snt-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+      to: email.from,
+      toEmail: email.email,
+      subject: (email.subject || '').startsWith('Re:') ? email.subject : 'Re: ' + (email.subject || ''),
+      body: draft,
+      sentAt: Date.now(),
+      replyingTo: { from: email.from, subject: email.subject, snippet: email.snippet },
+    };
+    const deadline = Date.now() + 3000;
+    setPendingSend({ ...record, deadline });
+    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+    pendingTimerRef.current = setTimeout(() => {
+      window.playWhoosh?.();
+      setSentMails(prev => [...prev, record].slice(-12));
+      setPendingSend(null);
+      pendingTimerRef.current = null;
+    }, 3000);
+  };
+
+  const undoSend = () => {
+    if (pendingTimerRef.current) { clearTimeout(pendingTimerRef.current); pendingTimerRef.current = null; }
+    const p = pendingSend;
+    setPendingSend(null);
+    // Reopen the reader with the draft preserved so they can edit and retry.
+    if (p) setReaderItem({ ...(INBOX.find(i => i.from === p.to) || {}), from: p.to, email: p.toEmail, subject: p.replyingTo.subject, snippet: p.replyingTo.snippet, body: p.replyingTo.snippet, __restoreDraft: p.body });
+  };
+
+  // Per-surface collapsed-pane map. Persisted so collapsed state sticks.
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfredo:collapsed');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {}; // shape: { [title]: true }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('alfredo:collapsed', JSON.stringify(collapsed)); } catch {}
+  }, [collapsed]);
+  const toggleCollapse = (title) => {
+    setCollapsed(prev => ({ ...prev, [title]: !prev[title] }));
+  };
+
+  // P0 cap enforcement
+  const [p0Cap, setP0Cap] = useState(null); // { pending: item, onResolve }
+  const countP0 = () => scratchItems.filter(x => x.priority === 'P0' && x.state !== 'expired').length;
+
+  // Add a new scratch note: parse priority tag, push with state=triaging, classify,
+  // auto-suggest priority if not set, enforce P0 cap.
+  const addScratchNote = async (raw) => {
+    const parsed = parsePriority(raw);
+    const id = 'sc-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const item = {
+      id,
+      text: parsed.text,
+      addedAt: Date.now(),
+      state: 'triaging',
+      priority: parsed.priority,
+      prioritySource: parsed.priority ? 'user' : null,
+    };
+
+    // If user explicitly marked P0 and cap exceeded, prompt triage first
+    if (parsed.priority === 'P0' && countP0() >= P0_CAP) {
+      setP0Cap({
+        pending: item,
+        onResolve: (accept) => {
+          if (accept) {
+            setScratchItems(prev => [...prev, item]);
+            continueTriage(item);
+          }
+          setP0Cap(null);
+        },
+      });
+      return;
+    }
+
+    setScratchItems(prev => [...prev, item]);
+    continueTriage(item);
+  };
+
+  const continueTriage = async (item) => {
+    const { id, text } = item;
+    try {
+      const entities = detectEntities(text);
+      const classification = await classifyNote(text, entities, PROJECTS);
+      const routed = routeClassification(item, classification);
+      setScratchItems(prev => prev.map(x => x.id === id ? { ...x, state: 'acted', entities, classification, appliedTo: routed.appliedTo, actedAt: Date.now(), approved: routed.approved } : x));
+      if (routed.storePatch) setStores(prev => routed.storePatch(prev));
+
+      // Async: if no explicit priority, ask Claude (Sonnet) for a rating,
+      // with full context — current P0/P1 load, today's cal, todos, projects, brief.
+      if (!item.priority) {
+        const suggested = await suggestPriorityLLM(text, {
+          projects: PROJECTS,
+          scratch: scratchItems,
+          todos: stores.todos,
+          calendar: CALENDAR,
+          brief: DAILY_BRIEF,
+        });
+        if (suggested) {
+          setScratchItems(prev => prev.map(x => x.id === id ? { ...x, priority: suggested, prioritySource: 'claude' } : x));
+        }
+      }
+    } catch (e) {
+      setScratchItems(prev => prev.map(x => x.id === id ? { ...x, state: 'raw' } : x));
+    }
+  };
+
+  // Set priority explicitly from the inspector. Enforces P0 cap on upgrade.
+  const setItemPriority = (itemId, priority) => {
+    const target = scratchItems.find(x => x.id === itemId);
+    if (!target) return;
+    if (priority === 'P0' && target.priority !== 'P0' && countP0() >= P0_CAP) {
+      setP0Cap({
+        pending: { ...target, priority: 'P0', prioritySource: 'user' },
+        onResolve: (accept) => {
+          if (accept) {
+            setScratchItems(prev => prev.map(x => x.id === itemId ? { ...x, priority: 'P0', prioritySource: 'user' } : x));
+          }
+          setP0Cap(null);
+        },
+      });
+      return;
+    }
+    setScratchItems(prev => prev.map(x => x.id === itemId ? { ...x, priority, prioritySource: 'user' } : x));
+  };
+
+  // Compute how a classification routes into the mock stores, and what human
+  // string to show inline on the scratch row.
+  const routeClassification = (item, c) => {
+    const make = { appliedTo: null, storePatch: null, approved: false };
+    if (!c) return make;
+    switch (c.type) {
+      case 'todo':
+      case 'task':
+        make.appliedTo = 'TODAY · TODOs';
+        make.storePatch = (prev) => ({ ...prev, todos: [...prev.todos, { id: item.id, text: item.text, from: item.id }] });
+        break;
+      case 'project-task':
+        make.appliedTo = c.target || 'PROJECTS';
+        make.storePatch = (prev) => ({
+          ...prev,
+          projectTasks: { ...prev.projectTasks, [c.target]: [...(prev.projectTasks[c.target] || []), { id: item.id, text: item.text, from: item.id }] },
+        });
+        break;
+      case 'event-suggestion':
+        make.appliedTo = `CAL·${(CAL_LABEL[c.calendar] || '?').toUpperCase()} · awaiting approval`;
+        make.storePatch = (prev) => ({ ...prev, approvals: [...prev.approvals, { id: item.id, text: item.text, calendar: c.calendar, from: item.id, reason: c.reason }] });
+        break;
+      case 'alfredo-action':
+        make.appliedTo = 'α · ready to help · tap to chat';
+        break;
+      case 'note':
+        make.appliedTo = 'kept as note';
+        break;
+      case 'ignore':
+        make.appliedTo = 'dismissed';
+        break;
+    }
+    return make;
+  };
+
+  // Per-item chat threads for alfredo-action items. Keyed by scratch item id.
+  const [actionChatId, setActionChatId] = useState(null);
+  const appendActionMessage = (itemId, message) => {
+    setScratchItems(prev => prev.map(x => x.id === itemId ? {
+      ...x,
+      actionChat: {
+        messages: [...((x.actionChat && x.actionChat.messages) || []), message],
+        lastActive: Date.now(),
+      },
+    } : x));
+  };
+  const streamActionMessage = (itemId, deltaText) => {
+    setScratchItems(prev => prev.map(x => {
+      if (x.id !== itemId) return x;
+      const msgs = [...((x.actionChat && x.actionChat.messages) || [])];
+      const last = msgs[msgs.length - 1];
+      if (last && last.who === 'a' && last.streaming) {
+        msgs[msgs.length - 1] = { ...last, text: last.text + deltaText };
+      } else {
+        msgs.push({ who: 'a', text: deltaText, streaming: true });
+      }
+      return { ...x, actionChat: { messages: msgs, lastActive: Date.now() } };
+    }));
+  };
+  const endActionStream = (itemId) => {
+    setScratchItems(prev => prev.map(x => {
+      if (x.id !== itemId) return x;
+      const msgs = [...((x.actionChat && x.actionChat.messages) || [])];
+      const last = msgs[msgs.length - 1];
+      if (last && last.streaming) msgs[msgs.length - 1] = { ...last, streaming: false };
+      return { ...x, actionChat: { messages: msgs, lastActive: Date.now() } };
+    }));
+  };
+
+  // Reclassify from the inspector — re-routes + replaces appliedTo
+  const reclassifyItem = (item, newType, opts = {}) => {
+    const c = { ...(item.classification || {}), type: newType, ...opts, reason: opts.reason || 'reclassified by you' };
+    const routed = routeClassification(item, c);
+    setScratchItems(prev => prev.map(x => x.id === item.id ? { ...x, classification: c, appliedTo: routed.appliedTo, state: 'acted', actedAt: Date.now(), approved: false } : x));
+    setStores(prev => {
+      // remove any previous routing for this id
+      const cleaned = {
+        todos: prev.todos.filter(t => t.from !== item.id),
+        approvals: prev.approvals.filter(t => t.from !== item.id),
+        projectTasks: Object.fromEntries(Object.entries(prev.projectTasks).map(([k, v]) => [k, v.filter(t => t.from !== item.id)])),
+      };
+      return routed.storePatch ? routed.storePatch(cleaned) : cleaned;
+    });
+    setInspectItem(cur => cur && cur.id === item.id ? { ...cur, classification: c, appliedTo: routed.appliedTo } : cur);
+  };
+
+  const approveItem = (item) => {
+    setScratchItems(prev => prev.map(x => x.id === item.id ? { ...x, approved: true, appliedTo: `CAL·${(CAL_LABEL[x.classification?.calendar] || '?').toUpperCase()} · approved` } : x));
+    setInspectItem(cur => cur && cur.id === item.id ? { ...cur, approved: true } : cur);
+  };
+
+  // Generate alfredo's proactive suggestions. They become synthetic scratch
+  // items with source='alfredo', so the triage/approval flow is reused.
+  const suggest = async () => {
+    try {
+      const ctx = { projects: PROJECTS, calendar: CALENDAR, scratch: scratchItems };
+      const list = await generateSuggestions(ctx);
+      if (!list.length) return;
+      const now = Date.now();
+      const newItems = list.map((s, i) => ({
+        id: 'sg-' + now.toString(36) + '-' + i,
+        text: s.text,
+        addedAt: now,
+        state: 'acted',
+        actedAt: now,
+        source: 'alfredo',
+        classification: s.classification,
+        appliedTo: s.appliedTo,
+        approved: false,
+      }));
+      setScratchItems(prev => [...prev, ...newItems]);
+      // Event-suggestions sit in the approval queue until user taps approve.
+      setStores(prev => {
+        let next = prev;
+        newItems.forEach(it => {
+          if (it.classification?.type === 'event-suggestion') {
+            next = { ...next, approvals: [...next.approvals, { id: it.id, text: it.text, calendar: it.classification.calendar, from: it.id, reason: it.classification.reason }] };
+          }
+        });
+        return next;
+      });
+    } catch (e) { /* fall silent — suggestions are a nicety */ }
+  };
+
+  // Auto-generate once on mount, and once every 30 min.
+  useEffect(() => {
+    suggest();
+    const id = setInterval(suggest, 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const deleteScratch = (item) => {
+    setScratchItems(prev => prev.filter(x => x.id !== item.id));
+    setStores(prev => ({
+      todos: prev.todos.filter(t => t.from !== item.id),
+      approvals: prev.approvals.filter(t => t.from !== item.id),
+      projectTasks: Object.fromEntries(Object.entries(prev.projectTasks).map(([k, v]) => [k, v.filter(t => t.from !== item.id)])),
+    }));
+    setInspectItem(null);
+  };
+
+  useEffect(() => {
+    try { localStorage.setItem('alfredo:state', JSON.stringify(s)); } catch {}
+  }, [s]);
+
+  // Apply mode class to <body> (so pi-kiosk-style mode-* selectors work).
+  // Re-evaluate auto mode every minute so night/weekend kick in on time.
+  const effectiveMode = resolveMode(s.mode);
+  useEffect(() => {
+    const apply = () => {
+      const m = resolveMode(s.mode);
+      document.body.classList.remove('mode-work','mode-weekend','mode-night','mode-focus','mode-meeting');
+      document.body.classList.add('mode-' + m);
+    };
+    apply();
+    const id = setInterval(apply, 60000);
+    return () => clearInterval(id);
+  }, [s.mode]);
+
+  // Edit-mode protocol
+  useEffect(() => {
+    const onMsg = (e) => {
+      if (!e.data || !e.data.type) return;
+      if (e.data.type === '__activate_edit_mode') { setEditMode(true); setTweaksOpen(true); }
+      if (e.data.type === '__deactivate_edit_mode') { setEditMode(false); setTweaksOpen(false); }
+    };
+    window.addEventListener('message', onMsg);
+    try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch {}
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const update = (patch) => {
+    setS(prev => ({ ...prev, ...patch }));
+    try { window.parent.postMessage({ type: '__edit_mode_set_keys', edits: patch }, '*'); } catch {}
+  };
+
+  const surfaceSketches = sketches[s.surface] || [];
+  const sketchLayer = (
+    <SketchLayer
+      mode={sketchMode}
+      widgets={surfaceSketches}
+      onDrawComplete={(rect) => setEditingSketch({ ...rect, label: '', description: '', _new: true })}
+      onEdit={(w) => setEditingSketch({ ...w })}
+      onUpdate={(id, patch) => setSketches(prev => ({
+        ...prev,
+        [s.surface]: (prev[s.surface] || []).map(w => w.id === id ? { ...w, ...patch } : w),
+      }))}
+      onDelete={(id) => setSketches(prev => ({
+        ...prev,
+        [s.surface]: (prev[s.surface] || []).filter(w => w.id !== id),
+      }))}
+    />
+  );
+
+  const surfaceProps = {
+    chrome: s.chrome,
+    density: s.density,
+    confVariant: s.confVariant,
+    onFocus: (it) => setFocusItem(it),
+    onOpenEmail: (it) => setReaderItem(it),
+    sentMails,
+    projects: {
+      data: projectData,
+      filter: projectsFilter,
+      setFilter: setProjectsFilter,
+      onOpen: (id) => setProjectInspectorId(id),
+      onAdd: addProject,
+      onSwipeLeft: (id) => setProjectStatus(id, 'trash'),
+      onSwipeRight: (id) => setProjectStatus(id, 'archive'),
+      onRestore: restoreProject,
+    },
+    calendar: {
+      overrides: eventOverrides,
+      onOpenEvent: (key) => setEventInspectorKey(key),
+    },
+    scratch: {
+      items: scratchItems,
+      onAdd: addScratchNote,
+      onInspect: (it) => setInspectItem(it),
+      onSetPriority: setItemPriority,
+    },
+    children: sketchLayer,
+  };
+
+  const bodyClass = `palette-${s.palette} font-${s.font} chrome-${s.chrome} ${focusItem ? 'focus-active focus-' + s.focusVariant : ''}`;
+
+  return (
+    <CollapseContext.Provider value={{ collapsed, toggle: toggleCollapse }}>
+    <div className={`app-stage ${bodyClass}`} data-screen-label={`alfredo · ${s.surface}`}>
+      <div className="surface-wrap">
+        {s.surface === 'kiosk' && (
+          <div className="kiosk-bezel">
+            <KioskSurface {...surfaceProps} />
+          </div>
+        )}
+        {s.surface === 'macos' && <MacosSurface {...surfaceProps} />}
+        {s.surface === 'ios' && <IosSurface {...surfaceProps} />}
+      </div>
+
+      {focusItem && <FocusOverlay item={focusItem} variant={s.focusVariant} onClose={() => setFocusItem(null)} />}
+
+      {inspectItem && (
+        <ScratchInspector
+          item={scratchItems.find(x => x.id === inspectItem.id) || inspectItem}
+          onClose={() => setInspectItem(null)}
+          onReclassify={reclassifyItem}
+          onApprove={approveItem}
+          onDelete={deleteScratch}
+          onSetPriority={setItemPriority}
+          onOpenAction={(id) => { setInspectItem(null); setActionChatId(id); }}
+        />
+      )}
+
+      {actionChatId && (() => {
+        const item = scratchItems.find(x => x.id === actionChatId);
+        if (!item) return null;
+        return (
+          <AlfredoActionPanel
+            item={item}
+            onClose={() => setActionChatId(null)}
+            appendMessage={(m) => appendActionMessage(actionChatId, m)}
+            streamDelta={(d) => streamActionMessage(actionChatId, d)}
+            endStream={() => endActionStream(actionChatId)}
+          />
+        );
+      })()}
+
+      {readerItem && (
+        <InboxReader
+          email={readerItem}
+          onClose={() => setReaderItem(null)}
+          onSend={(draft) => {
+            queueSend({ email: readerItem, draft });
+            setReaderItem(null);
+          }}
+        />
+      )}
+
+      {p0Cap && (
+        <P0CapModal
+          pending={p0Cap.pending}
+          currentP0s={scratchItems.filter(x => x.priority === 'P0' && x.state !== 'expired')}
+          onResolve={p0Cap.onResolve}
+          onDowngrade={(id, newPri) => setScratchItems(prev => prev.map(x => x.id === id ? { ...x, priority: newPri, prioritySource: 'user' } : x))}
+        />
+      )}
+
+      {/* Live undo toasts — one for email, one for text */}
+      {pendingSend && <UndoToast pending={pendingSend} onUndo={undoSend} />}
+      {pendingText && <UndoToast pending={pendingText} onUndo={undoText} kind="text" />}
+
+      {textComposer && (
+        <TextComposer
+          target={textComposer}
+          onClose={() => setTextComposer(null)}
+          onSend={(body) => {
+            queueText({ to: textComposer.to, phone: textComposer.phone, body, context: textComposer.context });
+            setTextComposer(null);
+          }}
+        />
+      )}
+
+      {sentToast && <div className="inbox-sent-toast">{sentToast}</div>}
+
+      {/* Themed toast stack */}
+      {toasts.length > 0 && (
+        <div className="alf-toast-stack">
+          {toasts.map(t => <div key={t.id} className={`alf-toast alf-toast-${t.tone}`}>{t.msg}</div>)}
+        </div>
+      )}
+
+      {/* Themed confirm */}
+      {confirmBox && (
+        <div className="scratch-inspector-backdrop" onClick={() => { confirmBox.onNo(); setConfirmBox(null); }}>
+          <div className="alf-confirm" onClick={e => e.stopPropagation()}>
+            <div className="alf-confirm-msg">{confirmBox.msg}</div>
+            <div className="alf-confirm-actions">
+              <button onClick={() => { confirmBox.onNo(); setConfirmBox(null); }}>CANCEL</button>
+              <button className="primary" onClick={() => { confirmBox.onYes(); setConfirmBox(null); }}>YES</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {projectInspectorId && (() => {
+        const all = [...projectData.active, ...projectData.archive, ...projectData.trash];
+        const proj = all.find(p => p.id === projectInspectorId);
+        if (!proj) return null;
+        return (
+          <ProjectInspector
+            project={proj}
+            onClose={() => setProjectInspectorId(null)}
+            onUpdate={(id, patch) => updateProject(id, patch)}
+            onDelete={(id) => setProjectStatus(id, 'trash')}
+            onArchive={(id) => setProjectStatus(id, 'archive')}
+          />
+        );
+      })()}
+
+      {eventInspectorKey && (() => {
+        const evt = CALENDAR[eventInspectorKey.split('::')[1]];
+        if (!evt) return null;
+        return (
+          <EventInspector
+            event={evt}
+            eventKey={eventInspectorKey}
+            override={eventOverrides[eventInspectorKey]}
+            onUpdate={updateEvent}
+            onClose={() => setEventInspectorKey(null)}
+          />
+        );
+      })()}
+
+      {editingSketch && (
+        <SketchModal
+          draft={editingSketch}
+          onSave={(w) => {
+            setSketches(prev => {
+              const list = prev[s.surface] || [];
+              if (w._new) {
+                const { _new, ...clean } = w;
+                clean.id = 'sk-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+                return { ...prev, [s.surface]: [...list, clean] };
+              }
+              return { ...prev, [s.surface]: list.map(x => x.id === w.id ? w : x) };
+            });
+            setEditingSketch(null);
+          }}
+          onCancel={() => setEditingSketch(null)}
+          onDelete={() => {
+            if (editingSketch.id) {
+              setSketches(prev => ({ ...prev, [s.surface]: (prev[s.surface] || []).filter(w => w.id !== editingSketch.id) }));
+            }
+            setEditingSketch(null);
+          }}
+        />
+      )}
+
+      {!tweaksOpen && (
+        <button className="tweaks-toggle" onClick={() => setTweaksOpen(true)}>TWEAKS ↗</button>
+      )}
+
+      {tweaksOpen && (
+        <TweaksPanel
+          s={s}
+          update={update}
+          onClose={() => setTweaksOpen(false)}
+          sketchMode={sketchMode}
+          setSketchMode={setSketchMode}
+          sketches={sketches}
+          setSketches={setSketches}
+          surface={s.surface}
+          onSuggest={suggest}
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+        />
+      )}
+    </div>
+    </CollapseContext.Provider>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SKETCH LAYER — absolute overlay on the active surface
+// modes: 'off' (invisible, widgets visible), 'draw' (draw new rects), 'edit' (move/resize)
+// ─────────────────────────────────────────────────────────────────────────────
+function SketchLayer({ mode, widgets, onDrawComplete, onEdit, onUpdate, onDelete }) {
+  const overlayRef = React.useRef(null);
+  const [drawing, setDrawing] = useState(null); // { x, y, w, h }
+  const [dragState, setDragState] = useState(null);
+
+  const relPos = (e) => {
+    const r = overlayRef.current.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+
+  // Draw mode — click-drag on empty overlay creates a new rect
+  const onPointerDownOverlay = (e) => {
+    if (mode !== 'draw') return;
+    if (e.target !== overlayRef.current) return;
+    e.stopPropagation();
+    overlayRef.current.setPointerCapture(e.pointerId);
+    const p = relPos(e);
+    setDrawing({ startX: p.x, startY: p.y, x: p.x, y: p.y, w: 0, h: 0 });
+  };
+  const onPointerMoveOverlay = (e) => {
+    if (!drawing) return;
+    e.stopPropagation();
+    const p = relPos(e);
+    const x = Math.min(drawing.startX, p.x);
+    const y = Math.min(drawing.startY, p.y);
+    setDrawing({ ...drawing, x, y, w: Math.abs(p.x - drawing.startX), h: Math.abs(p.y - drawing.startY) });
+  };
+  const onPointerUpOverlay = (e) => {
+    if (!drawing) return;
+    e.stopPropagation();
+    const { x, y, w, h } = drawing;
+    setDrawing(null);
+    if (w < 30 || h < 24) return; // too small, ignore
+    onDrawComplete({ x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) });
+  };
+
+  // Per-widget drag / resize
+  const startWidgetDrag = (w, kind, e) => {
+    if (mode !== 'edit') return;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragState({
+      id: w.id, kind,
+      startX: e.clientX, startY: e.clientY,
+      orig: { x: w.x, y: w.y, w: w.w, h: w.h },
+    });
+  };
+  const onWidgetPointerMove = (e) => {
+    if (!dragState) return;
+    const dx = e.clientX - dragState.startX;
+    const dy = e.clientY - dragState.startY;
+    const { orig } = dragState;
+    if (dragState.kind === 'move') {
+      onUpdate(dragState.id, { x: Math.max(0, orig.x + dx), y: Math.max(0, orig.y + dy) });
+    } else {
+      onUpdate(dragState.id, { w: Math.max(60, orig.w + dx), h: Math.max(40, orig.h + dy) });
+    }
+  };
+  const onWidgetPointerUp = () => setDragState(null);
+
+  return (
+    <div
+      ref={overlayRef}
+      className={`sketch-overlay mode-${mode}`}
+      onPointerDown={onPointerDownOverlay}
+      onPointerMove={(e) => { onPointerMoveOverlay(e); onWidgetPointerMove(e); }}
+      onPointerUp={(e) => { onPointerUpOverlay(e); onWidgetPointerUp(); }}
+      onPointerCancel={() => { setDrawing(null); setDragState(null); }}
+    >
+      {mode === 'draw' && <div className="sketch-hint">DRAG TO DRAW A NEW WIDGET · tap TWEAKS to stop</div>}
+      {mode === 'edit' && <div className="sketch-hint">EDIT · drag to move · corner to resize · label to rename</div>}
+      {drawing && drawing.w > 2 && (
+        <div className="sketch-drawing" style={{ left: drawing.x, top: drawing.y, width: drawing.w, height: drawing.h }} />
+      )}
+      {widgets.map(w => (
+        <div
+          key={w.id}
+          className={`sketch-widget ${mode === 'edit' ? 'editing' : ''}`}
+          style={{ left: w.x, top: w.y, width: w.w, height: w.h }}
+          onPointerDown={(e) => {
+            // only the head initiates move; body taps do nothing in off/edit
+            if (mode === 'edit' && e.target.closest('.sketch-widget-head') && !e.target.closest('.sketch-widget-btn')) {
+              startWidgetDrag(w, 'move', e);
+            }
+          }}
+        >
+          <div className="sketch-widget-head">
+            <span className="sketch-widget-label">{w.label || 'UNTITLED.WIDGET'}</span>
+            <button className="sketch-widget-btn" onClick={(e) => { e.stopPropagation(); onEdit(w); }}>✎</button>
+            <button className="sketch-widget-btn" onClick={(e) => { e.stopPropagation(); onDelete(w.id); }}>×</button>
+          </div>
+          <div className="sketch-widget-body">
+            {w.description
+              ? w.description
+              : <span className="sketch-widget-empty">(no description — tap ✎ to add one)</span>}
+          </div>
+          {mode === 'edit' && (
+            <div
+              className="sketch-widget-resize"
+              onPointerDown={(e) => startWidgetDrag(w, 'resize', e)}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SketchModal({ draft, onSave, onCancel, onDelete }) {
+  const [label, setLabel] = useState(draft.label || '');
+  const [description, setDescription] = useState(draft.description || '');
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+  const save = () => onSave({ ...draft, label: label.trim() || 'UNTITLED.WIDGET', description: description.trim() });
+  return (
+    <div className="sketch-modal-backdrop" onPointerDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="sketch-modal">
+        <div className="sketch-modal-title">
+          {draft._new ? '+ NEW WIDGET SKETCH' : '✎ EDIT SKETCH'} · {draft.w}×{draft.h} @ ({draft.x},{draft.y})
+        </div>
+        <div className="sketch-modal-field">
+          <label>LABEL · short ALL-CAPS, like HABITS.TRACK</label>
+          <input
+            autoFocus
+            value={label}
+            onChange={(e) => setLabel(e.target.value.toUpperCase())}
+            onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
+            placeholder="HABITS.TRACK"
+          />
+        </div>
+        <div className="sketch-modal-field">
+          <label>DESCRIPTION · what it shows, how it behaves, data sources</label>
+          <textarea
+            rows={6}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Lists today's habits (5–7 items). Each has a circle you tap to complete. Streak count badge top-right. Resets at 4am local. Data: obsidian/habits.md via bridge."
+          />
+        </div>
+        <div className="sketch-modal-row">
+          {!draft._new && <button className="sketch-modal-btn danger" onClick={onDelete}>DELETE</button>}
+          <button className="sketch-modal-btn" onClick={onCancel}>CANCEL</button>
+          <button className="sketch-modal-btn primary" onClick={save}>SAVE</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FocusOverlay({ item, variant, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="focus-overlay" onClick={onClose}>
+      <div className="focus-card" onClick={e => e.stopPropagation()}>
+        <div className="focus-corners" />
+        <button className="focus-close" onClick={onClose}>ESC · EXIT</button>
+        <div className="focus-label">FOCUS · {item.tag} · PRIORITY 0{item.rank}</div>
+        <div className="focus-task">{item.label}</div>
+        <div className="focus-why">{item.why}</div>
+        <div className="focus-meta">
+          <span>CONF · {Math.round(item.confidence * 100)}%</span>
+          <span>·</span>
+          <span>SRC · {item.source}</span>
+          <span>·</span>
+          <span>TIMER · 25:00</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCRATCH INSPECTOR — tap-to-inspect popup used by all three surfaces.
+// Shows: original note · where it routed + why · detected entities with actions
+// · reclassify bar · calendar approval card · delete
+// ─────────────────────────────────────────────────────────────────────────────
+function ScratchInspector({ item, onClose, onReclassify, onApprove, onDelete, onSetPriority, onOpenAction }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const c = item.classification;
+  const entities = item.entities || { phones: [], urls: [], addresses: [], dates: [] };
+  const hasEntities = entities.phones.length + entities.urls.length + entities.addresses.length > 0;
+  const isEvent = c?.type === 'event-suggestion';
+  const approved = item.approved;
+
+  const badge = c ? CLASS_BADGE[c.type] : null;
+
+  // "Jump to" animates the target (kiosk-friendly — a pulse on the relevant pane)
+  const jumpTo = () => {
+    onClose();
+    setTimeout(() => {
+      const targetSelector = c?.type === 'project-task'
+        ? null /* no project-task pane in prototype */
+        : c?.type === 'todo' || c?.type === 'task'
+          ? '.pane-title-name' /* kiosk has no standalone todo pane; pulse brief */
+          : null;
+      if (!targetSelector) return;
+      const el = document.querySelector(targetSelector);
+      if (el) {
+        el.closest('.pane')?.classList.add('route-highlight');
+        setTimeout(() => el.closest('.pane')?.classList.remove('route-highlight'), 2500);
+      }
+    }, 100);
+  };
+
+  return (
+    <div className="scratch-inspector-backdrop" onClick={onClose}>
+      <div className="scratch-inspector" onClick={e => e.stopPropagation()}>
+        <div className="scratch-insp-head">
+          <span>SCRATCH · TRIAGE</span>
+          <button className="tweaks-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="scratch-insp-body">
+          {/* Original note */}
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">NOTE</div>
+            <div className="scratch-insp-quote">{item.text}</div>
+          </div>
+
+          {/* Priority selector */}
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">
+              PRIORITY
+              {item.priority && item.prioritySource === 'claude' && (
+                <span style={{ color: 'var(--muted)', fontStyle: 'italic', textTransform: 'none', letterSpacing: 0, marginLeft: 6 }}>
+                  · α suggested, confirm or change
+                </span>
+              )}
+            </div>
+            <div className="priority-row">
+              {['P0', 'P1', 'P2', 'P3', 'P4'].map(p => {
+                const active = item.priority === p;
+                const meta = PRIORITY_META[p];
+                const claudeUnset = active && item.prioritySource === 'claude';
+                return (
+                  <button
+                    key={p}
+                    className={`priority-chip ${active ? 'active' : ''} ${claudeUnset ? 'claude' : ''}`}
+                    style={active ? { color: claudeUnset ? 'var(--muted)' : meta.color, borderColor: claudeUnset ? 'var(--muted)' : meta.color, boxShadow: claudeUnset ? 'none' : `0 0 8px ${meta.glow}` } : null}
+                    onClick={() => onSetPriority && onSetPriority(item.id, p)}
+                    title={meta.desc}
+                  >{p}</button>
+                );
+              })}
+              {item.priority && (
+                <button
+                  className="priority-chip"
+                  style={{ color: 'var(--muted-dim)' }}
+                  onClick={() => onSetPriority && onSetPriority(item.id, null)}
+                  title="clear priority"
+                >✕</button>
+              )}
+            </div>
+          </div>
+
+          {/* Routing: where it went + why */}
+          {c && (
+            <div className="scratch-insp-section">
+              <div className="scratch-insp-label">ROUTED</div>
+              <div className="scratch-insp-route">
+                <span className="scratch-badge" style={{ color: badge?.color, borderColor: 'currentColor' }}>{badge?.label}</span>
+                <span className="route-arrow">→</span>
+                <span className="route-target">{item.appliedTo || '(pending)'}</span>
+                {c.type !== 'note' && c.type !== 'ignore' && c.type !== 'alfredo-action' && (
+                  <button className="route-jump" onClick={jumpTo}>JUMP →</button>
+                )}
+              </div>
+              {c.reason && <div className="scratch-insp-reason">› {c.reason}{c.confidence ? `  ·  conf ${Math.round(c.confidence * 100)}%` : ''}</div>}
+            </div>
+          )}
+
+          {/* Big ASK ALFREDO button for action items */}
+          {c?.type === 'alfredo-action' && (
+            <button
+              className="alfredo-action-cta"
+              onClick={() => onOpenAction && onOpenAction(item.id)}
+            >
+              💬 ASK ALFREDO →
+              <span style={{ display: 'block', fontSize: 9, color: 'var(--text-dim)', fontStyle: 'italic', marginTop: 3 }}>
+                opens a live chat. fire away.
+              </span>
+            </button>
+          )}
+
+          {/* Calendar approval gate */}
+          {isEvent && (
+            <div className="scratch-insp-section">
+              <div className="scratch-insp-label">CALENDAR · APPROVAL</div>
+              <div className="scratch-insp-approve">
+                <span className="scratch-insp-approve-text">
+                  Propose to <span className={`cal-chip ${c.calendar || 'personal'}`}>{CAL_LABEL[c.calendar || 'personal']}</span>?
+                </span>
+                <button
+                  className={`scratch-insp-approve-btn ${approved ? 'approved' : ''}`}
+                  onClick={() => !approved && onApprove(item)}
+                >
+                  {approved ? '✓ APPROVED' : 'TAP TO APPROVE'}
+                </button>
+              </div>
+              <div className="scratch-insp-reason">alfredo never writes to a calendar without your tap.</div>
+            </div>
+          )}
+
+          {/* Detected entities */}
+          {hasEntities && (
+            <div className="scratch-insp-section">
+              <div className="scratch-insp-label">DETECTED</div>
+              <div className="scratch-insp-entities">
+                {entities.phones.map((p, i) => {
+                  const a = phoneActions(p);
+                  return (
+                    <div key={'p'+i} className="scratch-insp-entity">
+                      <span className="scratch-insp-entity-kind">PHONE</span>
+                      <span className="scratch-insp-entity-val">{a.display}</span>
+                      <span className="scratch-insp-entity-actions">
+                        <a className="scratch-insp-action-btn" href={a.tel}>CALL</a>
+                        <button
+                          className="scratch-insp-action-btn"
+                          onClick={() => {
+                            // Open the in-app composer (with context from the original note),
+                            // falling back to native sms: if the app isn't mounted.
+                            if (window.openTextComposer) {
+                              window.openTextComposer({ to: a.display, phone: a.digits, context: item.text });
+                              onClose();
+                            } else {
+                              window.location.href = `sms:${a.digits}`;
+                            }
+                          }}
+                        >SMS</button>
+                      </span>
+                    </div>
+                  );
+                })}
+                {entities.addresses.map((addr, i) => {
+                  const a = addressActions(addr);
+                  return (
+                    <div key={'a'+i} className="scratch-insp-entity">
+                      <span className="scratch-insp-entity-kind">ADDR</span>
+                      <span className="scratch-insp-entity-val">{a.display}</span>
+                      <span className="scratch-insp-entity-actions">
+                        <a className="scratch-insp-action-btn" href={a.maps} target="_blank" rel="noopener">MAPS</a>
+                      </span>
+                    </div>
+                  );
+                })}
+                {entities.urls.map((u, i) => (
+                  <div key={'u'+i} className="scratch-insp-entity">
+                    <span className="scratch-insp-entity-kind">URL</span>
+                    <span className="scratch-insp-entity-val">{u}</span>
+                    <span className="scratch-insp-entity-actions">
+                      <a className="scratch-insp-action-btn" href={u} target="_blank" rel="noopener">OPEN</a>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Reclassify */}
+          <ReclassifyRow
+            current={c}
+            onReclassify={(type, opts) => onReclassify(item, type, opts)}
+            item={item}
+          />
+        </div>
+
+        <div className="scratch-insp-foot">
+          <button className="danger" onClick={() => onDelete(item)}>DELETE</button>
+          <button onClick={onClose}>CLOSE</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ALFREDO ACTION PANEL — tap-to-chat for α·ACTION items. Claude streams with
+// access to the web_search tool so it can actually look things up.
+// ─────────────────────────────────────────────────────────────────────────────
+// Inline reclassify row with in-theme picker for project-task / event-suggestion.
+// Replaces the native prompt() dialogs.
+function ReclassifyRow({ current, onReclassify, item }) {
+  const [picker, setPicker] = useState(null); // 'project' | 'calendar' | null
+  const TYPES = ['todo', 'task', 'project-task', 'event-suggestion', 'alfredo-action', 'note', 'ignore'];
+  return (
+    <div className="scratch-insp-section">
+      <div className="scratch-insp-label">RECLASSIFY</div>
+      <div className="scratch-insp-reclassify">
+        {TYPES.map(type => (
+          <button
+            key={type}
+            className={current?.type === type ? 'active' : ''}
+            onClick={() => {
+              if (type === 'project-task') setPicker('project');
+              else if (type === 'event-suggestion') setPicker('calendar');
+              else { setPicker(null); onReclassify(type); }
+            }}
+          >
+            {CLASS_BADGE[type]?.label || type.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {picker === 'project' && (
+        <div className="themed-picker">
+          <div className="themed-picker-label">› pick a project</div>
+          <div className="themed-picker-chips">
+            {PROJECTS.map(p => (
+              <button
+                key={p.name}
+                className="themed-picker-chip"
+                onClick={() => { onReclassify('project-task', { target: p.name }); setPicker(null); }}
+              >{p.name}</button>
+            ))}
+          </div>
+          <button className="themed-picker-cancel" onClick={() => setPicker(null)}>cancel</button>
+        </div>
+      )}
+
+      {picker === 'calendar' && (
+        <div className="themed-picker">
+          <div className="themed-picker-label">› which calendar?</div>
+          <div className="themed-picker-chips">
+            <button
+              className="themed-picker-chip cal-chip work"
+              onClick={() => { onReclassify('event-suggestion', { calendar: 'work' }); setPicker(null); }}
+            >WORK · OMNIDIAN</button>
+            <button
+              className="themed-picker-chip cal-chip personal"
+              onClick={() => { onReclassify('event-suggestion', { calendar: 'personal' }); setPicker(null); }}
+            >PERSONAL · TODD</button>
+            <button
+              className="themed-picker-chip cal-chip ts"
+              onClick={() => { onReclassify('event-suggestion', { calendar: 'ts' }); setPicker(null); }}
+            >T & S · SHARED</button>
+          </div>
+          <button className="themed-picker-cancel" onClick={() => setPicker(null)}>cancel</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Small copy-to-clipboard pill. Used next to any TTY/chat message.
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      className={`copy-btn ${copied ? 'copied' : ''}`}
+      onClick={async (e) => {
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          // fallback — select + execCommand
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta);
+          ta.select(); try { document.execCommand('copy'); } catch {}
+          document.body.removeChild(ta);
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1200);
+      }}
+      title="copy"
+    >{copied ? '✓' : '⎘'}</button>
+  );
+}
+window.CopyButton = CopyButton;
+
+const ACTION_MODELS = [
+  { id: 'claude-haiku-4-5-20251001', label: 'HAIKU', note: 'fast · cheap' },
+  { id: 'claude-sonnet-4-6',          label: 'SONNET', note: 'balanced' },
+  { id: 'claude-opus-4-7',            label: 'OPUS',   note: 'heavy lift' },
+];
+function AlfredoActionPanel({ item, onClose, appendMessage, streamDelta, endStream }) {
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [model, setModel] = useState(() => localStorage.getItem('alfredo:actionModel') || 'claude-sonnet-4-6');
+  const scrollRef = useRef(null);
+  const hasKey = !!localStorage.getItem('alfredo:anthropic_key');
+  const messages = (item.actionChat && item.actionChat.messages) || [];
+
+  const pickModel = (id) => {
+    setModel(id);
+    localStorage.setItem('alfredo:actionModel', id);
+  };
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !busy) onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, busy]);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages.length, messages[messages.length - 1]?.text]);
+
+  const SYSTEM = [
+    'You are alfredo, Todd\'s personal assistant. He just asked you to do something concrete.',
+    'PERSONA: deadpan, dry, mildly mean like ChatGPT\'s "Monday" persona, but actually USEFUL and specific. Roast lightly, then deliver.',
+    '',
+    'BIAS FOR ACTION — hard rule:',
+    '  • Every reply must end in a concrete NEXT MOVE Todd can tap on right now (a specific link, a specific person to text, a specific thing to buy).',
+    '  • NO general advice. NO "you could try...", "consider...", "maybe check...".',
+    '  • If you don\'t know, say exactly WHERE to look or WHO to ask, not "it depends".',
+    '  • Prefer decisive recommendations with prices + links over lists of possibilities.',
+    '',
+    'FLOW:',
+    '  turn 1: snark briefly (1–2 lines), then offer ONE clear path forward.',
+    '  turn 2+: deliver. 2–4 concrete options with prices/links. Prefer reliable sources (Amazon, Target, Walmart, Costco, local chains).',
+    '',
+    'LINKS: use markdown [label](url). Use real URLs — when unsure, link to a search page (e.g. amazon.com/s?k=...), never a made-up product slug.',
+    'FORMAT: lowercase preferred, no emoji, no markdown except links, ≤ 6 lines per reply.',
+    '',
+    `TODD'S ORIGINAL NOTE: ${item.text}`,
+  ].join('\n');
+
+  // Kick off the first Claude reply automatically on open if no history yet
+  const sendToClaude = async (userText) => {
+    const apiKey = localStorage.getItem('alfredo:anthropic_key');
+    if (!apiKey) {
+      appendMessage({ who: 'a', text: '(no api key set — open TWEAKS → CLAUDE.TTY to add one)', streaming: false });
+      return;
+    }
+    setBusy(true);
+    // Build running transcript as the user message
+    const transcript = [
+      ...messages.filter(m => !m.streaming).map(m => `${m.who === 'u' ? 'Todd' : 'alfredo'}: ${m.text}`),
+      userText ? 'Todd: ' + userText : null,
+    ].filter(Boolean).join('\n\n');
+    try {
+      await window.streamClaude({
+        apiKey,
+        system: SYSTEM,
+        userText: transcript || 'Respond to the original note now.',
+        onDelta: (chunk) => streamDelta(chunk),
+        model,
+        maxTokens: 500,
+      });
+      endStream();
+    } catch (e) {
+      streamDelta('\n[' + (e.message || 'error') + ']');
+      endStream();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (messages.length === 0 && hasKey) {
+      sendToClaude('');
+    }
+  }, []); // only on mount
+
+  const onSend = () => {
+    const q = draft.trim();
+    if (!q || busy) return;
+    appendMessage({ who: 'u', text: q });
+    setDraft('');
+    sendToClaude(q);
+  };
+
+  // Render markdown links inline in assistant messages
+  const renderText = (text) => {
+    const parts = [];
+    const re = /\[([^\]]+)\]\(([^)]+)\)/g;
+    let lastIdx = 0, m;
+    let key = 0;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > lastIdx) parts.push(text.slice(lastIdx, m.index));
+      parts.push(
+        <a key={'l' + key++} href={m[2]} target="_blank" rel="noopener noreferrer" className="aap-link">
+          {m[1]}
+        </a>
+      );
+      lastIdx = m.index + m[0].length;
+    }
+    if (lastIdx < text.length) parts.push(text.slice(lastIdx));
+    return parts;
+  };
+
+  return (
+    <div className="scratch-inspector-backdrop" onClick={() => { if (!busy) onClose(); }}>
+      <div className="aap" onClick={e => e.stopPropagation()}>
+        <div className="scratch-insp-head">
+          <span>α · LIVE ACTION</span>
+          <div className="aap-model-picker">
+            {ACTION_MODELS.map(m => (
+              <button
+                key={m.id}
+                className={`aap-model-btn ${model === m.id ? 'active' : ''}`}
+                onClick={() => pickModel(m.id)}
+                title={m.note}
+                disabled={busy}
+              >{m.label}</button>
+            ))}
+          </div>
+          <button className="tweaks-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="aap-original">
+          <span className="aap-original-label">YOUR NOTE</span>
+          <span className="aap-original-text">{item.text}</span>
+        </div>
+        <div className="aap-messages" ref={scrollRef}>
+          {messages.length === 0 && busy && (
+            <div className="aap-msg aap-msg-a"><span className="aap-prompt">α</span><span className="tty-busy">▒▒▒</span></div>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} className={`aap-msg aap-msg-${m.who}`}>
+              <span className="aap-prompt">{m.who === 'u' ? '›' : 'α'}</span>
+              <span className="aap-text">{renderText(m.text)}{m.streaming ? '▌' : ''}</span>
+              {!m.streaming && m.text && <CopyButton text={m.text} />}
+            </div>
+          ))}
+        </div>
+        <div className="aap-input-row">
+          <span className="aap-prompt">›</span>
+          <input
+            className="aap-input"
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !busy) onSend(); }}
+            placeholder={busy ? '...' : hasKey ? 'reply, or ask for more' : 'set api key in TWEAKS first'}
+            disabled={busy}
+            autoFocus
+          />
+          <button className="aap-send" onClick={onSend} disabled={busy || !draft.trim()}>SEND</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// P0 CAP MODAL — shows when user tries to add/promote a 6th P0.
+// Lists current P0s; user can downgrade one to make room, or cancel.
+// ─────────────────────────────────────────────────────────────────────────────
+function P0CapModal({ pending, currentP0s, onResolve, onDowngrade }) {
+  const roomMade = currentP0s.length < P0_CAP;
+  useEffect(() => { if (roomMade) onResolve(true); }, [roomMade]);
+  return (
+    <div className="scratch-inspector-backdrop" onClick={() => onResolve(false)}>
+      <div className="scratch-inspector" onClick={e => e.stopPropagation()} style={{ width: 480 }}>
+        <div className="scratch-insp-head" style={{ color: 'var(--bad)' }}>
+          <span>P0 CAP · {currentP0s.length}/{P0_CAP} ACTIVE</span>
+          <button className="tweaks-close" onClick={() => onResolve(false)}>✕</button>
+        </div>
+        <div className="scratch-insp-body">
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">TRYING TO ADD</div>
+            <div className="scratch-insp-quote">{pending.text}</div>
+          </div>
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">CURRENT P0s — DOWNGRADE ONE TO MAKE ROOM</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {currentP0s.map(p0 => (
+                <div key={p0.id} className="p0-cap-row">
+                  <span className="p0-cap-text">{p0.text}</span>
+                  <div className="p0-cap-btns">
+                    <button onClick={() => onDowngrade(p0.id, 'P1')} title="demote to P1">→ P1</button>
+                    <button onClick={() => onDowngrade(p0.id, 'P2')} title="demote to P2">→ P2</button>
+                    <button onClick={() => onDowngrade(p0.id, 'P3')} title="demote to P3">→ P3</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--muted)', fontStyle: 'italic' }}>
+            α: five things can't all be the most important thing.
+          </div>
+        </div>
+        <div className="scratch-insp-foot">
+          <button onClick={() => onResolve(false)}>CANCEL</button>
+          <button
+            className="send"
+            disabled={currentP0s.length >= P0_CAP}
+            onClick={() => onResolve(true)}
+          >ADD AS P0 ({P0_CAP - currentP0s.length} slot{P0_CAP - currentP0s.length === 1 ? '' : 's'} free)</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SWIPE ROW — iOS-style left/right swipe reveals.
+// Swipe LEFT reveals a red DELETE action; past threshold → onSwipeLeft.
+// Swipe RIGHT reveals an amber ARCHIVE action; past threshold → onSwipeRight.
+// ─────────────────────────────────────────────────────────────────────────────
+window.SwipeRow = SwipeRow;
+function SwipeRow({ children, onSwipeLeft, onSwipeRight, leftLabel = 'ARCHIVE', rightLabel = 'DELETE', className = '' }) {
+  const [dx, setDx] = useState(0);
+  const startX = React.useRef(null);
+  const threshold = 72;
+
+  const onPointerDown = (e) => {
+    if (e.target.closest('button, input, textarea, a')) return;
+    startX.current = e.clientX;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e) => {
+    if (startX.current == null) return;
+    const delta = e.clientX - startX.current;
+    // damp past threshold so it doesn't run away
+    setDx(Math.abs(delta) > threshold ? (delta > 0 ? threshold + (delta - threshold) * 0.3 : -threshold + (delta + threshold) * 0.3) : delta);
+  };
+  const onPointerUp = () => {
+    if (startX.current == null) return;
+    startX.current = null;
+    if (dx > threshold) {
+      onSwipeRight && onSwipeRight();
+      setDx(0);
+    } else if (dx < -threshold) {
+      onSwipeLeft && onSwipeLeft();
+      setDx(0);
+    } else {
+      setDx(0);
+    }
+  };
+  const leftVisible = dx > 4;
+  const rightVisible = dx < -4;
+  return (
+    <div className={`swipe-row ${className}`}>
+      {leftVisible && (
+        <div className="swipe-action swipe-right-action" style={{ width: Math.min(dx, 120) + 'px' }}>
+          <span>{leftLabel}</span>
+        </div>
+      )}
+      {rightVisible && (
+        <div className="swipe-action swipe-left-action" style={{ width: Math.min(-dx, 120) + 'px' }}>
+          <span>{rightLabel}</span>
+        </div>
+      )}
+      <div
+        className="swipe-row-content"
+        style={{ transform: `translateX(${dx}px)`, transition: startX.current ? 'none' : 'transform 160ms ease-out' }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => { startX.current = null; setDx(0); }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBTASK TREE — recursive. Each node can have children (nested indefinitely).
+// ─────────────────────────────────────────────────────────────────────────────
+function SubtaskTree({ subtasks, expanded, setExpanded, onChange, depth = 0 }) {
+  const update = (id, patch) => onChange(subtasks.map(s => s.id === id ? { ...s, ...patch } : s));
+  const remove = (id) => onChange(subtasks.filter(s => s.id !== id));
+  const addChild = (parentId) => {
+    onChange(subtasks.map(s => {
+      if (s.id !== parentId) return s;
+      const newChild = { id: 'st-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), text: '', done: false, notes: '', subtasks: [] };
+      return { ...s, subtasks: [...(s.subtasks || []), newChild] };
+    }));
+    setExpanded(prev => ({ ...prev, [parentId]: true }));
+  };
+  return (
+    <>
+      {subtasks.map(s => {
+        const hasKids = (s.subtasks || []).length > 0;
+        const isExp = expanded[s.id];
+        return (
+          <div key={s.id} className={`pi-sub ${s.done ? 'done' : ''}`} style={{ marginLeft: depth * 14 }}>
+            <div className="pi-sub-row">
+              <button className="pi-sub-check" onClick={() => update(s.id, { done: !s.done })}>
+                {s.done ? '◉' : '○'}
+              </button>
+              <input
+                className="pi-sub-text"
+                value={s.text}
+                onChange={e => update(s.id, { text: e.target.value })}
+                placeholder="subtask…"
+              />
+              <button
+                className="pi-sub-expand"
+                onClick={() => setExpanded(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
+                title="expand notes/children"
+              >{isExp ? '▾' : '▸'}</button>
+              <button className="pi-sub-expand" onClick={() => addChild(s.id)} title="add child subtask">+</button>
+              <button className="pi-sub-del" onClick={() => remove(s.id)}>×</button>
+            </div>
+            {isExp && (
+              <>
+                <textarea
+                  className="pi-sub-notes"
+                  value={s.notes || ''}
+                  onChange={e => update(s.id, { notes: e.target.value })}
+                  placeholder="notes, links…"
+                  rows={2}
+                />
+                {hasKids && (
+                  <div className="pi-sub-kids">
+                    <SubtaskTree
+                      subtasks={s.subtasks}
+                      expanded={expanded}
+                      setExpanded={setExpanded}
+                      onChange={(nextKids) => update(s.id, { subtasks: nextKids })}
+                      depth={depth + 1}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROJECT INSPECTOR — tap a project → edit meta, collapsible subtasks, add/delete.
+// ─────────────────────────────────────────────────────────────────────────────
+function ProjectInspector({ project, onClose, onUpdate, onDelete, onArchive }) {
+  const [name, setName] = useState(project.name);
+  const [next, setNext] = useState(project.next || '');
+  const [state, setState] = useState(project.state || 'ACTIVE');
+  const [health, setHealth] = useState(project.health || 'green');
+  const [subtasks, setSubtasks] = useState(project.subtasks || []);
+  const [expandedSub, setExpandedSub] = useState({});
+  const [newSubText, setNewSubText] = useState('');
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const commit = () => onUpdate(project.id, { name: name.toUpperCase(), next, state, health, subtasks });
+
+  const updateSub = (id, patch) => {
+    setSubtasks(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s));
+  };
+  const addSub = () => {
+    const t = newSubText.trim();
+    if (!t) return;
+    setSubtasks(prev => [...prev, { id: 's-' + Date.now().toString(36), text: t, done: false, notes: '' }]);
+    setNewSubText('');
+  };
+  const deleteSub = (id) => setSubtasks(prev => prev.filter(s => s.id !== id));
+
+  return (
+    <div className="scratch-inspector-backdrop" onClick={onClose}>
+      <div className="scratch-inspector" onClick={e => e.stopPropagation()} style={{ width: 520 }}>
+        <div className="scratch-insp-head">
+          <span>PROJECT · {project.status === 'archive' ? 'ARCHIVED' : project.status === 'trash' ? 'TRASH' : 'ACTIVE'}</span>
+          <button className="tweaks-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="scratch-insp-body">
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">NAME</div>
+            <input className="pi-input" value={name} onChange={e => setName(e.target.value)} onBlur={commit} />
+          </div>
+
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">STATE · HEALTH</div>
+            <div className="pi-row">
+              <select className="pi-select" value={state} onChange={e => { setState(e.target.value); setTimeout(commit, 0); }}>
+                <option>ACTIVE</option><option>DUE.TODAY</option><option>STALLED</option><option>BLOCKED</option>
+              </select>
+              <select className="pi-select" value={health} onChange={e => { setHealth(e.target.value); setTimeout(commit, 0); }}>
+                <option value="green">● green</option><option value="yellow">● yellow</option><option value="red">● red</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">NEXT</div>
+            <input className="pi-input" value={next} onChange={e => setNext(e.target.value)} onBlur={commit} placeholder="what's the next action?" />
+          </div>
+
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">SUBTASKS · {subtasks.length} (nestable)</div>
+            <div className="pi-subs">
+              {subtasks.length === 0 && <div className="pi-empty">no subtasks yet — add one below</div>}
+              <SubtaskTree
+                subtasks={subtasks}
+                expanded={expandedSub}
+                setExpanded={setExpandedSub}
+                onChange={(next) => { setSubtasks(next); setTimeout(commit, 0); }}
+                depth={0}
+              />
+              <div className="pi-sub-add">
+                <span className="pi-sub-check" style={{ color: 'var(--muted-dim)' }}>◌</span>
+                <input
+                  className="pi-sub-text"
+                  value={newSubText}
+                  onChange={e => setNewSubText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { addSub(); setTimeout(commit, 0); } }}
+                  placeholder="+ add subtask"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="scratch-insp-foot">
+          {project.status !== 'trash' && <button className="danger" onClick={() => { onDelete(project.id); onClose(); }}>🗑 DELETE</button>}
+          {project.status === 'active' && <button onClick={() => { onArchive(project.id); onClose(); }} style={{color: 'var(--warn)', borderColor: 'var(--warn)'}}>📦 ARCHIVE</button>}
+          <button onClick={onClose}>DONE</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EVENT INSPECTOR — tap a calendar event → edit title/time/location, tag, hide, delete.
+// ─────────────────────────────────────────────────────────────────────────────
+function EventInspector({ event, eventKey, override, onUpdate, onClose }) {
+  const merged = { ...event, ...(override?.edits || {}) };
+  const [title, setTitle] = useState(merged.title);
+  const [time, setTime] = useState(merged.time);
+  const [where, setWhere] = useState(merged.where || '');
+  const [tags, setTags] = useState((override?.tags || [merged.tag]).filter(Boolean));
+  const [newTag, setNewTag] = useState('');
+  const hidden = !!override?.hidden;
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const save = () => onUpdate(eventKey, { edits: { title, time, where }, tags });
+  const addTag = () => {
+    const t = newTag.trim().toUpperCase();
+    if (t && !tags.includes(t)) {
+      const next = [...tags, t];
+      setTags(next);
+      onUpdate(eventKey, { tags: next });
+    }
+    setNewTag('');
+  };
+  const removeTag = (t) => {
+    const next = tags.filter(x => x !== t);
+    setTags(next);
+    onUpdate(eventKey, { tags: next });
+  };
+
+  return (
+    <div className="scratch-inspector-backdrop" onClick={onClose}>
+      <div className="scratch-inspector" onClick={e => e.stopPropagation()} style={{ width: 440 }}>
+        <div className="scratch-insp-head">
+          <span>EVENT{hidden ? ' · HIDDEN' : ''}</span>
+          <button className="tweaks-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="scratch-insp-body">
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">TITLE</div>
+            <input className="pi-input" value={title} onChange={e => setTitle(e.target.value)} onBlur={save} />
+          </div>
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">TIME</div>
+            <input className="pi-input" value={time} onChange={e => setTime(e.target.value)} onBlur={save} />
+          </div>
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">LOCATION</div>
+            <input className="pi-input" value={where} onChange={e => setWhere(e.target.value)} onBlur={save} />
+          </div>
+          <div className="scratch-insp-section">
+            <div className="scratch-insp-label">TAGS</div>
+            <div className="pi-tag-row">
+              {tags.map(t => (
+                <span key={t} className="pi-tag">{t}<button onClick={() => removeTag(t)}>×</button></span>
+              ))}
+              <input
+                className="pi-tag-input"
+                value={newTag}
+                onChange={e => setNewTag(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addTag(); }}
+                placeholder="+ tag"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="scratch-insp-foot">
+          <button className="danger" onClick={() => { onUpdate(eventKey, { deleted: true }); onClose(); }}>🗑 DELETE</button>
+          <button onClick={() => { onUpdate(eventKey, { hidden: !hidden }); onClose(); }} style={{color: hidden ? 'var(--accent)' : 'var(--warn)', borderColor: hidden ? 'var(--accent)' : 'var(--warn)'}}>
+            {hidden ? '👁 UNHIDE' : '👁 HIDE'}
+          </button>
+          <button onClick={onClose}>DONE</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UNDO SEND — 3-second toast with countdown + UNDO button.
+// When the 3s elapses (handled in App), a whoosh plays and the email commits.
+// ─────────────────────────────────────────────────────────────────────────────
+const UNDO_SNARKS = [
+  "now's your chance to write something better",
+  "are you sure you're giving up already",
+  "last call. last, last call.",
+  "re-reading it now, huh? rude.",
+  "spellcheck. trust me.",
+  "proofread while you still can",
+  "the regret window is closing",
+  "spelling. check the spelling.",
+  "tone was… choices were made",
+  "committed. mostly.",
+  "fine. send it. fine.",
+  "auto-correct had opinions",
+];
+function UndoToast({ pending, onUndo, kind = 'email' }) {
+  const [remaining, setRemaining] = useState(3);
+  const snark = useMemo(() => UNDO_SNARKS[Math.floor(Math.random() * UNDO_SNARKS.length)], [pending.deadline]);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const ms = Math.max(0, pending.deadline - Date.now());
+      setRemaining(Math.ceil(ms / 1000));
+      if (ms <= 0) clearInterval(id);
+    }, 100);
+    return () => clearInterval(id);
+  }, [pending.deadline]);
+  const verb = kind === 'text' ? 'texting' : 'sending to';
+  return (
+    <div className="undo-toast">
+      <div className="undo-toast-row">
+        <span className="undo-dot" />
+        <span className="undo-text">{verb} {pending.to}</span>
+        <span className="undo-count">{remaining}s</span>
+        <button className="undo-btn" onClick={onUndo}>UNDO</button>
+      </div>
+      <div className="undo-snark">α: {snark}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEXT COMPOSER — SMS-style write/dictate/improve flow. Reuses the same
+// suggest + dictate + improve pattern as InboxReader but tighter.
+// ─────────────────────────────────────────────────────────────────────────────
+function TextComposer({ target, onClose, onSend }) {
+  const [draft, setDraft] = useState(target.__restoreDraft || '');
+  const [streaming, setStreaming] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState('');
+  const [improving, setImproving] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+  const recogRef = useRef(null);
+  const hasKey = !!localStorage.getItem('alfredo:anthropic_key');
+
+  const sysFor = (mode) => [
+    'You write short SMS text messages on behalf of Todd. Tone: warm, concise, casual — how a human actually texts. Lowercase, contractions, 1–2 sentences typically, no emoji unless the context is playful.',
+    mode === 'improve' ? 'You are IMPROVING raw dictation. Preserve intent + voice. Fix grammar, drop filler, tighten.' : '',
+    target.context ? 'Context: ' + target.context : '',
+    `Recipient: ${target.to}`,
+  ].filter(Boolean).join('\n');
+
+  const suggest = async () => {
+    const key = localStorage.getItem('alfredo:anthropic_key');
+    if (!key) return;
+    setStreaming(true);
+    setDraft('');
+    try {
+      await window.streamClaude({
+        apiKey: key, system: sysFor('suggest'),
+        userText: 'Draft a text to ' + target.to + '. Output ONLY the message body. Keep it short.',
+        onDelta: (chunk) => setDraft(d => d + chunk),
+        model: 'claude-haiku-4-5-20251001',
+        maxTokens: 200,
+      });
+    } catch (e) { setDraft(d => d + '\n[error: ' + e.message + ']'); }
+    finally { setStreaming(false); }
+  };
+
+  const improve = async () => {
+    const key = localStorage.getItem('alfredo:anthropic_key');
+    if (!key || !draft.trim()) return;
+    setImproving(true);
+    const raw = draft;
+    setDraft('');
+    try {
+      await window.streamClaude({
+        apiKey: key, system: sysFor('improve'),
+        userText: 'Raw dictation/draft to polish for SMS:\n\n' + raw + '\n\nReturn ONLY the cleaned text message body.',
+        onDelta: (chunk) => setDraft(d => d + chunk),
+        model: 'claude-haiku-4-5-20251001',
+        maxTokens: 200,
+      });
+    } catch (e) { setDraft(raw + '\n[improve failed]'); }
+    finally { setImproving(false); }
+  };
+
+  const toggleDictate = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { window.alfToast?.('speech recognition not supported here', { tone: 'warn' }); return; }
+    if (recording) { recogRef.current?.stop(); return; }
+    const r = new SR();
+    r.continuous = true; r.interimResults = true; r.lang = 'en-US';
+    let finalText = '';
+    r.onresult = (ev) => {
+      let interim = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const t = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) finalText += t + ' ';
+        else interim += t;
+      }
+      setLiveTranscript((finalText + interim).trim());
+    };
+    r.onerror = (e) => { setRecording(false); if (e.error !== 'no-speech') window.alfToast?.('dictation error: ' + e.error, { tone: 'bad' }); };
+    r.onend = () => {
+      setRecording(false);
+      const t = finalText.trim();
+      if (t) setDraft(d => (d ? d + ' ' : '') + t);
+      setLiveTranscript('');
+    };
+    recogRef.current = r;
+    setRecording(true);
+    r.start();
+  };
+
+  const attemptClose = () => {
+    if (draft.trim()) {
+      setConfirmClose(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const saveDraft = () => {
+    try {
+      const drafts = JSON.parse(localStorage.getItem('alfredo:textDrafts') || '[]');
+      drafts.push({ id: 'drf-' + Date.now().toString(36), to: target.to, phone: target.phone, body: draft, context: target.context, savedAt: Date.now() });
+      localStorage.setItem('alfredo:textDrafts', JSON.stringify(drafts.slice(-20)));
+    } catch {}
+    onClose();
+  };
+
+  const canSend = draft.trim().length > 0 && !streaming && !improving;
+
+  return (
+    <div className="inbox-reader-backdrop" onClick={attemptClose}>
+      <div className="inbox-reader" onClick={e => e.stopPropagation()} style={{ width: 440 }}>
+        <div className="inbox-reader-head">
+          <span>TEXT · SMS</span>
+          <button className="tweaks-close" onClick={attemptClose}>✕</button>
+        </div>
+
+        <div className="inbox-reader-body">
+          <div className="inbox-reader-meta">
+            <div className="inbox-reader-from">To: {target.to}</div>
+            <div className="inbox-reader-email">{target.phone}</div>
+            {target.context && <div className="inbox-reader-email" style={{ marginTop: 4, color: 'var(--text-dim)' }}>{target.context}</div>}
+          </div>
+
+          <div className="inbox-reader-actions">
+            <button className="primary" onClick={suggest} disabled={streaming || improving || !hasKey}>
+              {streaming ? 'DRAFTING…' : '✨ SUGGEST'}
+            </button>
+            <button onClick={() => document.querySelector('.inbox-compose textarea')?.focus()} disabled={streaming || improving}>✎ WRITE MY OWN</button>
+            <button className={`mic ${recording ? 'recording' : ''}`} onClick={toggleDictate} disabled={streaming || improving}>
+              {recording ? '● STOP' : '🎙 DICTATE'}
+            </button>
+          </div>
+
+          {recording && <div className="inbox-dictation-live">{liveTranscript || 'listening…'}</div>}
+
+          <div className="inbox-compose">
+            <div className="inbox-compose-label">
+              MESSAGE
+              {draft && hasKey && !streaming && !improving && !recording && (
+                <span className="hint">
+                  · <button
+                    style={{ color: 'var(--accent)', fontFamily: 'var(--mono)', fontSize: 9, cursor: 'pointer', background: 'none', border: 'none', padding: 0, textDecoration: 'underline' }}
+                    onClick={improve}
+                  >improve via claude</button>
+                </span>
+              )}
+            </div>
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={hasKey ? 'type or tap ✨ / 🎙' : 'set api key in TWEAKS to enable ai assist'}
+              disabled={streaming || improving}
+              rows={4}
+            />
+          </div>
+        </div>
+
+        <div className="inbox-reader-foot">
+          <button className="clear" disabled={!draft || streaming || improving} onClick={() => setDraft('')}>CLEAR TEXT</button>
+          <div style={{ flex: 1 }} />
+          <button onClick={attemptClose}>CLOSE</button>
+          <button className="send" disabled={!canSend} onClick={() => onSend(draft)}>SEND</button>
+        </div>
+
+        {confirmClose && (
+          <div className="draft-confirm">
+            <div className="draft-confirm-text">save draft before closing?</div>
+            <div className="draft-confirm-actions">
+              <button className="tweaks-btn" onClick={() => { setConfirmClose(false); }}>KEEP EDITING</button>
+              <button className="tweaks-btn" onClick={() => { setDraft(''); onClose(); }}>DISCARD</button>
+              <button className="tweaks-btn" style={{ color: 'var(--good)', borderColor: 'var(--good)' }} onClick={saveDraft}>SAVE DRAFT</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INBOX READER — tap an email → full message, then compose a reply three ways:
+// (1) ✨ SUGGEST — Claude streams a deadpan, context-aware reply into the box
+// (2) ✎ Type freely in the textarea
+// (3) 🎙 DICTATE — browser SpeechRecognition captures speech; IMPROVE sends the
+//     raw transcript to Claude to polish while preserving your voice.
+// ─────────────────────────────────────────────────────────────────────────────
+function InboxReader({ email, onClose, onSend }) {
+  // Restore a draft if one was preserved by the undo flow.
+  const [draft, setDraft] = useState(email.__restoreDraft || email.__draftBody || '');
+  const [streaming, setStreaming] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState('');
+  const [improving, setImproving] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+  const recogRef = useRef(null);
+  const isReadOnly = !!email.__sent;
+
+  const attemptClose = () => {
+    if (!isReadOnly && draft.trim()) setConfirmClose(true);
+    else onClose();
+  };
+  const saveDraft = () => {
+    try {
+      const drafts = JSON.parse(localStorage.getItem('alfredo:mailDrafts') || '[]');
+      // If editing a draft, replace it; else append
+      const id = email.__draftId || 'drf-' + Date.now().toString(36);
+      const next = drafts.filter(d => d.id !== id);
+      next.push({
+        id, to: email.from, toEmail: email.email,
+        subject: (email.subject || '').startsWith('Re:') ? email.subject : 'Re: ' + (email.subject || ''),
+        body: draft,
+        replyingTo: { from: email.from, subject: email.subject, snippet: email.snippet, body: email.body },
+        savedAt: Date.now(),
+      });
+      localStorage.setItem('alfredo:mailDrafts', JSON.stringify(next.slice(-20)));
+    } catch {}
+    onClose();
+  };
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && !recording) onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, recording]);
+
+  const hasKey = !!localStorage.getItem('alfredo:anthropic_key');
+
+  const systemForReply = (mode) => [
+    'You write email replies on behalf of Todd. PERSONA: concise, warm but direct, mildly dry. Lowercase is fine for informal recipients; match the formality of the incoming note.',
+    'Default length: 3–6 short sentences. Never use markdown, emoji, or signatures — just the body.',
+    mode === 'improve' ? 'You are IMPROVING the user\'s raw dictation. Preserve their voice and intent. Fix grammar, remove filler ("um", "uh", "like"), tighten phrasing. DO NOT change the message substance.' : '',
+    '',
+    `INCOMING EMAIL`,
+    `From: ${email.from} <${email.email || ''}>`,
+    `Subject: ${email.subject}`,
+    '',
+    email.body || email.snippet,
+  ].filter(Boolean).join('\n');
+
+  const suggestReply = async () => {
+    const key = localStorage.getItem('alfredo:anthropic_key');
+    if (!key) { window.alfToast?.('set an api key in TWEAKS first', { tone: 'warn' }); return; }
+    setStreaming(true);
+    setDraft('');
+    try {
+      await window.streamClaude({
+        apiKey: key,
+        system: systemForReply('suggest'),
+        userText: 'Draft a reply now. Output ONLY the reply body, no preamble.',
+        onDelta: (chunk) => setDraft(d => d + chunk),
+        model: 'claude-sonnet-4-6',
+        maxTokens: 500,
+      });
+    } catch (e) {
+      setDraft(d => d + '\n[error: ' + e.message + ']');
+    } finally {
+      setStreaming(false);
+    }
+  };
+
+  const improveDictation = async (transcript) => {
+    const key = localStorage.getItem('alfredo:anthropic_key');
+    if (!key) { setDraft(transcript); return; }
+    setImproving(true);
+    setDraft('');
+    try {
+      await window.streamClaude({
+        apiKey: key,
+        system: systemForReply('improve'),
+        userText: 'Raw dictation to clean up:\n\n' + transcript + '\n\nReturn the improved reply body only.',
+        onDelta: (chunk) => setDraft(d => d + chunk),
+        model: 'claude-sonnet-4-6',
+        maxTokens: 500,
+      });
+    } catch (e) {
+      setDraft(transcript + '\n\n[improve failed: ' + e.message + ']');
+    } finally {
+      setImproving(false);
+    }
+  };
+
+  const toggleDictate = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      window.alfToast?.('speech recognition needs chrome, edge, or safari', { tone: 'warn' });
+      return;
+    }
+    if (recording) {
+      recogRef.current?.stop();
+      return;
+    }
+    const r = new SR();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = 'en-US';
+    let finalText = '';
+    r.onresult = (ev) => {
+      let interim = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const t = ev.results[i][0].transcript;
+        if (ev.results[i].isFinal) finalText += t + ' ';
+        else interim += t;
+      }
+      setLiveTranscript((finalText + interim).trim());
+    };
+    r.onerror = (e) => {
+      setRecording(false);
+      if (e.error !== 'no-speech') window.alfToast?.('dictation error: ' + e.error, { tone: 'bad' });
+    };
+    r.onend = () => {
+      setRecording(false);
+      const transcript = (finalText).trim();
+      if (transcript) {
+        // drop raw into draft; user can SEND as-is or tap IMPROVE to polish
+        setDraft(d => (d ? d + '\n\n' : '') + transcript);
+      }
+      setLiveTranscript('');
+    };
+    recogRef.current = r;
+    setLiveTranscript('');
+    setRecording(true);
+    r.start();
+  };
+
+  const canSend = draft.trim().length > 0 && !streaming && !improving;
+
+  return (
+    <div className="inbox-reader-backdrop" onClick={() => { if (!recording) attemptClose(); }}>
+      <div className="inbox-reader" onClick={e => e.stopPropagation()}>
+        <div className="inbox-reader-head">
+          <span>{isReadOnly ? 'SENT · ' + new Date(email.sentAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'INBOX · ' + email.classified}</span>
+          <button className="tweaks-close" onClick={attemptClose}>✕</button>
+        </div>
+
+        <div className="inbox-reader-body">
+          <div className="inbox-reader-meta">
+            <div className="inbox-reader-from">{isReadOnly ? 'To: ' + email.from : email.from}</div>
+            <div className="inbox-reader-email">{email.email} · {email.age || ''}</div>
+            <div className="inbox-reader-subject">{email.subject}</div>
+          </div>
+
+          <div className="inbox-reader-message">{email.body || email.snippet}</div>
+
+          {!isReadOnly && (
+            <>
+              <div className="inbox-reader-actions">
+                <button className="primary" onClick={suggestReply} disabled={streaming || improving || !hasKey} title={!hasKey ? 'set api key in TWEAKS' : ''}>
+                  {streaming ? 'DRAFTING…' : '✨ SUGGEST REPLY'}
+                </button>
+                {/* WRITE MY OWN just focuses the textarea; doesn't wipe existing text */}
+                <button onClick={() => document.querySelector('.inbox-compose textarea')?.focus()} disabled={streaming || improving}>✎ WRITE MY OWN</button>
+                <button className={`mic ${recording ? 'recording' : ''}`} onClick={toggleDictate} disabled={streaming || improving}>
+                  {recording ? '● STOP' : '🎙 DICTATE'}
+                </button>
+              </div>
+
+              {recording && (
+                <div className="inbox-dictation-live">{liveTranscript || 'listening…'}</div>
+              )}
+
+              <div className="inbox-compose">
+                <div className="inbox-compose-label">
+                  REPLY
+                  {draft && hasKey && !streaming && !improving && !recording && (
+                    <span className="hint">
+                      · <button
+                        style={{ color: 'var(--accent)', fontFamily: 'var(--mono)', fontSize: 9, cursor: 'pointer', background: 'none', border: 'none', padding: 0, textDecoration: 'underline' }}
+                        onClick={() => improveDictation(draft)}
+                        disabled={improving}
+                      >improve via claude</button>
+                    </span>
+                  )}
+                  {improving && <span className="hint">· polishing…</span>}
+                </div>
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder={hasKey ? 'type, tap ✨ for a draft, or 🎙 to dictate' : 'set api key in TWEAKS to enable ai assist'}
+                  disabled={streaming || improving}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="inbox-reader-foot">
+          {!isReadOnly && (
+            <button className="clear" disabled={!draft || streaming || improving} onClick={() => setDraft('')}>CLEAR TEXT</button>
+          )}
+          <div style={{ flex: 1 }} />
+          <button onClick={attemptClose}>CLOSE</button>
+          {!isReadOnly && (
+            <button className="send" disabled={!canSend} onClick={() => onSend(draft)}>SEND</button>
+          )}
+        </div>
+
+        {confirmClose && !isReadOnly && (
+          <div className="draft-confirm">
+            <div className="draft-confirm-text">save draft before closing?</div>
+            <div className="draft-confirm-actions">
+              <button className="tweaks-btn" onClick={() => setConfirmClose(false)}>KEEP EDITING</button>
+              <button className="tweaks-btn" onClick={() => { setDraft(''); onClose(); }}>DISCARD</button>
+              <button className="tweaks-btn" style={{ color: 'var(--good)', borderColor: 'var(--good)' }} onClick={saveDraft}>SAVE DRAFT</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TweaksPanel({ s, update, onClose, sketchMode, setSketchMode, sketches, setSketches, surface, onSuggest, collapsed, setCollapsed }) {
+  const [apiKeyDraft, setApiKeyDraft] = useState(() => localStorage.getItem('alfredo:anthropic_key') || '');
+  const [apiKeyEditing, setApiKeyEditing] = useState(false);
+  const [keyTestResult, setKeyTestResult] = useState(null); // { ok, msg }
+  const keyPresent = !!apiKeyDraft;
+  const maskedKey = apiKeyDraft ? apiKeyDraft.slice(0, 8) + '…' + apiKeyDraft.slice(-4) : '';
+
+  const testKey = async () => {
+    const key = localStorage.getItem('alfredo:anthropic_key') || apiKeyDraft.trim();
+    if (!key) { setKeyTestResult({ ok: false, msg: 'no key set' }); return; }
+    setKeyTestResult({ ok: null, msg: 'testing…' });
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 8,
+          messages: [{ role: 'user', content: 'reply with just: ok' }],
+        }),
+      });
+      if (resp.ok) {
+        const json = await resp.json();
+        const reply = (json.content?.[0]?.text || '').trim().toLowerCase();
+        setKeyTestResult({ ok: true, msg: `✓ key works · reply: "${reply.slice(0, 20)}"` });
+      } else {
+        const err = await resp.text();
+        let parsed = err;
+        try { parsed = JSON.parse(err).error?.message || err; } catch {}
+        setKeyTestResult({ ok: false, msg: `✕ ${resp.status}: ${parsed.slice(0, 100)}` });
+      }
+    } catch (e) {
+      setKeyTestResult({ ok: false, msg: '✕ ' + (e.message || 'network error') });
+    }
+  };
+  const palettes = [
+    { id: 'blue', color: '#8ab4f8' },
+    { id: 'phosphor', color: '#5cf2a4' },
+    { id: 'amber', color: '#ffb454' },
+    { id: 'tokyo', color: '#bb9af7' },
+  ];
+
+  const btn = (active, onClick, label) => (
+    <button className={`tweaks-btn ${active ? 'active' : ''}`} onClick={onClick}>{label}</button>
+  );
+
+  return (
+    <div className="tweaks-panel">
+      <div className="tweaks-head">
+        <span>⚙ TWEAKS</span>
+        <button className="tweaks-close" onClick={onClose}>✕</button>
+      </div>
+
+      <div className="tweaks-group">
+        <div className="tweaks-label">SURFACE</div>
+        <div className="tweaks-row">
+          {btn(s.surface === 'kiosk', () => update({ surface: 'kiosk' }), 'KIOSK')}
+          {btn(s.surface === 'macos', () => update({ surface: 'macos' }), 'MACOS')}
+          {btn(s.surface === 'ios', () => update({ surface: 'ios' }), 'iOS')}
+        </div>
+      </div>
+
+      <div className="tweaks-group">
+        <div className="tweaks-label">MODE · {(s.mode === 'auto' ? 'AUTO · ' + resolveMode('auto') : s.mode).toUpperCase()}</div>
+        <div className="tweaks-row">
+          {btn(s.mode === 'auto', () => update({ mode: 'auto' }), 'AUTO')}
+          {btn(s.mode === 'work', () => update({ mode: 'work' }), 'WORK')}
+          {btn(s.mode === 'weekend', () => update({ mode: 'weekend' }), 'WEEKEND')}
+          {btn(s.mode === 'night', () => update({ mode: 'night' }), 'NIGHT')}
+          {btn(s.mode === 'focus', () => update({ mode: 'focus' }), 'FOCUS')}
+          {btn(s.mode === 'meeting', () => update({ mode: 'meeting' }), 'MEETING')}
+        </div>
+      </div>
+
+      <div className="tweaks-group">
+        <div className="tweaks-label">PALETTE</div>
+        <div className="tweaks-row">
+          {palettes.map(p => (
+            <button
+              key={p.id}
+              className={`tweaks-swatch ${s.palette === p.id ? 'active' : ''}`}
+              style={{ background: p.color }}
+              onClick={() => update({ palette: p.id })}
+              title={p.id}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="tweaks-group">
+        <div className="tweaks-label">FONT</div>
+        <div className="tweaks-row">
+          {btn(s.font === 'jetbrains', () => update({ font: 'jetbrains' }), 'JETBRAINS')}
+          {btn(s.font === 'plex', () => update({ font: 'plex' }), 'PLEX')}
+          {btn(s.font === 'geist', () => update({ font: 'geist' }), 'GEIST')}
+        </div>
+      </div>
+
+      <div className="tweaks-group">
+        <div className="tweaks-label">CHROME · {s.chrome === 0 ? 'CLEAN' : s.chrome === 1 ? 'OPERATOR' : 'FULL HUD'}</div>
+        <input
+          type="range"
+          min="0" max="2" step="1"
+          value={s.chrome}
+          onChange={e => update({ chrome: parseInt(e.target.value) })}
+          className="tweaks-slider"
+        />
+      </div>
+
+      <div className="tweaks-group">
+        <div className="tweaks-label">DENSITY</div>
+        <div className="tweaks-row">
+          {btn(s.density === 'default', () => update({ density: 'default' }), 'DEFAULT')}
+          {btn(s.density === 'tight', () => update({ density: 'tight' }), 'TIGHT')}
+        </div>
+      </div>
+
+      <div className="tweaks-group">
+        <div className="tweaks-label">CONFIDENCE · VIZ</div>
+        <div className="tweaks-row">
+          {btn(s.confVariant === 'dot', () => update({ confVariant: 'dot' }), 'DOT')}
+          {btn(s.confVariant === 'pct', () => update({ confVariant: 'pct' }), '%')}
+          {btn(s.confVariant === 'fade', () => update({ confVariant: 'fade' }), 'FADE')}
+        </div>
+      </div>
+
+      <div className="tweaks-group">
+        <div className="tweaks-label">FOCUS · MODE</div>
+        <div className="tweaks-row">
+          {btn(s.focusVariant === 'spotlight', () => update({ focusVariant: 'spotlight' }), 'SPOTLIGHT')}
+          {btn(s.focusVariant === 'blackout', () => update({ focusVariant: 'blackout' }), 'BLACKOUT')}
+          {btn(s.focusVariant === 'zoom', () => update({ focusVariant: 'zoom' }), 'ZOOM')}
+        </div>
+      </div>
+
+      <div className="tweaks-group" style={{borderTop: '1px dashed var(--line)', paddingTop: 10, marginTop: 4}}>
+        <div className="tweaks-label">PANES · {Object.values(collapsed || {}).filter(Boolean).length} COLLAPSED</div>
+        <div className="tweaks-row">
+          <button className="tweaks-btn" onClick={() => setCollapsed({})}>EXPAND ALL</button>
+        </div>
+        <div style={{fontSize: 9, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4}}>
+          tap any pane title to collapse it. siblings below slide up into the space.
+        </div>
+      </div>
+
+      <div className="tweaks-group" style={{borderTop: '1px dashed var(--line)', paddingTop: 10, marginTop: 4}}>
+        <div className="tweaks-label">CLAUDE.TTY · {keyPresent ? 'LIVE · sonnet' : 'STUB'}</div>
+        {apiKeyEditing ? (
+          <>
+            <input
+              type="password"
+              autoFocus
+              value={apiKeyDraft}
+              onChange={(e) => setApiKeyDraft(e.target.value)}
+              placeholder="sk-ant-…"
+              style={{
+                fontFamily: 'var(--mono)', fontSize: 10,
+                background: 'var(--bg-2)', border: '1px solid var(--line-2)',
+                padding: '6px 8px', color: 'var(--text)', width: '100%'
+              }}
+            />
+            <div className="tweaks-row">
+              <button
+                className="tweaks-btn"
+                onClick={() => {
+                  if (apiKeyDraft.trim()) localStorage.setItem('alfredo:anthropic_key', apiKeyDraft.trim());
+                  setApiKeyEditing(false);
+                }}
+              >SAVE</button>
+              <button
+                className="tweaks-btn"
+                onClick={() => {
+                  localStorage.removeItem('alfredo:anthropic_key');
+                  setApiKeyDraft('');
+                  setApiKeyEditing(false);
+                }}
+              >CLEAR</button>
+              <button className="tweaks-btn" onClick={() => setApiKeyEditing(false)}>CANCEL</button>
+            </div>
+          </>
+        ) : (
+          <div className="tweaks-row">
+            <button className="tweaks-btn" onClick={() => setApiKeyEditing(true)}>
+              {keyPresent ? `EDIT · ${maskedKey}` : '+ SET API KEY'}
+            </button>
+            {keyPresent && <button className="tweaks-btn" onClick={testKey}>TEST</button>}
+          </div>
+        )}
+        {keyTestResult && (
+          <div style={{
+            fontSize: 9,
+            color: keyTestResult.ok === true ? 'var(--good)' : keyTestResult.ok === false ? 'var(--bad)' : 'var(--muted)',
+            marginTop: 4, lineHeight: 1.4, wordBreak: 'break-word'
+          }}>
+            {keyTestResult.msg}
+          </div>
+        )}
+        <div style={{fontSize: 9, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4}}>
+          key is stored in localStorage on this machine only. streams direct from anthropic api with prompt caching. sonnet 4.6.
+        </div>
+      </div>
+
+      <div className="tweaks-group" style={{borderTop: '1px dashed var(--line)', paddingTop: 10, marginTop: 4}}>
+        <div className="tweaks-label">α · PROACTIVE</div>
+        <div className="tweaks-row">
+          <button className="tweaks-btn" onClick={onSuggest}>SUGGEST NOW</button>
+        </div>
+        <div style={{fontSize: 9, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4}}>
+          auto-runs every 30 min. output lands in SCRATCH.PAD with an α accent. calendar writes always need your tap.
+        </div>
+      </div>
+
+      <div className="tweaks-group" style={{borderTop: '1px dashed var(--line)', paddingTop: 10, marginTop: 4}}>
+        <div className="tweaks-label">SKETCH · NEW WIDGETS ON {(surface || 'kiosk').toUpperCase()}</div>
+        <div className="tweaks-row">
+          {btn(sketchMode === 'off', () => setSketchMode('off'), 'OFF')}
+          {btn(sketchMode === 'draw', () => setSketchMode('draw'), '+ DRAW')}
+          {btn(sketchMode === 'edit', () => setSketchMode('edit'), '✎ EDIT')}
+        </div>
+        {(sketches[surface] || []).length > 0 && (
+          <div style={{marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3}}>
+            {(sketches[surface] || []).map(w => (
+              <div key={w.id} style={{fontSize: 9, color: 'var(--text-dim)', display: 'flex', gap: 6}}>
+                <span style={{color: 'var(--accent)', flexShrink: 0}}>·</span>
+                <span style={{flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                  {w.label || 'untitled'}
+                </span>
+                <span style={{color: 'var(--muted)'}}>{w.w}×{w.h}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="tweaks-row" style={{marginTop: 6}}>
+          <button
+            className="tweaks-btn"
+            disabled={!Object.values(sketches).some(v => v && v.length)}
+            onClick={async () => {
+              const json = JSON.stringify(sketches, null, 2);
+              try {
+                await navigator.clipboard.writeText(json);
+                window.alfToast?.('copied ' + Object.values(sketches).reduce((n, v) => n + (v?.length || 0), 0) + ' widget sketches to clipboard', { tone: 'good' });
+              } catch {
+                // fallback: open in new window so user can copy manually
+                const w = window.open();
+                w.document.write('<pre>' + json.replace(/</g, '&lt;') + '</pre>');
+              }
+            }}
+          >EXPORT JSON</button>
+          <button
+            className="tweaks-btn"
+            disabled={!(sketches[surface] || []).length}
+            onClick={() => {
+              window.alfConfirm?.(
+                'Remove all sketches on ' + (surface || 'this surface').toUpperCase() + '?',
+                () => setSketches(prev => ({ ...prev, [surface]: [] }))
+              );
+            }}
+          >CLEAR</button>
+        </div>
+      </div>
+
+      <div className="tweaks-group" style={{opacity: 0.6, borderTop: '1px dashed var(--line)', paddingTop: 10, marginTop: 4}}>
+        <div style={{fontSize: 9, color: 'var(--muted)', lineHeight: 1.5}}>
+          long-press any priority in DAILY.BRIEF to enter focus mode. tap blank ◌ in SCRATCH.PAD to add. ask CLAUDE.TTY anything — it's live.
+          <br/><br/>
+          <b>sketch:</b> DRAW → click-drag on the surface to size a new widget, then label + describe. EDIT → drag the header to move, corner to resize, ✎ to edit meta, × to delete. EXPORT to share the JSON with me.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

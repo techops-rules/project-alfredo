@@ -23,9 +23,7 @@ struct MarkdownParser {
 
             if isIndented, trimmed.hasPrefix("- ["), !tasks.isEmpty {
                 let isDone = trimmed.hasPrefix("- [x]") || trimmed.hasPrefix("- [X]")
-                guard trimmed.count > 6 else { continue }
-                let textStart = trimmed.index(trimmed.startIndex, offsetBy: 6)
-                let text = String(trimmed[textStart...]).trimmingCharacters(in: .whitespaces)
+                let text = String(trimmed.dropFirst(6)).trimmingCharacters(in: .whitespaces)
                 guard !text.isEmpty else { continue }
                 if tasks[tasks.count - 1].subtasks.count < 5 {
                     tasks[tasks.count - 1].subtasks.append(
@@ -49,9 +47,7 @@ struct MarkdownParser {
             // Parse checkbox lines (Today/Done sections)
             if trimmed.hasPrefix("- [") {
                 let isDone = trimmed.hasPrefix("- [x]") || trimmed.hasPrefix("- [X]")
-                guard trimmed.count > 6 else { continue }
-                let textStart = trimmed.index(trimmed.startIndex, offsetBy: 6)
-                let rawText = String(trimmed[textStart...]).trimmingCharacters(in: .whitespaces)
+                let rawText = String(trimmed.dropFirst(6)).trimmingCharacters(in: .whitespaces)
                 if rawText.isEmpty || rawText == "-" { continue }
 
                 let source = parseSource(from: rawText)
